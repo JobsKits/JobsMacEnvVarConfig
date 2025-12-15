@@ -60,23 +60,47 @@ update() {
 
 # -------------------- flutter() 重载（优先 FVM） --------------------
 flutter() {
-  if [[ -f .fvm/fvm_config.json && -x .fvm/flutter_sdk/bin/flutter ]]; then
-    if ! command -v fvm >/dev/null 2>&1 || ! fvm --version >/dev/null 2>&1; then
-      if command -v dart >/dev/null 2>&1; then
-        dart pub global deactivate fvm >/dev/null 2>&1 || true
-        dart pub global activate  fvm >/dev/null 2>&1 || true
-        hash -r
-      fi
+  emulate -L zsh
+  setopt no_aliases
+
+  # 向上寻找项目根：.fvmrc 或 .fvm/flutter_sdk
+  local d="$PWD"
+  local root=""
+
+  while [[ "$d" != "/" ]]; do
+    if [[ -f "$d/.fvmrc" || -x "$d/.fvm/flutter_sdk/bin/flutter" || -f "$d/.fvm/fvm_config.json" ]]; then
+      root="$d"
+      break
     fi
-    if command -v fvm >/dev/null 2>&1 && fvm --version >/dev/null 2>&1; then
-      command fvm flutter "$@"
-    else
-      command .fvm/flutter_sdk/bin/flutter "$@"
-    fi
-  else
-    command flutter "$@"
+    d="${d:h}"
+  done
+
+  # 1) 最可靠：如果项目已有 .fvm/flutter_sdk，直接用它（不依赖系统 flutter，也不依赖 fvm 命令）
+  if [[ -n "$root" && -x "$root/.fvm/flutter_sdk/bin/flutter" ]]; then
+    command "$root/.fvm/flutter_sdk/bin/flutter" "$@"
+    return $?
   fi
+
+  # 2) 项目有 .fvmrc / fvm_config.json：走 fvm flutter（读取项目配置）
+  if [[ -n "$root" && ( -f "$root/.fvmrc" || -f "$root/.fvm/fvm_config.json" ) ]]; then
+    if command -v fvm >/dev/null 2>&1; then
+      command fvm flutter "$@"
+      return $?
+    fi
+    print -u2 "✖ 检测到 FVM 项目，但找不到 fvm 命令。请先安装 fvm。"
+    return 127
+  fi
+
+  # 3) 非 FVM 项目：走系统 flutter（若存在）
+  if command -v flutter >/dev/null 2>&1; then
+    command flutter "$@"
+    return $?
+  fi
+
+  print -u2 "✖ flutter: command not found（未安装系统 Flutter，且当前目录不在 FVM 项目内）"
+  return 127
 }
+
 
 # -------------------- fvm 修复（与 Dart 内核匹配） --------------------
 fixfvm() {
@@ -699,3 +723,13 @@ cor() {
   done
 }
 export PATH="$HOME/Library/Python/3.9/bin:$PATH"
+
+# >>> homebrew_env >>>
+eval "$(/opt/homebrew/bin/brew shellenv)"
+# <<< homebrew_env <<<
+
+## [Completion]
+## Completion scripts setup. Remove the following line to uninstall
+[[ -f /Users/mac/.dart-cli-completion/zsh-config.zsh ]] && . /Users/mac/.dart-cli-completion/zsh-config.zsh || true
+## [/Completion]
+
