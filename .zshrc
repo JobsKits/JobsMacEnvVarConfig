@@ -420,6 +420,47 @@ ipa() {
   echo "📂 打开输出目录: ./build/ios/ipa/"; open "./build/ios/ipa/"
 }
 
+# ============================== 查看本机局域网 IP(LAN) 与 外网 IP(WAN) ==============================
+ip() {
+  # ============================== 基础信息 ==============================
+  local iface="en0"   # 常见：Wi-Fi 是 en0；如果你用网线可能是 en1/其它
+  local lan_ip=""
+  local wan_ip=""
+
+  # ============================== 获取 LAN IP ==============================
+  lan_ip="$(ipconfig getifaddr "$iface" 2>/dev/null)"
+
+  # 如果 en0 没拿到，尝试从当前默认路由对应网卡拿一次（更稳一点）
+  if [[ -z "$lan_ip" ]]; then
+    local default_iface
+    default_iface="$(route -n get default 2>/dev/null | awk '/interface:/{print $2; exit}')"
+    if [[ -n "$default_iface" ]]; then
+      lan_ip="$(ipconfig getifaddr "$default_iface" 2>/dev/null)"
+      iface="$default_iface"
+    fi
+  fi
+
+  # ============================== 获取 WAN IP ==============================
+  # ifconfig.me 有时会抽风；这里再加一个兜底
+  wan_ip="$(curl -s --max-time 5 ifconfig.me 2>/dev/null)"
+  if [[ -z "$wan_ip" ]]; then
+    wan_ip="$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null)"
+  fi
+
+  # ============================== 输出 ==============================
+  if [[ -n "$lan_ip" ]]; then
+    echo "局域网 IP（LAN / 网卡 ${iface}）：${lan_ip}"
+  else
+    echo "局域网 IP（LAN）：未获取到（可能未连接网络，或网卡不是 en0/en1）"
+  fi
+
+  if [[ -n "$wan_ip" ]]; then
+    echo "外网 IP（WAN / 公网 IP）：${wan_ip}"
+  else
+    echo "外网 IP（WAN / 公网 IP）：未获取到（检查网络或 DNS，或接口被墙/超时）"
+  fi
+}
+
 # ================================== 内部工具：选择 JSON 文件 ==================================
 _qt_select_json() {
   local files file raw
