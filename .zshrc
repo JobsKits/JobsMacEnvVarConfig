@@ -1,11 +1,41 @@
-source "$HOME/.bash_profile"
-source "$HOME/.bashrc"
-source "$HOME/.profile"
+# ================================== 统一加载（存在才 source，避免新机报错） ==================================
+[[ -f "$HOME/.bash_profile" ]] && source "$HOME/.bash_profile"
+[[ -f "$HOME/.bashrc" ]] && source "$HOME/.bashrc"
+[[ -f "$HOME/.profile" ]] && source "$HOME/.profile"
+
 # -------------------- Oh My Zsh 基本设置 --------------------
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="robbyrussell"
 plugins=(git)
 source "$ZSH/oh-my-zsh.sh"
+
+# -------------------- Homebrew（芯片自检 + 路径兜底；不装则安静跳过） --------------------
+init_homebrew() {
+  local arch brew_bin
+
+  arch="$(uname -m)"
+
+  # 先按芯片给默认路径（更符合直觉）
+  if [[ "$arch" == "arm64" ]]; then
+    brew_bin="/opt/homebrew/bin/brew"
+  else
+    brew_bin="/usr/local/bin/brew"
+  fi
+
+  # 再做事实兜底：如果默认不存在，就在常见路径里找
+  if [[ ! -x "$brew_bin" ]]; then
+    if [[ -x /opt/homebrew/bin/brew ]]; then
+      brew_bin="/opt/homebrew/bin/brew"
+    elif [[ -x /usr/local/bin/brew ]]; then
+      brew_bin="/usr/local/bin/brew"
+    else
+      return 0
+    fi
+  fi
+
+  eval "$("$brew_bin" shellenv)"
+}
+init_homebrew
 
 # -------------------- jenv（启动时安全初始化） --------------------
 # OPT: 仅在安装了 jenv 的情况下初始化，避免新机/容器报错
@@ -100,7 +130,6 @@ flutter() {
   print -u2 "✖ flutter: command not found（未安装系统 Flutter，且当前目录不在 FVM 项目内）"
   return 127
 }
-
 
 # -------------------- fvm 修复（与 Dart 内核匹配） --------------------
 fixfvm() {
@@ -373,7 +402,6 @@ ensure_fvm_and_flutter_version_before_build() {
 }
 
 ensure_jdk17() {
-  # OPT: 去掉未定义的 err；全部走 echo >&2，并返回非零而不是 exit，便于上层控制
   if ! /usr/libexec/java_home -v 17 >/dev/null 2>&1; then
     echo "[ERROR] 系统未安装 JDK 17（建议：brew install --cask temurin17）" >&2
     return 1
@@ -420,357 +448,142 @@ ipa() {
   echo "📂 打开输出目录: ./build/ios/ipa/"; open "./build/ios/ipa/"
 }
 
-# ============================== 查看本机局域网 IP(LAN) 与 外网 IP(WAN) ==============================
-ip() {
-  # ============================== 基础信息 ==============================
-  local iface="en0"   # 常见：Wi-Fi 是 en0；如果你用网线可能是 en1/其它
-  local lan_ip=""
-  local wan_ip=""
+# ================================== config：用 Xcode 打开配置文件（无 Xcode 则用系统文本编辑器） ==================================
+config() {
+  local arg="$1"
+  local home_dir="${HOME}"
+  local target=""
+  local xcode_app="/Applications/Xcode.app"
 
-  # ============================== 获取 LAN IP ==============================
-  lan_ip="$(ipconfig getifaddr "$iface" 2>/dev/null)"
-
-  # 如果 en0 没拿到，尝试从当前默认路由对应网卡拿一次（更稳一点）
-  if [[ -z "$lan_ip" ]]; then
-    local default_iface
-    default_iface="$(route -n get default 2>/dev/null | awk '/interface:/{print $2; exit}')"
-    if [[ -n "$default_iface" ]]; then
-      lan_ip="$(ipconfig getifaddr "$default_iface" 2>/dev/null)"
-      iface="$default_iface"
+  # 无参数：默认打开 ~/.zshrc
+  if [[ -z "$arg" ]]; then
+    target="${home_dir}/.zshrc"
+  else
+    if [[ "$arg" == .* ]]; then
+      target="${home_dir}/${arg}"
+    elif [[ "$arg" == /* ]]; then
+      target="$arg"
+    else
+      target="${home_dir}/${arg}"
     fi
   fi
 
-  # ============================== 获取 WAN IP ==============================
-  # ifconfig.me 有时会抽风；这里再加一个兜底
-  wan_ip="$(curl -s --max-time 5 ifconfig.me 2>/dev/null)"
-  if [[ -z "$wan_ip" ]]; then
-    wan_ip="$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null)"
+  if [[ ! -e "$target" ]]; then
+    echo "❌ 找不到：$target"
+    echo "👉 用法：config（打开 ~/.zshrc） / config .profile（打开 \$HOME/.profile）"
+    return 1
   fi
 
-  # ============================== 输出 ==============================
-  if [[ -n "$lan_ip" ]]; then
-    echo "局域网 IP（LAN / 网卡 ${iface}）：${lan_ip}"
+  if [[ -d "$xcode_app" ]]; then
+    open -a "Xcode" "$target"
   else
-    echo "局域网 IP（LAN）：未获取到（可能未连接网络，或网卡不是 en0/en1）"
-  fi
-
-  if [[ -n "$wan_ip" ]]; then
-    echo "外网 IP（WAN / 公网 IP）：${wan_ip}"
-  else
-    echo "外网 IP（WAN / 公网 IP）：未获取到（检查网络或 DNS，或接口被墙/超时）"
+    open -e "$target"
   fi
 }
 
-# ================================== 内部工具：选择 JSON 文件 ==================================
-_qt_select_json() {
-  local files file raw
+# ============================== New Mac bootstrap: install ==============================
+install() {
+  set -euo pipefail
 
-  # 如果传了参数就优先用参数（虽然目前 qt 不传，但保留以防以后复用）
-  if [[ -n "$1" ]]; then
-    local candidate="$1"
-    # 展开 ~ 等（zsh 特性）
-    candidate=${~candidate}
-    if [[ -f "$candidate" ]]; then
-      REPLY="$candidate"
+  # -------- pretty output --------
+  _i() { print -P "%F{cyan}ℹ️  %f$*"; }
+  _ok(){ print -P "%F{green}✅ %f$*"; }
+  _w() { print -P "%F{yellow}⚠️  %f$*"; }
+  _e() { print -P "%F{red}❌ %f$*"; }
+
+  # -------- helpers --------
+  _has() { command -v "$1" >/dev/null 2>&1; }
+
+  _append_once() {
+    local line="$1"
+    local file="${2:-$HOME/.zshrc}"
+    mkdir -p "$(dirname "$file")"
+    touch "$file"
+    if grep -Fqx "$line" "$file"; then
       return 0
-    else
-      echo "⚠️ 找不到文件: $candidate" >&2
-      # 不直接 return，继续走自动扫描 + 手动输入流程
     fi
-  fi
+    print "" >> "$file"
+    print "$line" >> "$file"
+  }
 
-  # 递归查找当前目录下的 *.json
-  raw=$(find . -type f -name '*.json' -print 2>/dev/null)
-
-  if [[ -n "$raw" ]]; then
-    # 找到了至少一个
-    local -a files
-    files=("${(@f)${raw}}")
-
-    if (( ${#files[@]} == 1 )); then
-      # ✅ 只有一个 JSON，直接用，不要动 fzf
-      file="${files[1]}"
-    else
-      # 多于 1 个，才有必要用 fzf 选
-      if command -v fzf >/dev/null 2>&1; then
-        file=$(printf '%s\n' "${files[@]}" | fzf \
-          --prompt="选择 JSON 文件> " \
-          --header="扫描到 ${#files[@]} 个 JSON 文件，↑↓ 选择，回车确认")
-        [[ -z "$file" ]] && return 1
-      else
-        # 没有 fzf，又不止一个文件，只能报错+列表
-        echo "❌ 找到多个 JSON 文件，但未安装 fzf，无法交互选择" >&2
-        printf '%s\n' "${files[@]}"
-        return 1
-      fi
-    fi
-
-    REPLY="$file"
-    return 0
-  fi
-
-  # 走到这里说明：当前目录及子目录里一个 *.json 都没找到
-  # 改为循环询问用户手动输入路径，直到正确或退出
-  while true; do
-    echo -n "❓ 未找到任何 *.json，请手动输入 JSON 文件路径（或输入 q 退出）："
-    local input
-    read -r input
-
-    # 直接回车就继续问
-    if [[ -z "$input" ]]; then
-      continue
-    fi
-
-    # 用户主动退出
-    if [[ "$input" == "q" || "$input" == "Q" ]]; then
-      echo "🚪 已取消"
-      return 1
-    fi
-
-    # 展开 ~ 等
-    input=${~input}
-
-    if [[ -f "$input" ]]; then
-      REPLY="$input"
+  _ensure_homebrew() {
+    if _has brew; then
+      _ok "Homebrew 已存在：$(brew --version | head -n 1)"
       return 0
+    fi
+
+    _i "开始安装 Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    _ok "Homebrew 安装完成"
+
+    # 让当前 shell 立刻可用（Apple Silicon: /opt/homebrew, Intel: /usr/local）
+    if [[ -x /opt/homebrew/bin/brew ]]; then
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      _append_once 'eval "$(/opt/homebrew/bin/brew shellenv)"' "$HOME/.zshrc"
+    elif [[ -x /usr/local/bin/brew ]]; then
+      eval "$(/usr/local/bin/brew shellenv)"
+      _append_once 'eval "$(/usr/local/bin/brew shellenv)"' "$HOME/.zshrc"
+    fi
+  }
+
+  _brew_install_if_needed() {
+    local formula="$1"
+    if brew list --formula "$formula" >/dev/null 2>&1; then
+      _ok "已安装：$formula"
     else
-      echo "❌ 仍然找不到文件: $input" >&2
+      _i "安装：$formula"
+      brew install "$formula"
+      _ok "安装完成：$formula"
     fi
-  done
-}
-
-# ================================== 公共：检查 quicktype ==================================
-_qt_require_quicktype() {
-  if ! command -v quicktype >/dev/null 2>&1; then
-    echo "❌ 未找到 quicktype 命令，请先安装：npm i -g quicktype" >&2
-    return 1
-  fi
-}
-
-# ================================== 主命令：qt（Swift / Dart） ==================================
-# 用法：
-#   qt          # 交互选择语言（swift/dart）+ 自动扫描 json（1 个直用、多于 1 个用 fzf）
-#   qt swift    # 固定 swift，自动扫描 json
-#   qt dart     # 固定 dart，自动扫描 json
-qt() {
-  local lang
-
-  # 1️⃣ 解析语言参数 / 交互式选择
-  if [[ -z "$1" ]]; then
-    # 没有参数：用 fzf 或菜单 选择语言
-    if command -v fzf >/dev/null 2>&1; then
-      lang=$(printf '%s\n' swift dart | fzf \
-        --prompt="选择输出语言> " \
-        --header="quicktype 目标语言（ESC 取消）")
-      if [[ -z "$lang" ]]; then
-        echo "🚪 已取消"
-        return 1
-      fi
-    else
-      # 无 fzf：用简单菜单
-      while true; do
-        echo "请选择输出语言："
-        echo "  1) swift"
-        echo "  2) dart"
-        printf "输入序号或名称（默认 1 / swift，输入 q 退出）："
-        local ans
-        read -r ans
-        case "$ans" in
-          ""|1|swift|Swift|SWIFT)
-            lang="swift"
-            break
-            ;;
-          2|dart|Dart|DART)
-            lang="dart"
-            break
-            ;;
-          q|Q)
-            echo "🚪 已取消"
-            return 1
-            ;;
-          *)
-            echo "❌ 无效输入，请重试"
-            ;;
-        esac
-      done
-    fi
-  else
-    # 有参数：只接受 swift / dart，其他一律报错
-    case "$1" in
-      swift|Swift|SWIFT)
-        lang="swift"
-        ;;
-      dart|Dart|DART)
-        lang="dart"
-        ;;
-      *)
-        echo "❌ 不支持的参数: $1（只支持：swift / dart）" >&2
-        return 1
-        ;;
-    esac
-    shift
-  fi
-
-  # 现在只允许 0 个额外参数，彻底砍掉 “qt path/to/a.json” 这种用法
-  if [[ -n "$1" ]]; then
-    echo "❌ 不支持的额外参数: $*（现在只支持：qt / qt swift / qt dart）" >&2
-    return 1
-  fi
-
-  # 2️⃣ 检查 quicktype 是否存在
-  _qt_require_quicktype || return 1
-
-  # 3️⃣ 选择 JSON 文件（自动扫描：1 个直用，多于 1 个 fzf；没有则手动输入）
-  local json_file
-  if ! _qt_select_json; then
-    return 1
-  fi
-  json_file="$REPLY"
-
-  # 4️⃣ 计算输出文件名：和 JSON 同目录、同主名，不同后缀
-  local dir base ext out_file
-  dir="${json_file:h}"
-  base="${json_file:t:r}"
-
-  case "$lang" in
-    swift) ext="swift" ;;
-    dart)  ext="dart"  ;;
-    *)
-      echo "❌ 理论上不会到这里：未知语言 $lang" >&2
-      return 1
-      ;;
-  esac
-
-  out_file="${dir}/${base}.${ext}"
-
-  echo "📝 JSON:   $json_file"
-  echo "💡 语言:   $lang"
-  echo "🎯 输出:   $out_file"
-
-  # 5️⃣ 组装 quicktype 命令
-  local -a cmd
-  cmd=(quicktype "$json_file" --lang "$lang" -o "$out_file")
-
-  case "$lang" in
-    swift)
-      # Swift：关掉 init & CodingKeys，生成更干净的模型
-      cmd+=(--no-initializers --no-coding-keys)
-      ;;
-    dart)
-      # Dart 先默认；后面你要接 json_serializable / freezed 再调参数
-      ;;
-  esac
-
-  echo "⚙️ 执行: ${cmd[*]}"
-  "${cmd[@]}"
-}
-
-# -------------------- 其它工具（保持不变） --------------------
-alias n='touch'
-
-x() {
-  local _raw _dir _count=0
-  print -n "👉 请拖入目录或输入路径（q 退出）： "; read -r _raw || { echo "❌ 读取输入失败"; return 1; }
-  [[ -z "$_raw" || "$_raw" == [Qq] ]] && { echo "🙆 已退出"; return 0; }
-  _raw="${_raw#"${_raw%%[![:space:]]*}"}"; _raw="${_raw%"${_raw##*[![:space:]]}"}"
-  _dir="${(Q)_raw}"; _dir="${_dir%/}"; _dir=${~_dir}
-  [[ -d "$_dir" ]] || { echo "❌ 目录不存在：$_dir"; return 1; }
-  echo "🔎 目标目录：$_dir"; echo "🚀 正在赋予可执行权限（.sh / .command）..."
-  while IFS= read -r -d '' f; do
-    if chmod +x "$f"; then ((_count++)); echo "✅ 已处理：$f"; else echo "⚠️  失败：$f"; fi
-  done < <(find "$_dir" -type f \( -name '*.sh' -o -name '*.command' \) -print0)
-  (( _count == 0 )) && echo "ℹ️  未发现 .sh 或 .command 文件。" || echo "✔ 完成，共处理 ${_count} 个文件。"
-}
-
-cor() {
-  emulate -L zsh; set +x +v; unsetopt XTRACE VERBOSE
-  : "${TERM:=xterm-256color}"; local COR_MODE="${COR_MODE:-auto}"
-  supports_truecolor() {
-    case "$COR_MODE" in truecolor) return 0;; 256) return 1;; esac
-    [[ "${COLORTERM:-}" == *truecolor* || "${COLORTERM:-}" == *24bit* ]] && return 0
-    case "${TERM_PROGRAM:-}${TERM:-}" in *iTerm*|*WezTerm*|*Ghostty*|*kitty*|*xterm-kitty*|*Windows_Terminal*) return 0;; esac
-    [[ "${TERM:-}" == *-truecolor || "${TERM:-}" == *direct ]] && return 0
-    return 1
   }
-  to_hex() { printf "%02X" "$1"; }
-  alpha_f_to_255() { awk 'BEGIN{v='"$1"'; if(v<0)v=0;if(v>1)v=1; printf("%d",(v*255)+0.5)}'; }
-  alpha_255_to_f() { awk 'BEGIN{printf("%.2f",'"$1"'/255)}'; }
-  sanitize() { echo "$1" | tr -d '[:space:]' | tr -d '"' | tr -d "'"; }
-  upper_hex() { echo "$1" | tr '[:lower:]' '[:upper:]'; }
-  rel_luma() { awk 'BEGIN{r='"$1"';g='"$2"';b='"$3"'; printf("%.0f",0.2126*r+0.7152*g+0.0722*b)}'; }
-  pick_fg() { local l; l=$(rel_luma "$1" "$2" "$3"); (( l > 186 )) && echo 30 || echo 97; }
-  rgb_to_ansi256() { local r=$1 g=$2 b=$3
-    if (( r==g && g==b )); then
-      if   (( r < 8 )); then echo 16
-      elif (( r > 248 )); then echo 231
-      else echo $((232 + ( (r-8) * 24 / 247 ))); fi; return
-    fi
-    local rc=$(( (r * 5) / 255 )) gc=$(( (g * 5) / 255 )) bc=$(( (b * 5) / 255 ))
-    echo $(( 16 + 36*rc + 6*gc + bc ))
+
+  _ensure_jenv_init() {
+    # jenv 官方推荐：export PATH + eval init  (brew 安装后仍需要 init) :contentReference[oaicite:1]{index=1}
+    _append_once 'export PATH="$HOME/.jenv/bin:$PATH"' "$HOME/.zshrc"
+    _append_once 'eval "$(jenv init -)"' "$HOME/.zshrc"
   }
-  show_block() {
-    local rr=$1 gg=$2 bb=$3 label=$4 fg; fg=$(pick_fg "$rr" "$gg" "$bb")
-    if supports_truecolor; then printf "\e[48;2;%d;%d;%dm" "$rr" "$gg" "$bb"
-    else printf "\e[48;5;%sm" "$(rgb_to_ansi256 "$rr" "$gg" "$bb")"; fi
-    printf "\e[%sm  %-18s  \e[0m" "$fg" "$label"
+
+  _ensure_fvm() {
+    if _has fvm; then
+      _ok "FVM 已存在：$(fvm --version 2>/dev/null || echo "installed")"
+      return 0
+    fi
+
+    _i "安装 FVM（Homebrew tap -> install）"
+    # 常见方式：brew tap leoafarias/fvm && brew install fvm :contentReference[oaicite:2]{index=2}
+    brew tap leoafarias/fvm
+    brew install fvm
+    _ok "FVM 安装完成"
   }
-  local r g b a_float aa_hex
-  parse() {
-    local raw="$1" input rr gg bb aa; input=$(sanitize "$raw")
-    if [[ "$input" == 0x???????? ]]; then
-      local hex="${input:2}"; hex=$(upper_hex "$hex")
-      aa=${hex:0:2}; rr=${hex:2:2}; gg=${hex:4:2}; bb=${hex:6:2}
-      r=$((16#$rr)); g=$((16#$gg)); b=$((16#$bb)); aa_hex="$aa"; a_float=$(alpha_255_to_f $((16#$aa))); return 0
-    fi
-    if [[ "$input" == \#???????? ]]; then
-      local hex="${input:1}"; hex=$(upper_hex "$hex")
-      rr=${hex:0:2}; gg=${hex:2:2}; bb=${hex:4:2}; aa=${hex:6:2}
-      r=$((16#$rr)); g=$((16#$gg)); b=$((16#$bb)); aa_hex="$aa"; a_float=$(alpha_255_to_f $((16#$aa))); return 0
-    fi
-    if [[ "$input" == \#?????? ]]; then
-      local hex="${input:1}"; hex=$(upper_hex "$hex")
-      rr=${hex:0:2}; gg=${hex:2:2}; bb=${hex:4:2}
-      r=$((16#$rr)); g=$((16#$gg)); b=$((16#$bb)); aa_hex="FF"; a_float="1.00"; return 0
-    fi
-    if [[ "$input" == rgb\(* || "$input" == rgba\(* ]]; then
-      local nums; nums=$(echo "$input" | sed -E 's/^rgba?\(|\)$//g')
-      local R G B A; IFS=',' read -r R G B A <<<"$nums"
-      r=${R%%.*}; g=${G%%.*}; b=${B%%.*}; [[ -z "$A" ]] && A="1"
-      a_float=$(awk 'BEGIN{v='"$A"'; if(v<0)v=0;if(v>1)v=1; printf("%.2f",v)}')
-      aa_hex=$(to_hex "$(alpha_f_to_255 "$a_float")"); return 0
-    fi
-    return 1
+
+  _post_openjdk_hint() {
+    _w "openjdk 安装完成后，若你想让系统 java 指向它："
+    _w "  - 你可以用 jenv 管理 JAVA_HOME（推荐）"
+    _w "  - 示例：jenv add \"$(brew --prefix)/opt/openjdk/libexec/openjdk.jdk/Contents/Home\""
   }
-  echo "🎨 颜色查看器：支持 #RRGGBB[AA] / 0xAARRGGBB / rgb / rgba"
-  echo "ℹ️  这里只输入颜色本体"
-  echo "🔗 在线取色器：https://photokit.com/colors/color-picker/?lang=zh"
-  while true; do
-    echo
-    builtin read -r "inp?请输入颜色值（q 退出）： " < /dev/tty
-    [[ "$inp" == [Qq] ]] && { echo "✅ 已退出"; break; }
-    [[ -z "$inp" ]] && continue
-    if parse "$inp"; then
-      local RR=$(to_hex "$r") GG=$(to_hex "$g") BB=$(to_hex "$b") AA="$aa_hex"
-      echo; echo "----------------------------------------"
-      echo "HEX（不透明）:  #${RR}${GG}${BB}"
-      echo "HEX（含透明） :  #${RR}${GG}${BB}${AA}"
-      echo "RGB           :  rgb(${r}, ${g}, ${b})"
-      echo "RGBA          :  rgba(${r}, ${g}, ${b}, $(printf '%.2f' "$a_float"))"
-      echo "0x 格式       :  0x${AA}${RR}${GG}${BB}"
-      show_block "$r" "$g" "$b" "原色 #${RR}${GG}${BB}"; echo
-    else
-      echo "❌ 无法识别：$inp"
-    fi
-  done
+
+  # -------- main flow --------
+  _ensure_homebrew
+
+  _i "更新 Homebrew..."
+  brew update
+
+  # Flutter 环境（用 fvm 管理 Flutter 版本更稳）
+  _ensure_fvm
+
+  # Java / Ruby 工具链
+  _brew_install_if_needed jenv      # :contentReference[oaicite:3]{index=3}
+  _ensure_jenv_init
+
+  _brew_install_if_needed rbenv     # :contentReference[oaicite:4]{index=4}
+  _brew_install_if_needed openjdk   # :contentReference[oaicite:5]{index=5}
+  _post_openjdk_hint
+
+  _ok "基础工具安装完成。建议新开一个终端窗口，让 .zshrc 的初始化生效。"
+
+  _i "关于 renv：这是 R 的项目依赖管理包（不是 brew 公式）。你可以在 R 里执行："
+  _i '  install.packages("renv")'
 }
-export PATH="$HOME/Library/Python/3.9/bin:$PATH"
 
-# >>> homebrew_env >>>
-eval "$(/opt/homebrew/bin/brew shellenv)"
-# <<< homebrew_env <<<
-
-## [Completion]
-## Completion scripts setup. Remove the following line to uninstall
-[[ -f /Users/mac/.dart-cli-completion/zsh-config.zsh ]] && . /Users/mac/.dart-cli-completion/zsh-config.zsh || true
-## [/Completion]
-
+# ============================== Completion（保持你的逻辑，但更安全） ==============================
+[[ -f "/Users/mac/.dart-cli-completion/zsh-config.zsh" ]] && source "/Users/mac/.dart-cli-completion/zsh-config.zsh" || true
