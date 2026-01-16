@@ -76,9 +76,9 @@ elif [ -d /opt/homebrew/opt/curl ]; then
   export PKG_CONFIG_PATH="/opt/homebrew/opt/curl/lib/pkgconfig"
 fi
 
-# ================================== rbenv（存在才启用；避免 command not found） ==================================
-path_prepend "$HOME/.rbenv/bin"
-if command -v rbenv >/dev/null 2>&1; then
+# ================================== rbenv (bash only) ==================================
+# 只在 bash 中初始化，避免被 zsh source 时加载 bash completion 导致 `complete` 报错
+if [[ -n "$BASH_VERSION" ]] && command -v rbenv >/dev/null 2>&1; then
   eval "$(rbenv init - bash)"
 fi
 
