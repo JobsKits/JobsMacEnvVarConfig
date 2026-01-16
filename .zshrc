@@ -1,15 +1,22 @@
-# ================================== 统一加载（存在才 source，避免新机报错） ==================================
-[[ -f "$HOME/.bash_profile" ]] && source "$HOME/.bash_profile"
-[[ -f "$HOME/.bashrc" ]] && source "$HOME/.bashrc"
-[[ -f "$HOME/.profile" ]] && source "$HOME/.profile"
+# 🔥 统一加载（存在才 source，避免新机报错）🔥
+[[ -n "$BASH_VERSION" ]] && [[ -f "$HOME/.bash_profile" ]] && source "$HOME/.bash_profile"
+[[ -n "$BASH_VERSION" ]] && [[ -f "$HOME/.bashrc" ]] && source "$HOME/.bashrc"
+[[ -n "$BASH_VERSION" ]] && [[ -f "$HOME/.profile" ]] && source "$HOME/.profile"
 
-# -------------------- Oh My Zsh 基本设置 --------------------
+# 🔥 仅交互式 shell 才执行（避免跑脚本时也乱 cd）🔥
+if [[ -o interactive ]]; then
+  if [[ -d "$HOME/Desktop" ]]; then
+    cd "$HOME/Desktop"
+  fi
+fi
+
+# 🔥 Oh My Zsh 基本设置 🔥
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="robbyrussell"
 plugins=(git)
 source "$ZSH/oh-my-zsh.sh"
 
-# -------------------- Homebrew（芯片自检 + 路径兜底；不装则安静跳过） --------------------
+# 🔥 Homebrew（芯片自检 + 路径兜底；不装则安静跳过）🔥
 init_homebrew() {
   local arch brew_bin
 
@@ -37,14 +44,7 @@ init_homebrew() {
 }
 init_homebrew
 
-# -------------------- jenv（启动时安全初始化） --------------------
-# OPT: 仅在安装了 jenv 的情况下初始化，避免新机/容器报错
-if command -v jenv >/dev/null 2>&1; then
-  export PATH="$HOME/.jenv/bin:$PATH"
-  eval "$(jenv init -)"
-fi
-
-# -------------------- 通用：try_run --------------------
+# 🔥 通用：try_run 🔥
 try_run() {
   local cmd="$1"; shift
   if command -v "$cmd" >/dev/null 2>&1; then
@@ -55,7 +55,7 @@ try_run() {
   fi
 }
 
-# -------------------- save（手动用，不再自启动） --------------------
+# 🔥 save（手动用，不再自启动）🔥
 # OPT: 不再在 shell 启动时自动运行，避免每个新 shell 变慢/重复 source。
 save() {
   local files=(
@@ -78,17 +78,7 @@ save() {
   echo -e "\n📎 ⌘Command + 点击路径可打开对应文件（macOS Terminal 支持）"
 }
 
-# -------------------- update（自检后再跑） --------------------
-update() {
-  try_run "flutter" "flutter upgrade"
-  try_run "brew" "brew update && brew upgrade && brew cleanup && brew doctor && brew -v"
-  try_run "dart" "dart pub global activate fvm"
-  try_run "gem" "gem update && gem clean"
-  try_run "pod" "pod repo update --verbose"
-  try_run "rbenv" "brew upgrade rbenv ruby-build"
-}
-
-# -------------------- flutter() 重载（优先 FVM） --------------------
+# 🔥 flutter() 重载（优先 FVM）🔥
 flutter() {
   emulate -L zsh
   setopt no_aliases
@@ -131,7 +121,7 @@ flutter() {
   return 127
 }
 
-# -------------------- fvm 修复（与 Dart 内核匹配） --------------------
+# 🔥 fvm 修复（与 Dart 内核匹配）🔥
 fixfvm() {
   echo "🔍 修复 fvm 与 Dart SDK 的内核版本不匹配..."
   dart pub global deactivate fvm || true
@@ -141,7 +131,7 @@ fixfvm() {
   echo "✅ fvm 已重新安装并与当前 Dart SDK 匹配"
 }
 
-# -------------------- 版本检查 --------------------
+# 🔥 版本检查 🔥
 check1() {
   echo "================ Dart =================="
   which dart; dart --version 2>/dev/null; echo
@@ -158,12 +148,12 @@ check1() {
   echo "🔖 flutter --version:"; flutter --version
 }
 
-# -------------------- 快捷命令 --------------------
+# 🔥 快捷命令 🔥
 rb() { exec -l "$SHELL"; }               # OPT: 用 login shell 重启
 a()  { open "$HOME/.bash_profile"; }
 b()  { open "$HOME/.zshrc"; }
 i()  { open -a Simulator; }
-d()  { cd /Users/jobs/Documents/Github/flutter_tiyu_app || return 1; }
+d()  { cd "$HOME/Documents/Github/flutter_tiyu_app" || return 1; }
 
 check(){
   echo; java -version; echo
@@ -172,9 +162,9 @@ check(){
   flutter doctor -v
 }
 
-# -------------------- JDK17 锁定到项目（c） --------------------
+# 🔥 JDK17 锁定到项目（c）🔥
 c() {
-  local project_dir="${1:-/Users/jobs/Documents/Github/flutter_tiyu_app}"
+  local project_dir="${1:-$HOME/Documents/Github/flutter_tiyu_app}"
   local want_major="17"
   [[ -d "$project_dir" ]] || { echo "❌ 项目目录不存在：$project_dir"; return 1; }
   cd "$project_dir" || { echo "❌ cd 失败：$project_dir"; return 1; }
@@ -207,7 +197,7 @@ c() {
   typeset -f check >/dev/null && check
 }
 
-# -------------------- 解析真实 Flutter 执行器（避免函数误判） --------------------
+# 🔥 解析真实 Flutter 执行器（避免函数误判）🔥
 _resolve_flutter_exec() {
   if [[ -x .fvm/flutter_sdk/bin/flutter ]]; then
     echo ".fvm/flutter_sdk/bin/flutter" ".fvm/flutter_sdk/bin/flutter"; return 0
@@ -248,7 +238,7 @@ _ensure_flutter_available() {
   echo "❌ 仍不可用：请确保 .fvm/flutter_sdk 或 fvm 或系统 flutter 可用"; return 1
 }
 
-# -------------------- 构建前置（智能 + 可选参数 + 强校验执行器） --------------------
+# 🔥 构建前置（智能 + 可选参数 + 强校验执行器）🔥
 buildCheck() {
   emulate -L zsh
   set +o noglob
@@ -310,7 +300,7 @@ buildCheck() {
   fi
 }
 
-# -------------------- Flutter 项目识别 & 目录选择 --------------------
+# 🔥 Flutter 项目识别 & 目录选择 🔥
 is_flutter_project() { local dir="$1"; [[ -d "$dir/lib" && -f "$dir/pubspec.yaml" ]]; }
 
 get_flutter_project_dir() {
@@ -327,7 +317,7 @@ get_flutter_project_dir() {
   printf "%s\n" "$project_path"
 }
 
-# -------------------- APK / IPA 构建（保持你的逻辑） --------------------
+# 🔥 APK / IPA 构建（保持你的逻辑）🔥
 set_flutter_cmd() {
   export PATH="$HOME/.pub-cache/bin:$PATH"
   if command -v fvm >/dev/null 2>&1; then flutter_cmd=(fvm flutter)
@@ -448,7 +438,7 @@ ipa() {
   echo "📂 打开输出目录: ./build/ios/ipa/"; open "./build/ios/ipa/"
 }
 
-# ================================== config：用 Xcode 打开配置文件（无 Xcode 则用系统文本编辑器） ==================================
+# 🔥 config：用 Xcode 打开配置文件（无 Xcode 则用系统文本编辑器）🔥
 config() {
   local arg="$1"
   local home_dir="${HOME}"
@@ -481,7 +471,17 @@ config() {
   fi
 }
 
-# ============================== New Mac bootstrap: install ==============================
+# 🔥 update（自检后再跑）🔥
+update() {
+  try_run "flutter" "flutter upgrade"
+  try_run "brew" "brew update && brew upgrade && brew cleanup && brew doctor && brew -v"
+  try_run "dart" "dart pub global activate fvm"
+  try_run "gem" "gem update && gem clean"
+  try_run "pod" "pod repo update --verbose"
+  try_run "rbenv" "brew upgrade rbenv ruby-build"
+}
+
+# 🔥 新系统环境配置 🔥
 install() {
   set -euo pipefail
 
@@ -585,5 +585,14 @@ install() {
   _i '  install.packages("renv")'
 }
 
-# ============================== Completion（保持你的逻辑，但更安全） ==============================
+# 🔥 启动时安全初始化@jenv ➤ 通用脚本,可能在 bash/zsh 都跑 🔥
+if command -v jenv >/dev/null 2>&1; then
+  eval "$(jenv init -)"
+fi
+
+if command -v rbenv >/dev/null 2>&1; then
+  eval "$(rbenv init -)"
+fi
+
+# 🔥 Completion 🔥
 [[ -f "/Users/mac/.dart-cli-completion/zsh-config.zsh" ]] && source "/Users/mac/.dart-cli-completion/zsh-config.zsh" || true
