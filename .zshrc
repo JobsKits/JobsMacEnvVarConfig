@@ -641,6 +641,12 @@ install() {
 
   _i "关于 renv：这是 R 的项目依赖管理包（不是 brew 公式）。你可以在 R 里执行："
   _i '  install.packages("renv")'
+  
+  # 下载Xcode模拟器配件
+  rm -rf ~/Library/Caches/com.apple.dt.Xcode
+  rm -rf ~/Library/Developer/CoreSimulator/Caches
+
+  xcodebuild -downloadPlatform iOS -verbose
 }
 
 # 🔥 URL Decode REPL（decode -> 解码 + 自动 pbcopy）🔥
@@ -702,3 +708,7 @@ fi
 
 # 🔥 Completion 🔥
 [[ -f "$JOBS_DART_CLI_COMPLETION_FILE" ]] && source "$JOBS_DART_CLI_COMPLETION_FILE" || true
+
+export PATH="$HOME/.jenv/bin:$PATH"
+
+eval "$(jenv init -)"
