@@ -619,12 +619,40 @@ install() {
     _w "  - 你可以用 jenv 管理 JAVA_HOME（推荐）"
     _w "  - 示例：jenv add \"$(brew --prefix)/opt/openjdk/libexec/openjdk.jdk/Contents/Home\""
   }
+  
+  _ensure_xcode_cli_tools() {
+    # 判断 CLT 是否已安装：xcode-select -p 返回路径即为已装
+    if xcode-select -p >/dev/null 2>&1; then
+      _ok "Xcode Command Line Tools 已存在：$(xcode-select -p)"
+      return 0
+    fi
+
+    _i "开始安装 Xcode Command Line Tools..."
+    xcode-select --install || true
+    _w "若弹窗已出现，请完成安装；安装完成后可再次执行 install() 继续。"
+  }
+
+  _ensure_ohmyzsh() {
+    # 常见安装位置：~/.oh-my-zsh
+    if [[ -d "$HOME/.oh-my-zsh" ]]; then
+      _ok "Oh My Zsh 已存在：$HOME/.oh-my-zsh"
+      return 0
+    fi
+
+    _i "开始安装 Oh My Zsh..."
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+    _ok "Oh My Zsh 安装完成"
+  }
 
   # -------- main flow --------
+  _ensure_ohmyzsh
+  _ensure_xcode_cli_tools
   _ensure_homebrew
-
   _i "更新 Homebrew..."
   brew update
+
+  xcode-select --install
+  softwareupdate --install-rosetta --agree-to-license
 
   # Flutter 环境（用 fvm 管理 Flutter 版本更稳）
   _ensure_fvm
