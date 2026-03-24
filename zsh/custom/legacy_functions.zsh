@@ -1,43 +1,5 @@
-# 🔥 仅交互式 shell 才执行（避免跑脚本时也乱 cd）🔥
-if [[ -o interactive ]]; then
-  if [[ -d "$HOME/Desktop" ]]; then
-    cd "$HOME/Desktop"
-  fi
-fi
-
-# 🔥 Oh My Zsh 基本设置 🔥
-export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="robbyrussell"
-plugins=(git)
-source "$ZSH/oh-my-zsh.sh"
-
-# 🔥 Homebrew（芯片自检 + 路径兜底；不装则安静跳过）🔥
-init_homebrew() {
-  local arch brew_bin
-
-  arch="$(uname -m)"
-
-  # 先按芯片给默认路径（更符合直觉）
-  if [[ "$arch" == "arm64" ]]; then
-    brew_bin="/opt/homebrew/bin/brew"
-  else
-    brew_bin="/usr/local/bin/brew"
-  fi
-
-  # 再做事实兜底：如果默认不存在，就在常见路径里找
-  if [[ ! -x "$brew_bin" ]]; then
-    if [[ -x /opt/homebrew/bin/brew ]]; then
-      brew_bin="/opt/homebrew/bin/brew"
-    elif [[ -x /usr/local/bin/brew ]]; then
-      brew_bin="/usr/local/bin/brew"
-    else
-      return 0
-    fi
-  fi
-
-  eval "$("$brew_bin" shellenv)"
-}
-init_homebrew
+# 从你原来的 .zshrc 拆出的自定义能力
+# 现在不再直接堆进主 .zshrc，而是作为外挂模块加载
 
 # ================================== CONFIG（硬编码绝对路径：你只改这里）==================================
 # ✅ 直接写死绝对路径：复制粘贴后只改这一行就行

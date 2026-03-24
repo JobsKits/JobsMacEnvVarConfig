@@ -1,73 +1,53 @@
-###############################################################################
-# 🍺 Homebrew 环境变量配置（统一写入 ~/.bash_profile）
-###############################################################################
-# 配置 💎 Rbenv.ruby 环境变量 (2 选 1)
-###############################################################################
-# export PATH="$HOME/.rbenv/bin:$PATH"
-# eval "$(rbenv init -)"
-###############################################################################
-# 配置 💎 Homebrew.ruby 环境变量 (2 选 1)
-###############################################################################
-export PATH="/usr/local/opt/ruby/bin:$PATH"
-export LDFLAGS="-L/usr/local/opt/ruby/lib"
-export CPPFLAGS="-I/usr/local/opt/ruby/include"
-export PKG_CONFIG_PATH="/usr/local/opt/ruby/lib/pkgconfig"
-###############################################################################
-# 🌐 配置 Curl 环境变量（Homebrew 安装）
-###############################################################################
-export PATH="/usr/local/opt/curl/bin:$PATH"
-export LDFLAGS="-L/usr/local/opt/curl/lib"
-export CPPFLAGS="-I/usr/local/opt/curl/include"
-export PKG_CONFIG_PATH="/usr/local/opt/curl/lib/pkgconfig"
-###############################################################################
-# 配置 🧠 VSCode 环境变量
-###############################################################################
-export PATH="$PATH":/usr/local/bin
-export PATH="$PATH":/usr/local/bin/code
-###############################################################################
-# 配置 🚀 Flutter + Dart 环境变量
-# 这里的路径即为Dart.Flutter.SDK名下的为bin目录（主要取决于你下载的SDK的绝对路径）
-###############################################################################
-export PATH="$PATH:`pwd`/flutter/bin"
-export PATH=/Users/$(whoami)/Documents/GitHub.Jobs/Flutter.SDK/Flutter.SDK.last/bin:$PATH
-#【相关阅读：Flutter切换源】https://juejin.cn/post/7204285137047257148
-# 防止域名在中国大陆互联网环境下的被屏蔽
-# export PUB_HOSTED_URL=https://pub.flutter-io.cn
-# Flutter官方正版源（温馨提示：海外IP访问大陆源，不开VPN会拉取失败）
-export PUB_HOSTED_URL=https://pub.dartlang.org
-# FLUTTER_STORAGE_BASE_URL 告诉 SDK 去哪里拉 Flutter 依赖
-# export FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn
-export FLUTTER_STORAGE_BASE_URL=https://storage.googleapis.com # 官方源
-###############################################################################
-# 配置 🤖 Android 环境变量
-###############################################################################
-export ANDROID_SDK_ROOT=/Users/$(whoami)/Library/Android/sdk
-export PATH=${PATH}:${ANDROID_SDK_ROOT}/platform-tools
-export PATH=${PATH}:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin
-export PATH=$ANDROID_HOME/emulator:$ANDROID_SDK_ROOT/tools:$ANDROID_SDK_ROOT/tools/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH # Android 模拟器
-export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
-###############################################################################
-# 配置 📦 FVM 环境变量
-###############################################################################
-export PATH="$HOME/.pub-cache/bin:$PATH"
-# 重定义 flutter 命令，使其实际调用 fvm flutter
-flutter() { fvm flutter "$@"; }
-###############################################################################
-# 配置 ☕️ JDK 环境变量
-###############################################################################
-export JAVA_HOME=$(/usr/libexec/java_home)
-export PATH=$JAVA_HOME/bin:$PATH
-###############################################################################
-# 配置 ☕️ OpenJDK 环境变量
-###############################################################################
-export SDKMAN_DIR="$HOME/.sdkman"
-[[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]] && source "$SDKMAN_DIR/bin/sdkman-init.sh"
-###############################################################################
-# 配置 ⚙️ Gradle 环境变量
-###############################################################################
-export PATH="/Users/$(whoami)/Documents/Gradle/gradle-8.7/bin:$PATH"
-###############################################################################
-# 配置 🐍 pipx 环境变量
-###############################################################################
-export PATH="$PATH:/Users/$(whoami)/.local/bin"
-###############################################################################
+# =====================================================
+# 环境同步配置文件（声明式）
+# =====================================================
+
+[JAVA]
+JAVA_VERSION=17
+JAVA_CANDIDATES=temurin@17,zulu@17,openjdk@17
+
+[ANDROID]
+ANDROID_SDK_DEFAULT=$HOME/Library/Android/sdk
+ANDROID_STUDIO_APP=/Applications/Android Studio.app
+
+[FLUTTER]
+USE_FVM=true
+FLUTTER_CANDIDATES=$HOME/fvm/default/bin,$HOME/development/flutter/bin
+
+[NODE]
+ENABLE_PNPM=true
+ENABLE_COREPACK=true
+NVM_DIR=$HOME/.nvm
+
+[RUST]
+ENABLE_CARGO=true
+CARGO_HOME=$HOME/.cargo
+
+[PYTHON]
+ENABLE_PYENV=true
+PYENV_ROOT=$HOME/.pyenv
+
+[RUBY]
+ENABLE_RBENV=true
+RBENV_ROOT=$HOME/.rbenv
+
+[GO]
+ENABLE_GO=true
+GOPATH=$HOME/go
+
+[PATH]
+$HOME/bin
+$HOME/.local/bin
+$HOME/.pub-cache/bin
+$HOME/.cargo/bin
+$HOME/go/bin
+
+[ALIASES]
+ll=ls -alF
+la=ls -A
+l=ls -CF
+gs=git status
+ga=git add .
+gc=git commit
+gp=git push
+gl=git pull

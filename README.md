@@ -1,66 +1,101 @@
-# 环境变量配置
+# JobsMacEnv
 
-[toc]
+这版继续按你的要求收了一轮：
 
-## 1、常见环境变量配置文件（按使用场景分类）
+1. 去掉 `project_env`
+2. 安装目录保持为隐藏目录 `~/.JobsMacEnv`
+3. `zsh` 目录和文件名继续保持短命名
+4. `install.command` 增加了 **JDK 17 检测与可选安装**
 
-| 文件名                                              | 是否默认存在         | 作用                                      | 常用于哪些 shell                               |
-| --------------------------------------------------- | -------------------- | ----------------------------------------- | ---------------------------------------------- |
-| [~/.bash_profile](file:///Users/jobs/.bash_profile) | ✅                    | 登录 shell 启动时读取（如终端登录）       | `bash`（macOS 默认 shell 直到 macOS Catalina） |
-| [~/.bashrc](file:///Users/jobs/.bashrc)             | ❌（需手动创建）      | 每次执行交互式 shell 时读取               | `bash`（常被 `.bash_profile` 调用）            |
-| [~/.zshrc](file:///Users/jobs/.zshrc)               | ✅（Catalina 后默认） | 每次启动 `zsh` 时执行                     | `zsh`（macOS Catalina 起默认 shell）           |
-| [~/.zprofile](file:///Users/jobs/.zprofile)         | ❌（可创建）          | 类似 `.bash_profile`，用于登录 shell      | `zsh`                                          |
-| [~/.zlogin](file:///Users/jobs/.zlogin)             | ❌（可创建）          | 登录 shell 启动后读取（晚于 `.zprofile`） | `zsh`                                          |
-| [~/.zshenv](file:///Users/jobs/.zshenv)             | ❌（可创建）          | **所有 zsh 启动时都会读取**，优先级最高   | `zsh`（即使非交互/非登录）                     |
-| [~/.zlogout](file:///Users/jobs/.zlogout)           | ❌（可创建）          | 用户注销 zsh 时执行                       | `zsh`                                          |
-| [/etc/profile](file:///etc/profile)                 | ✅                    | 所有用户的全局配置                        | 登录 shell                                     |
-| [/etc/bashrc](file:///etc/bashrc)                   | ✅                    | 所有用户的全局 bash 配置                  | bash                                           |
-| [/etc/zshrc](file:///etc/zshrc)                     | ✅                    | 所有用户的全局 zsh 配置                   | zsh                                            |
+## 目录结构
 
-```mermaid
-graph TD
-  A[📁 脚本目录]
-  A --> A1[.bash_profile]
-  A --> A2[.bashrc]
-  A --> A3[.zshrc]
-  A --> A4[.zprofile]
-  A --> A5[.zlogin]
-  A --> A6[.zshenv]
-  A --> A7[.zlogout]
-
-  A --> A8[profile]
-  A8 --> A8a["/etc/profile"]
-
-  A --> A9[bashrc]
-  A9 --> A9a["/etc/bashrc"]
-
-  A --> A10[zshrc]
-  A10 --> A10a["/etc/zshrc"]
-
-  A --> A11[env_config_root.txt]
-  A --> A12[sync_env.zsh ✅ 主脚本]
+```bash
+~/.JobsMacEnv/
+├── .zshrc
+├── install.command
+├── README.md
+├── sync_env.txt
+├── scripts/
+│   └── install_jdk17.command
+└── zsh/
+    ├── bootstrap.zsh
+    ├── env_methods.zsh
+    ├── env.zsh
+    ├── aliases.zsh
+    ├── user_mounts.zsh
+    └── custom/
+        ├── shell_behavior.zsh
+        ├── legacy_functions.zsh
+        └── local.zsh
 ```
 
-## 2、配置于`~/.zshrc`里面的自定义功能函数
+## 主入口
 
-### 2.1、重启终端（输入：rb）
+系统 `~/.zshrc` 只负责加载：
 
-### 2.2、打开 `.bash_profile`（输入：a）
+```zsh
+export JOBS_MAC_ENV_HOME="$HOME/.JobsMacEnv"
 
-### 2.3、打开 `.zshrc`（输入：b）
+jobs_source_if_exists "$JOBS_MAC_ENV_HOME/zsh/bootstrap.zsh"
+jobs_source_if_exists "$JOBS_MAC_ENV_HOME/zsh/env_methods.zsh"
+jobs_source_if_exists "$JOBS_MAC_ENV_HOME/zsh/env.zsh"
+jobs_source_if_exists "$JOBS_MAC_ENV_HOME/zsh/aliases.zsh"
+jobs_source_if_exists "$JOBS_MAC_ENV_HOME/zsh/user_mounts.zsh"
+```
 
-### 2.4、更新（输入：update）
+## 文件职责
 
-### 2.5、打开iOS模拟器（输入：i）
+- `zsh/bootstrap.zsh`：基础启动逻辑
+- `zsh/env_methods.zsh`：公共方法
+- `zsh/env.zsh`：由 `sync_env.txt` 自动生成
+- `zsh/aliases.zsh`：由 `sync_env.txt` 自动生成
+- `zsh/user_mounts.zsh`：外挂总入口
+- `zsh/custom/shell_behavior.zsh`：终端行为
+- `zsh/custom/legacy_functions.zsh`：旧函数迁移区
+- `zsh/custom/local.zsh`：本机私有配置
+- `scripts/install_jdk17.command`：单独安装 JDK 17
 
-### 2.6、颜色格式转换（输入：cor）
+## 安装方式
 
-<img src="./assets/image-20250908011444427.png" alt="image-20250908011444427" style="zoom: 50%;" />
+```bash
+cd ~/JobsMacEnv
+chmod +x ./install.command
+./install.command
+```
 
-### 2.7、批量（递归）执行授权（输入：x）
+执行后会：
 
-<img src="./assets/image-20250908011544063.png" alt="image-20250908011544063" style="zoom:50%;" />
+1. 先显示简短安装提示
+2. 你按回车后继续
+3. 检测 JDK 17，不存在时可选安装
+4. 同步内容到 `~/.JobsMacEnv`
+5. 生成：
+   - `~/.JobsMacEnv/zsh/env.zsh`
+   - `~/.JobsMacEnv/zsh/aliases.zsh`
+   - `~/.JobsMacEnv/.zshrc`
+6. 最后询问是否替换系统当前 `~/.zshrc`
 
-### 2.8、Flutter打包iOS包（输入：ipa）
+## JDK 17
 
-### 2.9、Flutter打包Android包（输入：apk）
+- 默认优先尝试 `brew install --cask temurin@17`
+- 失败时会回退尝试 `brew install --cask zulu@17`
+- 再不行才尝试 `brew install openjdk@17`
+- 也可以单独运行：
+
+```bash
+~/.JobsMacEnv/scripts/install_jdk17.command
+```
+
+## 推荐维护方式
+
+- 改环境声明：`~/.JobsMacEnv/sync_env.txt`
+- 改终端行为：`~/.JobsMacEnv/zsh/custom/shell_behavior.zsh`
+- 改历史函数：`~/.JobsMacEnv/zsh/custom/legacy_functions.zsh`
+- 改本机私有：`~/.JobsMacEnv/zsh/custom/local.zsh`
+
+
+## 模板位置
+
+- `Sys/.zshrc`：安装时使用的主入口模板
+- `~/.JobsMacEnv/.zshrc`：同步后的模板副本
+- `~/.zshrc`：选择替换后写入系统的实际入口
