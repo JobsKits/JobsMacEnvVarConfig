@@ -26,6 +26,7 @@
     └── custom/
         ├── shell_behavior.zsh
         ├── legacy_functions.zsh
+        ├── path_drag_resolver.zsh
         └── local.zsh
 ```
 
@@ -52,6 +53,7 @@ jobs_source_if_exists "$JOBS_MAC_ENV_HOME/zsh/user_mounts.zsh"
 - `zsh/user_mounts.zsh`：外挂总入口
 - `zsh/custom/shell_behavior.zsh`：终端行为
 - `zsh/custom/legacy_functions.zsh`：旧函数迁移区
+- `zsh/custom/path_drag_resolver.zsh`：拖入路径解析（Ctrl-G / 可选自动解析）
 - `zsh/custom/local.zsh`：本机私有配置
 - `scripts/install_jdk17.command`：单独安装 JDK 17
 
@@ -99,3 +101,25 @@ chmod +x ./install.command
 - `Sys/.zshrc`：安装时使用的主入口模板
 - `~/.JobsMacEnv/.zshrc`：同步后的模板副本
 - `~/.zshrc`：选择替换后写入系统的实际入口
+
+
+## 拖入替身 / symlink 解析
+
+默认启用：
+
+- 把文件或替身拖进终端后，按 `Ctrl-G`
+- 会把当前命令行最后一个路径参数解析成真实路径
+
+可选开启自动粘贴解析（只建议在 `Terminal.app` / `iTerm2` 自测稳定后再开）：
+
+```zsh
+# ~/.JobsMacEnv/zsh/custom/local.zsh
+export JOBS_ALIAS_DRAG_AUTO_RESOLVE=true
+```
+
+如果你想改快捷键：
+
+```zsh
+# 默认是 Ctrl-G
+export JOBS_ALIAS_DRAG_BINDKEY='^G'
+```

@@ -9,5 +9,6 @@ jobs_source_if_exists() {
 }
 
 jobs_source_if_exists "$JOBS_USER_MOUNTS_DIR/shell_behavior.zsh"
+jobs_source_if_exists "$JOBS_USER_MOUNTS_DIR/path_drag_resolver.zsh"
 jobs_source_if_exists "$JOBS_USER_MOUNTS_DIR/legacy_functions.zsh"
 jobs_source_if_exists "$JOBS_USER_MOUNTS_DIR/local.zsh"

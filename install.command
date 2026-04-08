@@ -357,6 +357,9 @@ main() {
   copy_file_if_changed "$source_dir/zsh/env_methods.zsh" "$target_zsh_dir/env_methods.zsh"
   copy_file_if_changed "$source_dir/zsh/user_mounts.zsh" "$target_zsh_dir/user_mounts.zsh"
   copy_file_if_changed "$source_dir/zsh/custom/shell_behavior.zsh" "$target_custom_dir/shell_behavior.zsh"
+  if [[ -f "$source_dir/zsh/custom/path_drag_resolver.zsh" ]]; then
+    copy_file_if_changed "$source_dir/zsh/custom/path_drag_resolver.zsh" "$target_custom_dir/path_drag_resolver.zsh"
+  fi
   copy_file_if_changed "$source_dir/zsh/custom/legacy_functions.zsh" "$target_custom_dir/legacy_functions.zsh"
 
   if [[ -f "$source_dir/zsh/custom/local.zsh" ]]; then
