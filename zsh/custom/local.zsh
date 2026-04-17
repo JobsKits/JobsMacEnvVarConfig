@@ -72,3 +72,48 @@ EOF
   builtin cd "$final_dir" || return 1
   /bin/pwd
 }
+
+# x <file>
+# 支持：
+# - 终端里直接拖入 .command / .sh / 可执行文件
+# 行为：
+# - 自动处理 Finder 拖入路径里的转义空格
+# - 自动 chmod +x
+# - 直接执行该文件
+x() {
+  emulate -L zsh
+  setopt no_nomatch
+
+  local input_path
+
+  if (( $# == 0 )); then
+    echo "usage: x <file>"
+    return 1
+  fi
+
+  input_path="$*"
+
+  if [[ "$input_path" == "~"* ]]; then
+    input_path="${~input_path}"
+  fi
+
+  input_path="${input_path//\\ / }"
+
+  if [[ ! -e "$input_path" ]]; then
+    echo "x: file not found: $input_path"
+    return 1
+  fi
+
+  if [[ -d "$input_path" ]]; then
+    echo "x: target is a directory, not a file: $input_path"
+    return 1
+  fi
+
+  chmod +x "$input_path" || {
+    echo "x: chmod failed: $input_path"
+    return 1
+  }
+
+  "$input_path"
+}
+
