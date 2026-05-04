@@ -73,23 +73,16 @@ EOF_APPLE
 }
 
 jobs_unescape_dragged_path() {
-  local raw="$1"
+  emulate -L zsh
+  setopt no_nomatch
+
+  local raw="$*"
   local out="$raw"
 
-  if [[ "$out" == \"*\" && "$out" == *\" ]]; then
-    out="${out:1:-1}"
-  elif [[ "$out" == \'*\' && "$out" == *\' ]]; then
-    out="${out:1:-1}"
-  fi
-
-  out="${out//\\ / }"
-  out="${out//\\(/(}"
-  out="${out//\\)/)}"
-  out="${out//\\[/[}"
-  out="${out//\\]/]}"
-  out="${out//\\&/&}"
-  out="${out//\\#/#}"
-  out="${out//\\!/*!}"
+  # zsh 的 ${var//pattern/repl} 会把 "\(" 当成 glob pattern 解析，
+  # 在部分环境下会触发 bad pattern: \(。这里改用 zsh 自带的 (Q)
+  # quote-removal，一次性处理 Finder 拖入路径里的反斜杠、空格、括号、引号等。
+  out="${(Q)out}"
 
   if [[ "$out" == "~"* ]]; then
     out="${~out}"
