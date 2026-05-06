@@ -500,17 +500,18 @@ config() {
 
 JOBS_UPDATE_OPTION_DEFAULT="01. 🚀 默认全量更新，不含 OpenClaw"
 JOBS_UPDATE_OPTION_FULL_WITH_OPENCLAW="02. 🌕 全量更新，包含 OpenClaw"
-JOBS_UPDATE_OPTION_OPENCLAW="03. 🦞 OpenClaw：同步源码并构建"
-JOBS_UPDATE_OPTION_HOMEBREW="04. 🍺 Homebrew：更新 brew / formula / cask / cleanup / doctor"
-JOBS_UPDATE_OPTION_ANDROID="05. 🤖 Android SDK：更新 sdkmanager 管理的 Android 工具链"
-JOBS_UPDATE_OPTION_FLUTTER="06. 🐦 Flutter：升级 Flutter SDK"
-JOBS_UPDATE_OPTION_DART_FVM="07. 🎯 Dart / FVM：更新 FVM"
-JOBS_UPDATE_OPTION_NODE="08. 🟢 Node / npm / pnpm / corepack：更新 Node 全局生态"
-JOBS_UPDATE_OPTION_RUST="09. 🦀 Rust / Cargo：更新 Rust toolchain 和 cargo 全局工具"
-JOBS_UPDATE_OPTION_PYTHON="10. 🐍 Python / pip / pyenv：更新 Python 工具链和 pip 全局包"
-JOBS_UPDATE_OPTION_RUBYGEMS="11. 💎 RubyGems：更新 gem 并清理旧版本"
-JOBS_UPDATE_OPTION_COCOAPODS="12. 🥥 CocoaPods：更新 Specs 仓库"
-JOBS_UPDATE_OPTION_RBENV="13. 💠 rbenv / ruby-build：更新 Ruby 版本管理工具"
+JOBS_UPDATE_OPTION_OPENCLAW_GATEWAY="03. 🧩 OpenClaw：同步源码/依赖/UI 并重启 Gateway（不打开配置面板）"
+JOBS_UPDATE_OPTION_OPENCLAW="04. 🦞 OpenClaw：同步源码并构建"
+JOBS_UPDATE_OPTION_HOMEBREW="05. 🍺 Homebrew：更新 brew / formula / cask / cleanup / doctor"
+JOBS_UPDATE_OPTION_ANDROID="06. 🤖 Android SDK：更新 sdkmanager 管理的 Android 工具链"
+JOBS_UPDATE_OPTION_FLUTTER="07. 🐦 Flutter：升级 Flutter SDK"
+JOBS_UPDATE_OPTION_DART_FVM="08. 🎯 Dart / FVM：更新 FVM"
+JOBS_UPDATE_OPTION_NODE="09. 🟢 Node / npm / pnpm / corepack：更新 Node 全局生态"
+JOBS_UPDATE_OPTION_RUST="10. 🦀 Rust / Cargo：更新 Rust toolchain 和 cargo 全局工具"
+JOBS_UPDATE_OPTION_PYTHON="11. 🐍 Python / pip / pyenv：更新 Python 工具链和 pip 全局包"
+JOBS_UPDATE_OPTION_RUBYGEMS="12. 💎 RubyGems：更新 gem 并清理旧版本"
+JOBS_UPDATE_OPTION_COCOAPODS="13. 🥥 CocoaPods：更新 Specs 仓库"
+JOBS_UPDATE_OPTION_RBENV="14. 💠 rbenv / ruby-build：更新 Ruby 版本管理工具"
 
 jobs_update_print_section() {
   echo ""
@@ -1044,9 +1045,12 @@ jobs_update_rbenv_ruby_build() {
 }
 
 # ================================== OpenClaw 更新（供 update 调用） ==================================
-# 记录文件：第一次输入有效 openclaw 仓库目录后写入；后续 update 可直接回车沿用。
+# 记录文件：第一次输入有效 openclaw 仓库目录后写入；后续 update 会自动沿用。
+# 注意：真正执行 git pull 前仍会重新校验目录是否存在、是否是 Git 仓库、remote 是否指向 OpenClaw 官方仓库。
 : "${JOBS_OPENCLAW_REPO_RECORD_FILE:=$HOME/.JobsMacEnv/openclaw_repo_path}"
 : "${JOBS_OPENCLAW_REMOTE_URL:=https://github.com/openclaw/openclaw}"
+: "${JOBS_OPENCLAW_REMOTE_URL_HTTP:=http://github.com/openclaw/openclaw}"
+: "${JOBS_OPENCLAW_ONBOARD_MARKER_FILE:=$HOME/.JobsMacEnv/openclaw_onboard_done}"
 
 jobs_openclaw_trim_text() {
   local s="$1"
@@ -1092,8 +1096,9 @@ jobs_openclaw_canonical_remote_url() {
   local url="$1"
   url="$(jobs_openclaw_trim_text "$url")"
 
-  # GitHub 同一个仓库可能有 HTTPS / SSH 两种 remote 写法：
+  # GitHub 同一个仓库可能有多种 remote 写法：
   #   https://github.com/openclaw/openclaw.git
+  #   http://github.com/openclaw/openclaw.git
   #   git@github.com:openclaw/openclaw.git
   #   ssh://git@github.com/openclaw/openclaw.git
   # 校验时统一归一化成 https://github.com/<owner>/<repo> 再比较。
@@ -1118,16 +1123,23 @@ jobs_openclaw_canonical_remote_url() {
   printf "%s" "$url"
 }
 
+jobs_openclaw_expected_canonical_remote_url() {
+  jobs_openclaw_canonical_remote_url "$JOBS_OPENCLAW_REMOTE_URL"
+}
+
 jobs_openclaw_validate_repo() {
   emulate -L zsh
 
   local repo_path="$1"
+  local expected_remote=""
   local remote_name=""
   local remote=""
   local remote_names=""
   local remote_urls=""
   local normalized_remote=""
   local detected_remotes=""
+
+  expected_remote="$(jobs_openclaw_expected_canonical_remote_url)"
 
   if [[ -z "$repo_path" ]]; then
     echo "⚠️  OpenClaw 目录为空"
@@ -1139,13 +1151,13 @@ jobs_openclaw_validate_repo() {
     return 1
   fi
 
-  if [[ ! -d "$repo_path/.git" ]]; then
-    echo "⚠️  这不是 Git 仓库目录：$repo_path"
+  if ! command -v git >/dev/null 2>&1; then
+    echo "⚠️  缺少 git，无法校验 OpenClaw 仓库"
     return 1
   fi
 
-  if ! command -v git >/dev/null 2>&1; then
-    echo "⚠️  缺少 git，无法校验 OpenClaw 仓库"
+  if ! git -C "$repo_path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "⚠️  这不是 Git 仓库目录：$repo_path"
     return 1
   fi
 
@@ -1159,14 +1171,14 @@ jobs_openclaw_validate_repo() {
       normalized_remote="$(jobs_openclaw_canonical_remote_url "$remote")"
       detected_remotes+="   ${remote_name}: ${remote}\n"
 
-      if [[ "$normalized_remote" == "$JOBS_OPENCLAW_REMOTE_URL" ]]; then
+      if [[ "$normalized_remote" == "$expected_remote" ]]; then
         return 0
       fi
     done <<< "$remote_urls"
   done <<< "$remote_names"
 
   echo "⚠️  这不是 OpenClaw 官方仓库"
-  echo "   需要指向：$JOBS_OPENCLAW_REMOTE_URL"
+  echo "   允许远程：$JOBS_OPENCLAW_REMOTE_URL 或 $JOBS_OPENCLAW_REMOTE_URL_HTTP"
   if [[ -n "$detected_remotes" ]]; then
     printf "%b" "   检测到远程：\n$detected_remotes"
   else
@@ -1190,24 +1202,24 @@ jobs_openclaw_save_repo_path() {
   echo "✅ 已记录 OpenClaw 仓库目录：$repo_path"
 }
 
-jobs_openclaw_choose_repo_path() {
+jobs_openclaw_prompt_repo_path_until_valid() {
   emulate -L zsh
 
-  local saved=""
   local input=""
   local repo_path=""
 
-  saved="$(jobs_openclaw_read_recorded_repo_path)"
-
-  # 首次运行：没有历史记录时，必须拿到一个有效的 openclaw/openclaw 本地仓库目录。
-  while [[ -z "$saved" ]]; do
+  while true; do
     echo ""
-    echo "🦞 第一次运行 OpenClaw 更新，需要拖入/输入 openclaw 的 git clone 本地目录后回车："
+    echo "🦞 请拖入/输入 openclaw 的 git clone 本地目录后回车："
+    echo "   目录 remote 需要指向："
+    echo "   - $JOBS_OPENCLAW_REMOTE_URL"
+    echo "   - $JOBS_OPENCLAW_REMOTE_URL_HTTP"
+    echo "   直接回车则取消本次 OpenClaw 操作。"
     read -r input
 
     if [[ -z "$input" ]]; then
-      echo "⚠️  第一次运行必须提供 OpenClaw 仓库目录。"
-      continue
+      echo "⚠️  未提供 OpenClaw 仓库目录，取消本次 OpenClaw 操作。"
+      return 1
     fi
 
     repo_path="$(jobs_openclaw_normalize_path "$input")"
@@ -1216,37 +1228,36 @@ jobs_openclaw_choose_repo_path() {
       jobs_openclaw_save_repo_path "$OPENCLAW_REPO_PATH"
       return 0
     fi
+
+    echo "⚠️  当前目录未通过校验，请重新输入。"
   done
+}
 
-  # 非首次运行：只询问一次。
-  # - 输入新目录：校验通过后使用并覆盖记录；校验失败则跳过本次 OpenClaw 操作。
-  # - 直接回车：尝试沿用历史记录；如果历史目录已失效，则中断 OpenClaw 相关操作，不再反复追问。
-  echo ""
-  echo "🦞 OpenClaw 仓库目录：拖入/输入新目录后回车；直接回车则沿用已记录目录："
-  echo "   $saved"
-  read -r input
+jobs_openclaw_choose_repo_path() {
+  emulate -L zsh
 
-  if [[ -z "$input" ]]; then
+  local saved=""
+
+  saved="$(jobs_openclaw_read_recorded_repo_path)"
+
+  # 后续运行：不再打断用户询问；先自动使用已记录目录。
+  # 但在任何 git pull / onboard / build 前，都会重新校验目录是否存在、是否仍然指向 openclaw/openclaw。
+  if [[ -n "$saved" ]]; then
+    echo "🦞 检查已记录的 OpenClaw 仓库目录：$saved"
     if jobs_openclaw_validate_repo "$saved"; then
       OPENCLAW_REPO_PATH="$saved"
       echo "✅ 使用已记录 OpenClaw 仓库目录：$OPENCLAW_REPO_PATH"
       return 0
     fi
 
-    echo "⚠️  已记录的 OpenClaw 目录已失效，本次中断 OpenClaw 相关操作。"
-    echo "👉 下次执行 update 时，请拖入/输入新的 openclaw/openclaw 本地仓库目录。"
-    return 1
+    echo "⚠️  已记录的 OpenClaw 目录已失效或 remote 不匹配，需要重新指定。"
+    echo "   记录文件：$JOBS_OPENCLAW_REPO_RECORD_FILE"
+  else
+    echo "🦞 未找到已记录的 OpenClaw 仓库目录。"
   fi
 
-  repo_path="$(jobs_openclaw_normalize_path "$input")"
-  if jobs_openclaw_validate_repo "$repo_path"; then
-    OPENCLAW_REPO_PATH="$repo_path"
-    jobs_openclaw_save_repo_path "$OPENCLAW_REPO_PATH"
-    return 0
-  fi
-
-  echo "⚠️  本次输入的 OpenClaw 目录未通过校验，跳过本次 OpenClaw 相关操作。"
-  return 1
+  # 首次运行，或历史目录失效：要求用户拖入/输入一个有效本地仓库，并通过 remote 校验后写入记录文件。
+  jobs_openclaw_prompt_repo_path_until_valid
 }
 
 jobs_openclaw_retry_run() {
@@ -1270,6 +1281,81 @@ jobs_openclaw_retry_run() {
   return 1
 }
 
+jobs_openclaw_load_homebrew_shellenv() {
+  emulate -L zsh
+
+  local brew_bin=""
+
+  for brew_bin in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [[ -x "$brew_bin" ]]; then
+      eval "$("$brew_bin" shellenv)"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+jobs_openclaw_install_homebrew_if_needed() {
+  emulate -L zsh
+
+  jobs_openclaw_load_homebrew_shellenv >/dev/null 2>&1 || true
+
+  if command -v brew >/dev/null 2>&1; then
+    echo "✅ Homebrew 已安装：$(brew --version | head -n 1)"
+    return 0
+  fi
+
+  if [[ "$OSTYPE" != darwin* ]]; then
+    echo "❌ 当前系统不是 macOS，无法按 Homebrew 流程自动安装依赖"
+    return 1
+  fi
+
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "❌ 缺少 curl，无法自动安装 Homebrew"
+    echo "👉 可先执行：xcode-select --install"
+    return 1
+  fi
+
+  echo ""
+  echo "🍺 未检测到 Homebrew，开始安装 Homebrew。这个过程可能需要输入系统密码。"
+  jobs_openclaw_retry_run "安装 Homebrew" 1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || return 1
+
+  jobs_openclaw_load_homebrew_shellenv >/dev/null 2>&1 || true
+
+  if command -v brew >/dev/null 2>&1; then
+    echo "✅ Homebrew 已安装：$(brew --version | head -n 1)"
+    return 0
+  fi
+
+  echo "❌ Homebrew 安装后当前 shell 仍不可用"
+  echo "👉 请重新打开终端，或检查 /opt/homebrew/bin/brew、/usr/local/bin/brew 是否存在"
+  return 1
+}
+
+jobs_openclaw_ensure_pnpm_by_brew() {
+  emulate -L zsh
+
+  if command -v pnpm >/dev/null 2>&1; then
+    echo "✅ pnpm 已安装：$(pnpm --version 2>/dev/null)"
+    return 0
+  fi
+
+  jobs_openclaw_install_homebrew_if_needed || return 1
+
+  echo "📦 未检测到 pnpm，使用 Homebrew 安装 pnpm"
+  jobs_openclaw_retry_run "安装 pnpm" 2 brew install pnpm || return 1
+
+  if command -v pnpm >/dev/null 2>&1; then
+    echo "✅ pnpm 已安装：$(pnpm --version 2>/dev/null)"
+    return 0
+  fi
+
+  echo "❌ pnpm 安装后当前 shell 仍不可用"
+  echo "👉 请重新打开终端后再执行 update，或检查 brew 的 shellenv 是否已写入 ~/.zprofile"
+  return 1
+}
+
 jobs_openclaw_brew_install_if_needed() {
   local cmd="$1"
   local formula="$2"
@@ -1279,10 +1365,10 @@ jobs_openclaw_brew_install_if_needed() {
     return 0
   fi
 
-  if ! command -v brew >/dev/null 2>&1; then
+  jobs_openclaw_install_homebrew_if_needed || {
     echo "❌ 缺少 $cmd，且 Homebrew 不可用，无法自动安装 $formula"
     return 1
-  fi
+  }
 
   jobs_openclaw_retry_run "安装 $formula" 2 brew install "$formula"
 }
@@ -1298,6 +1384,12 @@ jobs_openclaw_sync_repo() {
     echo "❌ 缺少 git，无法同步 OpenClaw 代码"
     return 1
   fi
+
+  # 关键防护：真正做 git pull / fetch 前重新校验本地目录，避免历史记录失效、目录被删、remote 被改。
+  jobs_openclaw_validate_repo "$repo_path" || {
+    echo "❌ OpenClaw 仓库目录校验失败，已停止 git pull：$repo_path"
+    return 1
+  }
 
   branch="$(git -C "$repo_path" branch --show-current 2>/dev/null || true)"
   if [[ -z "$branch" ]]; then
@@ -1320,6 +1412,151 @@ jobs_openclaw_sync_repo() {
   fi
 
   jobs_openclaw_retry_run "同步 OpenClaw 代码" 2 git -C "$repo_path" pull --ff-only --autostash origin "$branch"
+}
+
+jobs_openclaw_sync_dependencies() {
+  emulate -L zsh
+
+  local repo_path="$1"
+
+  if [[ -z "$repo_path" || ! -d "$repo_path" ]]; then
+    echo "❌ OpenClaw 仓库目录不存在，无法同步依赖：$repo_path"
+    return 1
+  fi
+
+  if [[ ! -f "$repo_path/package.json" ]]; then
+    echo "❌ OpenClaw 仓库目录缺少 package.json：$repo_path"
+    return 1
+  fi
+
+  # git pull 后 package.json / pnpm-lock.yaml / pnpm-workspace.yaml 可能已经变化。
+  # 不先执行 pnpm install，后续 pnpm openclaw 会在自动构建时找不到新增 workspace 包。
+  (
+    cd "$repo_path" || exit 1
+    jobs_openclaw_retry_run "OpenClaw 依赖同步 pnpm install" 2 pnpm install || exit 1
+  )
+}
+
+jobs_openclaw_build_runtime() {
+  emulate -L zsh
+
+  local repo_path="$1"
+
+  if [[ -z "$repo_path" || ! -d "$repo_path" ]]; then
+    echo "❌ OpenClaw 仓库目录不存在，无法构建运行时代码：$repo_path"
+    return 1
+  fi
+
+  if [[ ! -f "$repo_path/package.json" ]]; then
+    echo "❌ OpenClaw 仓库目录缺少 package.json：$repo_path"
+    return 1
+  fi
+
+  # git pull 后 TypeScript 源码可能已经变化；如果 Gateway 服务通过已构建 dist 运行，
+  # 只 pnpm install / pnpm ui:build 不够，必须先刷新 runtime dist。
+  (
+    cd "$repo_path" || exit 1
+    jobs_openclaw_retry_run "OpenClaw 运行时代码构建 pnpm build" 2 pnpm build || exit 1
+  )
+}
+
+jobs_openclaw_build_control_ui_assets() {
+  emulate -L zsh
+
+  local repo_path="$1"
+
+  if [[ -z "$repo_path" || ! -d "$repo_path" ]]; then
+    echo "❌ OpenClaw 仓库目录不存在，无法构建 Control UI：$repo_path"
+    return 1
+  fi
+
+  if [[ ! -f "$repo_path/package.json" ]]; then
+    echo "❌ OpenClaw 仓库目录缺少 package.json：$repo_path"
+    return 1
+  fi
+
+  # dashboard 访问 127.0.0.1:18789 时需要已生成的 Control UI 静态资源。
+  # 这和 onboard 配置面板不是一回事；不执行 onboard 也必须执行 pnpm ui:build。
+  (
+    cd "$repo_path" || exit 1
+    jobs_openclaw_retry_run "OpenClaw Control UI 构建 pnpm ui:build" 2 pnpm ui:build || exit 1
+  )
+}
+
+jobs_openclaw_launchctl_kickstart_existing_gateway() {
+  emulate -L zsh
+  setopt null_glob
+
+  [[ "$OSTYPE" == darwin* ]] || return 1
+  command -v launchctl >/dev/null 2>&1 || return 1
+
+  local plist=""
+  local label=""
+  local uid="$(id -u)"
+  local restarted=1
+
+  for plist in "$HOME"/Library/LaunchAgents/*openclaw*.plist(N); do
+    label="$(/usr/libexec/PlistBuddy -c 'Print :Label' "$plist" 2>/dev/null || plutil -extract Label raw "$plist" 2>/dev/null || true)"
+    [[ -n "$label" ]] || continue
+
+    echo "🔄 尝试重启已有 OpenClaw LaunchAgent：$label"
+    if launchctl kickstart -k "gui/$uid/$label" >/dev/null 2>&1; then
+      echo "✅ 已通过 launchctl kickstart 重启：$label"
+      restarted=0
+    else
+      echo "⚠️  launchctl kickstart 失败：$label"
+    fi
+  done
+
+  return $restarted
+}
+
+jobs_openclaw_refresh_gateway_service() {
+  emulate -L zsh
+
+  local repo_path="$1"
+
+  if jobs_openclaw_skip_gateway_restart_enabled; then
+    echo "⏭️  已设置 JOBS_OPENCLAW_SKIP_GATEWAY_RESTART=1，跳过 Gateway 服务重装/重启"
+    return 0
+  fi
+
+  if [[ -z "$repo_path" || ! -d "$repo_path" ]]; then
+    echo "❌ OpenClaw 仓库目录不存在，无法刷新 Gateway 服务：$repo_path"
+    return 1
+  fi
+
+  if [[ ! -f "$repo_path/package.json" ]]; then
+    echo "❌ OpenClaw 仓库目录缺少 package.json：$repo_path"
+    return 1
+  fi
+
+  # 注意：这里使用 gateway install/restart，而不是 onboard --install-daemon。
+  # 前者只刷新/重启 Gateway 服务，不会打开 OpenClaw setup 配置面板；
+  # 作用是让 127.0.0.1:18789 的 Gateway 进程重新读取刚构建好的 dist/control-ui。
+  (
+    cd "$repo_path" || exit 1
+    jobs_openclaw_retry_run "OpenClaw Gateway 服务刷新 pnpm openclaw gateway install --force" 1 pnpm openclaw gateway install --force || exit 1
+    jobs_openclaw_retry_run "OpenClaw Gateway 服务重启 pnpm openclaw gateway restart" 1 pnpm openclaw gateway restart || exit 1
+  ) && return 0
+
+  echo "⚠️  pnpm openclaw gateway install/restart 失败，尝试对已有 LaunchAgent 做 kickstart"
+  if jobs_openclaw_launchctl_kickstart_existing_gateway; then
+    return 0
+  fi
+
+  echo "⚠️  未能自动重启 Gateway。Control UI 已构建，但 18789 可能仍由旧 Gateway 进程提供服务。"
+  print -r -- "👉 可手动执行：cd "$repo_path" && pnpm openclaw gateway install --force && pnpm openclaw gateway restart"
+  return 1
+}
+
+jobs_openclaw_skip_gateway_restart_enabled() {
+  emulate -L zsh
+
+  case "${JOBS_OPENCLAW_SKIP_GATEWAY_RESTART:-0}" in
+    1|true|TRUE|yes|YES|y|Y) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 jobs_openclaw_fix_path_if_needed() {
@@ -1354,6 +1591,31 @@ jobs_openclaw_fix_path_if_needed() {
   else
     echo "⚠️  PATH 已修复；如果当前终端仍无法识别 openclaw，请重新打开终端。"
   fi
+}
+
+jobs_openclaw_gateway_status_ok() {
+  emulate -L zsh
+
+  local repo_path="$1"
+
+  if [[ -n "$repo_path" && -d "$repo_path" ]] && command -v pnpm >/dev/null 2>&1; then
+    if (
+      cd "$repo_path" || exit 1
+      pnpm openclaw gateway status >/dev/null 2>&1
+    ); then
+      echo "✅ OpenClaw Gateway status 正常，跳过 onboard"
+      return 0
+    fi
+  fi
+
+  if command -v openclaw >/dev/null 2>&1; then
+    if openclaw gateway status >/dev/null 2>&1; then
+      echo "✅ OpenClaw Gateway status 正常，跳过 onboard"
+      return 0
+    fi
+  fi
+
+  return 1
 }
 
 jobs_openclaw_daemon_seems_ok() {
@@ -1395,32 +1657,156 @@ jobs_openclaw_daemon_seems_ok() {
   return 1
 }
 
-jobs_openclaw_onboard_if_needed() {
+
+jobs_openclaw_prompt_open_dashboard() {
   emulate -L zsh
 
   local repo_path="$1"
   local answer=""
+
+  echo ""
+  if [[ ! -t 0 ]]; then
+    echo "👉 如需打开控制台，手动执行：openclaw dashboard"
+    return 0
+  fi
+
+  read -r "?👉 回车打开 OpenClaw 控制台；输入任意字符跳过: " answer
+  if [[ -n "$answer" ]]; then
+    echo "⏭️  已跳过打开 OpenClaw 控制台"
+    return 0
+  fi
+
+  echo "🚀 正在打开 OpenClaw 控制台..."
+  if command -v openclaw >/dev/null 2>&1; then
+    openclaw dashboard
+    return $?
+  fi
+
+  if command -v pnpm >/dev/null 2>&1 && [[ -n "$repo_path" && -d "$repo_path" ]]; then
+    (
+      cd "$repo_path" || exit 1
+      pnpm openclaw dashboard
+    )
+    return $?
+  fi
+
+  echo "❌ 找不到 openclaw / pnpm，无法打开 OpenClaw 控制台"
+  return 1
+}
+
+jobs_openclaw_onboard_marker_exists() {
+  emulate -L zsh
+
+  local repo_path="$1"
+
+  [[ -f "$JOBS_OPENCLAW_ONBOARD_MARKER_FILE" ]] || return 1
+  grep -Fqx "repo_path=$repo_path" "$JOBS_OPENCLAW_ONBOARD_MARKER_FILE" 2>/dev/null
+}
+
+jobs_openclaw_write_onboard_marker() {
+  emulate -L zsh
+
+  local repo_path="$1"
+
+  mkdir -p "${JOBS_OPENCLAW_ONBOARD_MARKER_FILE:h}" 2>/dev/null || true
+  {
+    print -r -- "repo_path=$repo_path"
+    print -r -- "completed_at=$(date '+%Y-%m-%d %H:%M:%S %z')"
+  } >| "$JOBS_OPENCLAW_ONBOARD_MARKER_FILE" 2>/dev/null || true
+}
+
+jobs_openclaw_force_onboard_enabled() {
+  emulate -L zsh
+
+  case "${JOBS_OPENCLAW_FORCE_ONBOARD:-0}" in
+    1|true|TRUE|yes|YES|y|Y) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+jobs_openclaw_onboard_if_needed() {
+  emulate -L zsh
+
+  local repo_path="$1"
+
+  # 这一步只做状态判断，不再默认进入 OpenClaw 的交互式 setup / onboard 面板。
+  # 原因：pnpm openclaw onboard --install-daemon 是强交互命令，检测不到 Gateway / daemon 时会弹出
+  # Security disclaimer、模型/provider、API key 等配置流程；update 不能替用户反复打开这个面板。
+  if jobs_openclaw_gateway_status_ok "$repo_path"; then
+    return 0
+  fi
 
   if jobs_openclaw_daemon_seems_ok; then
     echo "✅ OpenClaw daemon 看起来正常，跳过 onboard"
     return 0
   fi
 
-  echo ""
-  echo "⚠️  未检测到正常运行的 OpenClaw daemon。"
-  echo "👉 回车执行：pnpm openclaw onboard --install-daemon"
-  echo "👉 输入任意字符则跳过 daemon 安装/修复"
-  read -r answer
-
-  if [[ -n "$answer" ]]; then
-    echo "⏭️  已跳过 OpenClaw onboard"
+  if jobs_openclaw_onboard_marker_exists "$repo_path"; then
+    echo "✅ 已记录 OpenClaw onboard 完成过，跳过交互配置"
     return 0
   fi
 
+  if ! jobs_openclaw_force_onboard_enabled; then
+    echo "⏭️  未检测到 OpenClaw Gateway / daemon 完成状态；按当前策略，不自动打开 OpenClaw 配置面板。"
+    print -r -- "👉 真要重配时，手动执行：cd \"$repo_path\" && pnpm openclaw onboard --install-daemon"
+    echo "👉 或临时允许本脚本执行一次：JOBS_OPENCLAW_FORCE_ONBOARD=1 update"
+    return 0
+  fi
+
+  echo "⚠️  已开启 JOBS_OPENCLAW_FORCE_ONBOARD=1，本次才会进入 OpenClaw onboard 配置面板"
   (
     cd "$repo_path" || exit 1
-    jobs_openclaw_retry_run "OpenClaw onboard / install daemon" 2 pnpm openclaw onboard --install-daemon
-  )
+    jobs_openclaw_retry_run "OpenClaw onboard / install daemon" 1 pnpm openclaw onboard --install-daemon
+  ) || return 1
+
+  jobs_openclaw_write_onboard_marker "$repo_path"
+}
+
+jobs_update_openclaw_gateway_daemon() {
+  emulate -L zsh
+
+  local repo_path=""
+
+  if ! jobs_openclaw_choose_repo_path; then
+    echo "⚠️  跳过 OpenClaw Gateway / daemon 配置"
+    return 0
+  fi
+
+  repo_path="$OPENCLAW_REPO_PATH"
+
+  echo ""
+  echo "🧩 开始同步 OpenClaw 源码、依赖、Control UI 并刷新 Gateway（不打开配置面板）：$repo_path"
+
+  # 03 项和 04 项共用同一份 OpenClaw 本地仓库记录。
+  # 先校验并同步本地源码；本项默认不再执行交互式 onboard。
+  jobs_openclaw_sync_repo "$repo_path" || return 1
+
+  jobs_openclaw_install_homebrew_if_needed || return 1
+  jobs_openclaw_ensure_pnpm_by_brew || return 1
+
+  # 先同步依赖，避免源码更新后 workspace 链接仍是旧状态。
+  jobs_openclaw_sync_dependencies "$repo_path" || return 1
+
+  # 源码模式下 Gateway 服务通常读取已构建的 runtime dist。
+  # git pull 后如果不先 pnpm build，后台服务可能继续使用旧 runtime。
+  jobs_openclaw_build_runtime "$repo_path" || return 1
+
+  # 再构建 Control UI 静态资源。否则 dashboard 可能报：
+  # Control UI assets not found. Build them with `pnpm ui:build`.
+  # 这一步不会进入 OpenClaw setup / onboard 配置面板。
+  jobs_openclaw_build_control_ui_assets "$repo_path" || return 1
+
+  # 最后刷新 Gateway 服务，让 127.0.0.1:18789 重新读取刚构建好的 dist/control-ui。
+  # 这里明确使用 gateway install/restart，不调用 onboard --install-daemon，避免打开配置面板。
+  jobs_openclaw_refresh_gateway_service "$repo_path" || return 1
+
+  # 只做只读状态检查；默认不执行 pnpm openclaw onboard --install-daemon，避免打开配置面板。
+  # 如确实要由脚本执行一次配置，显式使用 JOBS_OPENCLAW_FORCE_ONBOARD=1。
+  jobs_openclaw_onboard_if_needed "$repo_path" || return 1
+
+  echo "✅ OpenClaw 源码/依赖/runtime/Control UI/Gateway 刷新完成"
+  print -r -- "👉 可检查状态：cd \"$repo_path\" && pnpm openclaw gateway status"
+  jobs_openclaw_prompt_open_dashboard "$repo_path"
 }
 
 jobs_update_openclaw() {
@@ -1459,7 +1845,7 @@ jobs_update_openclaw() {
   jobs_openclaw_onboard_if_needed "$repo_path" || return 1
 
   echo "✅ OpenClaw 更新完成"
-  echo "👉 如需打开面板，手动执行：openclaw dashboard"
+  jobs_openclaw_prompt_open_dashboard "$repo_path"
 }
 
 # ------------------------------ update 聚合入口 ------------------------------
@@ -1524,6 +1910,7 @@ jobs_update_select_with_fzf() {
   options=(
     "$JOBS_UPDATE_OPTION_DEFAULT"
     "$JOBS_UPDATE_OPTION_FULL_WITH_OPENCLAW"
+    "$JOBS_UPDATE_OPTION_OPENCLAW_GATEWAY"
     "$JOBS_UPDATE_OPTION_OPENCLAW"
     "$JOBS_UPDATE_OPTION_HOMEBREW"
     "$JOBS_UPDATE_OPTION_ANDROID"
@@ -1562,6 +1949,9 @@ jobs_update_select_with_fzf() {
       ;;
     "$JOBS_UPDATE_OPTION_FULL_WITH_OPENCLAW")
       jobs_update_full_with_openclaw
+      ;;
+    "$JOBS_UPDATE_OPTION_OPENCLAW_GATEWAY")
+      jobs_update_run_module "$JOBS_UPDATE_OPTION_OPENCLAW_GATEWAY" "jobs_update_openclaw_gateway_daemon"
       ;;
     "$JOBS_UPDATE_OPTION_OPENCLAW")
       jobs_update_run_module "$JOBS_UPDATE_OPTION_OPENCLAW" "jobs_update_openclaw"
