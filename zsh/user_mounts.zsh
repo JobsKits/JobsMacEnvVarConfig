@@ -1,5 +1,5 @@
 # 用户挂载入口
-# 这里只负责按顺序加载外挂文件
+# 这里只负责按顺序加载自定义模块
 
 export JOBS_USER_MOUNTS_DIR="$JOBS_MAC_ENV_HOME/zsh/custom"
 
@@ -10,5 +10,4 @@ jobs_source_if_exists() {
 
 jobs_source_if_exists "$JOBS_USER_MOUNTS_DIR/shell_behavior.zsh"
 jobs_source_if_exists "$JOBS_USER_MOUNTS_DIR/path_drag_resolver.zsh"
-jobs_source_if_exists "$JOBS_USER_MOUNTS_DIR/legacy_functions.zsh"
 jobs_source_if_exists "$JOBS_USER_MOUNTS_DIR/local.zsh"

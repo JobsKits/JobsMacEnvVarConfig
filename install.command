@@ -360,12 +360,13 @@ main() {
   if [[ -f "$source_dir/zsh/custom/path_drag_resolver.zsh" ]]; then
     copy_file_if_changed "$source_dir/zsh/custom/path_drag_resolver.zsh" "$target_custom_dir/path_drag_resolver.zsh"
   fi
-  copy_file_if_changed "$source_dir/zsh/custom/legacy_functions.zsh" "$target_custom_dir/legacy_functions.zsh"
+  copy_file_if_changed "$source_dir/zsh/custom/local.zsh" "$target_custom_dir/local.zsh"
 
-  if [[ -f "$source_dir/zsh/custom/local.zsh" ]]; then
-    copy_file_if_changed "$source_dir/zsh/custom/local.zsh" "$target_custom_dir/local.zsh"
-  elif [[ ! -f "$target_custom_dir/local.zsh" ]]; then
-    write_file_if_changed "$target_custom_dir/local.zsh" $'# 本机私有配置\n# 放这里的内容，不建议回写到公共模板里\n'
+  # 旧版本的个人命令文件已经合并到 local.zsh。
+  # 安装时清掉目标目录里的残留文件，避免后续误加载或误修改。
+  if [[ -f "$target_custom_dir/legacy_functions.zsh" ]]; then
+    rm -f "$target_custom_dir/legacy_functions.zsh"
+    log "已移除旧文件：$target_custom_dir/legacy_functions.zsh"
   fi
 
   write_file_if_changed "$target_env" "$(generate_env_content)"
