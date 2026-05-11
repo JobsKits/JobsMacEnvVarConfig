@@ -557,6 +557,7 @@ zsh/custom/local.zsh
 | `cor` | 颜色格式转换器，支持 HEX / RGB / RGBA / 0xAARRGGBB，带色块预览 |
 | `shell` | fzf 选择当前电脑扫描到的 shell，并切换默认登录 shell |
 | `decode` | URL Decode 交互式解码，并自动复制结果到剪贴板 |
+| `ts` | 交互式时间戳转换；空回车会继续提示，Esc/Ctrl-C/Ctrl-D 退出；输出年、月、日、时、分、秒、周几、时区；可用 fzf 选择其他时区 |
 
 迁移新机器前，优先检查文件开头这两个变量：
 
