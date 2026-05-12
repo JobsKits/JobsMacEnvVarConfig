@@ -11,6 +11,7 @@ fi
 # - 清空当前 zsh 会话里的历史记录
 # - 清空 HISTFILE 对应的历史文件
 # - 顺带清空 macOS zsh_sessions 里残留的会话历史文件
+# - 如果检测到 Homebrew，顺手执行 brew cleanup
 # - 清空当前终端屏幕和滚动缓冲区
 #
 # 用法：
@@ -20,6 +21,21 @@ fi
 # - 这个函数会真正清空历史文件，不做二次确认。
 # - 执行后，本次 clean 之前的历史不会再通过方向键 / history 命令找回。
 # - 后续新输入的命令会继续正常写入历史。
+
+# 顺手清理 Homebrew 旧版本包和缓存；Homebrew 不存在或清理失败都不阻断 clean。
+jobs_clean_homebrew_cleanup() {
+  emulate -L zsh
+
+  command -v brew >/dev/null 2>&1 || return 0
+
+  print -P "%F{blue}ℹ 正在执行 brew cleanup...%f"
+  if brew cleanup; then
+    print -P "%F{green}✔ Homebrew 垃圾清理完成%f"
+  else
+    print -P "%F{yellow}⚠ brew cleanup 执行失败，已忽略，继续 clean%f"
+  fi
+}
+
 unalias clean 2>/dev/null
 clean() {
   emulate -L zsh
@@ -48,6 +64,9 @@ clean() {
     [[ -e "$file" || -L "$file" ]] || continue
     : >| "$file" 2>/dev/null || true
   done
+
+  # 顺手清理 Homebrew 旧版本包和缓存；失败不影响后续清屏。
+  jobs_clean_homebrew_cleanup
 
   # 恢复历史配置，让 clean 之后的新命令继续正常记录。
   HISTSIZE="$old_histsize"

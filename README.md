@@ -33,8 +33,23 @@
 │   ├── .zlogout
 │   ├── .bashrc
 │   └── .bash_profile
-├── scripts/
-│   └── install_jdk17.command       # JDK 17 独立安装脚本
+├── Scripts/
+│   ├── install_jdk17.command       # JDK 17 独立安装脚本
+│   ├── trs.command                 # macOS 原生翻译入口脚本
+│   ├── gif.command                 # 终端 / 全屏录制并转 GIF 脚本
+│   ├── common.command              # 通用辅助函数
+│   ├── entrypoints.command         # trs / gif / jdk17 包装函数
+│   ├── path.command                # zz / x 路径工具
+│   ├── media.command               # download / yt-dlp 浏览器 cookies
+│   ├── session.command             # save / rb / config / 快捷打开
+│   ├── flutter_project.command     # Flutter 项目、构建、JDK 锁定
+│   ├── update.command              # update 菜单化更新
+│   ├── system_install.command      # install 新系统环境配置
+│   ├── color.command               # cor 颜色转换
+│   ├── shell.command               # shell 切换器
+│   ├── codec.command               # decode URL 解码
+│   ├── timestamp.command           # ts 时间戳转换
+│   └── runtime_init.command        # jenv / rbenv / Dart completion 初始化
 └── zsh/
     ├── bootstrap.zsh               # 启动层：交互式环境、Oh My Zsh、Homebrew
     ├── env_methods.zsh             # 环境变量 / PATH 工具方法
@@ -43,7 +58,7 @@
     └── custom/
         ├── shell_behavior.zsh      # 交互式终端行为：默认 cd 桌面、clean 清屏清历史
         ├── path_drag_resolver.zsh  # macOS 拖入路径解析
-        └── local.zsh               # 统一个人终端函数集合
+        └── local.zsh               # Scripts 模块加载器
 ```
 
 安装后会同步到：
@@ -54,7 +69,23 @@
 ├── install.command
 ├── sync_env.txt
 ├── README.md
-├── scripts/
+├── Scripts/
+│   ├── install_jdk17.command
+│   ├── trs.command
+│   ├── gif.command
+│   ├── common.command
+│   ├── entrypoints.command
+│   ├── path.command
+│   ├── media.command
+│   ├── session.command
+│   ├── flutter_project.command
+│   ├── update.command
+│   ├── system_install.command
+│   ├── color.command
+│   ├── shell.command
+│   ├── codec.command
+│   ├── timestamp.command
+│   └── runtime_init.command
 └── zsh/
 ```
 
@@ -74,6 +105,8 @@ chmod +x install.command
 1. 是否继续安装
 2. 是否自动安装 JDK 17
 3. 是否替换当前系统 `~/.zshrc`
+4. `trs` 首次使用时会对 `fzf` / `translate-cli` 这类必需依赖执行补齐流程
+5. `gif` 首次使用时会检测 Homebrew / asciinema / agg / ffmpeg；启动时按回车默认录制当前终端，进入设置菜单可选择全屏录制
 
 如果选择替换 `~/.zshrc`，脚本会先自动备份旧文件：
 
@@ -97,6 +130,7 @@ flowchart TD
     D{是否检测到 JDK 17}
     E[询问是否自动安装 JDK 17]
     F[同步到 ~/.JobsMacEnv]
+    T[同步 trs / gif 到 Scripts 和 ~/.local/bin]
     G[生成环境变量和别名]
     H{是否替换 ~/.zshrc}
     I[备份并替换 ~/.zshrc]
@@ -107,7 +141,7 @@ flowchart TD
     A --> B --> C --> D
     D -- 已存在 --> F
     D -- 不存在 --> E --> F
-    F --> G --> H
+    F --> T --> G --> H
     H -- 是 --> I --> K
     H -- 否 --> J --> K
     K --> L
@@ -189,7 +223,7 @@ zsh/custom/local.zsh
 export JOBS_ALIAS_DRAG_AUTO_RESOLVE=true
 ```
 
-个人命令统一维护在 `local.zsh` 里，避免人为制造两套心智负担。
+个人命令按功能拆到 `Scripts/*.command`，`local.zsh` 只负责加载这些模块。
 
 ## 六、已支持的环境 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
@@ -204,6 +238,8 @@ export JOBS_ALIAS_DRAG_AUTO_RESOLVE=true
 | Ruby | 支持 rbenv |
 | Go | 支持 GOPATH 和 Go bin 路径 |
 | Homebrew | 自动兼容 Apple Silicon 和 Intel 路径 |
+| trs | macOS 原生翻译入口，中文固定为一端，fzf 选择对方语言 |
+| gif | 终端 / 全屏录制入口，基于 asciinema + agg / screencapture + ffmpeg 生成高质量 GIF / MP4 |
 
 ## 七、常用能力 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
@@ -256,7 +292,7 @@ path_drag_resolver.zsh
 local.zsh
 ```
 
-也就是说，`shell_behavior.zsh` 放终端默认行为，`path_drag_resolver.zsh` 放路径拖入解析，`local.zsh` 放统一的个人终端函数和项目命令。
+也就是说，`shell_behavior.zsh` 放终端默认行为，`path_drag_resolver.zsh` 放路径拖入解析，`local.zsh` 只加载 `Scripts/*.command` 模块。
 
 #### 3.1 `clean`：清除终端历史 + Command+K 式清屏
 
@@ -277,6 +313,7 @@ clean
 - 清空当前 zsh 会话里的历史记录。
 - 清空 `HISTFILE` 指向的历史文件，默认通常是 `~/.zsh_history`。
 - 顺带清空 macOS `~/.zsh_sessions/*.history`、`~/.zsh_sessions/*.historynew` 里残留的会话历史。
+- 如果检测到 Homebrew，顺手执行 `brew cleanup` 清理旧版本包和缓存。
 - 清空当前终端可视区域。
 - 清空终端滚动缓冲区，也就是往上滚动时看到的旧输出。
 - 清屏效果按 Command+K 的目标处理：不是普通 `clear`，而是连 scrollback 一起清掉。
@@ -291,6 +328,7 @@ clean
 注意：
 
 - `clean` 是强清理命令，不做二次确认。
+- `brew cleanup` 只在检测到 `brew` 时执行；如果 Homebrew 不存在或清理失败，会跳过/忽略，不阻断清屏主流程。
 - 旧历史一旦被清空，就不要指望通过方向键、`history`、`~/.zsh_history` 再找回来。
 - `clear` 只清当前可视区域，不清滚动缓冲；`clean` 使用 ANSI scrollback 清理序列和 iTerm2 ClearScrollback 扩展，目标效果对齐 Command+K。
 - 这里没有调用 `clear` 命令，因此不是普通 clear 的效果。
@@ -514,7 +552,7 @@ zsh/custom/shell_behavior.zsh
 
 - 只有交互式 zsh 才执行这里面的逻辑。
 - 打开新终端时，如果存在 `~/Desktop`，默认进入桌面。
-- 定义 `clean` 函数，用于清历史，并执行 Command+K 式清屏：清当前显示 + 清滚动缓冲区。
+- 定义 `clean` 函数，用于清历史、顺手执行 `brew cleanup`，并执行 Command+K 式清屏：清当前显示 + 清滚动缓冲区。
 
 如果你不想打开终端默认进入桌面，直接注释这一段即可：
 
@@ -524,7 +562,173 @@ if [[ -o interactive ]] && [[ -d "$HOME/Desktop" ]]; then
 fi
 ```
 
-#### 3.9 `local.zsh`：统一个人终端函数和项目命令
+#### 3.9 `trs`：macOS 原生翻译入口 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
+
+来源文件：
+
+```text
+Scripts/trs.command
+zsh/custom/local.zsh
+```
+
+安装后入口：
+
+```text
+~/.JobsMacEnv/Scripts/trs.command
+~/.local/bin/trs
+```
+
+用法：
+
+```zsh
+trs
+```
+
+行为：
+
+- 中文固定为一端。
+- 启动后直接进入 `原文 >` 输入，不再先弹出语言选择菜单。
+- 默认对方语言是：英语（美国）/ en-US。
+- 默认方向是：对方语言 → 中文。
+- 对方语言和方向会保存到 `~/.local/share/jobs-translator/config.zsh`，下次执行 `trs` 自动沿用。
+- 进入 `原文 >` 输入前，先检测当前语言对的系统翻译资源是否就绪。
+- 真正输入原文并回车后，立即翻译；不会在原文输入之后才弹出环境配置菜单或下一步菜单。
+- 设置菜单只通过 `空格 + 回车` 调用，可用于切换方向、切换对方语言、打开系统 Translation Languages 设置、查看帮助或退出翻译。
+- `原文 >` 输入区不再支持冒号命令；除单个空格以外，任何非空输入都会按原文翻译。
+- 不接 Google，不配置云 API Key，不需要实名。
+- 主翻译能力来自 macOS 原生 Translation Service。
+
+支持输入方式：
+
+```text
+直接输入原文 + 回车      立即翻译
+空格 + 回车              打开设置菜单
+Ctrl + C                 退出 trs
+```
+
+注意：`:help`、`:swap`、`:setup` 这类字符串现在也会被当作普通原文翻译；退出翻译、切换方向、切换语言等操作统一从设置菜单进入。
+
+依赖：
+
+```text
+fzf
+translate-cli
+```
+
+`fzf` 只在打开设置菜单或切换对方语言时使用；正常输入原文翻译不依赖 `fzf` 菜单。
+
+`translate-cli` 是开源 Swift 命令行工具，本身调用 macOS 内置 Translation Service。当前脚本在缺失 `translate` 命令时，会提示补齐 `scriptingosx/translate-cli`；按回车跳过，输入任意字符后回车才执行安装流程。
+
+重要前提：
+
+- 当前 `scriptingosx/translate-cli` 要求 macOS 26.0 或更高版本。
+- 使用前需要在系统设置里下载对应语言资源：`系统设置 → 通用 → 语言与地区 → Translation Languages…`。
+- 英语已经拆成 `英语（美国）/ en-US` 和 `英语（英国）/ en-GB`，和系统设置里的下载项保持一致。
+- 如果未下载对应语言资源，可能出现 `Unable to Translate` 或 `You have to download the Translation resources`。
+- `trs` 会在进入原文输入前执行一次语言对检测；检测不通过时，先提示打开 Translation Languages 设置，下载完成并重新检测通过后，才进入 `原文 >` 输入。
+- 支持哪些语言、翻译质量和是否可离线，最终以 Apple 系统翻译能力为准。
+
+首次使用建议：
+
+```text
+1. 执行 trs。
+2. 默认进入 英语（美国）→ 中文 的原文输入。
+3. trs 会先检测 en-US → zh-Hans 是否可用。
+4. 如果提示翻译资源未准备好，按回车打开 Translation Languages 设置。
+5. 在系统设置里下载 英语（美国） 和 中文（普通话，简体）对应资源。
+6. 下载完成后回到终端，按回车重新检测。
+7. 检测通过后出现 原文 [英语（美国） → 中文] >，此时输入 I 并回车会立即翻译。
+8. 需要切换语言、方向或退出翻译时，只输入一个空格再回车，打开设置菜单。
+```
+
+
+#### 3.10 `gif`：终端 / 全屏录制并转为高质量 GIF / MP4 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
+
+来源文件：
+
+```text
+Scripts/gif.command
+zsh/custom/local.zsh
+```
+
+安装后入口：
+
+```text
+~/.JobsMacEnv/Scripts/gif.command
+~/.local/bin/gif
+```
+
+用法：
+
+```zsh
+gif
+gif --repair <输出目录、session.cast 或 session.mov>
+```
+
+核心行为：
+
+- 启动后先出现一个极简入口：按回车直接跳过设置并开始录制；输入任意字符后回车才进入设置菜单。
+- **默认永远是当前终端录制**：直接回车不会沿用上次的全屏模式，避免误录整个屏幕。
+- 设置菜单最前面可以选择录制模式：`当前终端录制` 或 `全屏录制`。
+- 已舍弃 App / 窗口录制：不做“录制具体某个 Mac App / 窗口”的分支。
+- 当前终端录制基于 `asciinema + agg`；一个终端执行一次 `gif` 就生成一个录制结果，多终端分别执行即可录制多个。
+- 全屏录制基于 macOS 自带 `screencapture` 和 `ffmpeg`；录制整个屏幕，然后转成 `session.mp4` 和 `session.gif`。
+- 设置菜单内可以配置输出路径、GIF 品质和 MP4 输出。
+- 路径支持手动输入和 Finder 拖入。
+- 输入路径必须是已存在、可写的目录；无效路径会阻止继续，避免后续生成失败。
+- 输出路径页面直接回车，会生成到系统桌面。
+- 默认文件夹命名格式：`Gif@YYYY.MM.DD HH:MM:SS`。
+- 品质配置页面直接回车，会沿用当前/历史品质配置。
+- 所有路径选择、模式选择、品质配置、`gif` 的打印文字都发生在正式录制之前。
+- 正式开始录制前会清屏，尽量避免把 `gif` 程序自己的内容录进去。
+- 录制过程中按 `Ctrl-C` 结束录制，脚本会立即执行转码。
+- 不再依赖关闭窗口、`Ctrl-D`、`Ctrl-G` 或后台收尾进程，流程更直接。
+- 默认结束后再次清屏，只通过系统通知提示生成完成，避免终端残留内容影响下一段录制。
+
+当前终端录制输出目录示例：
+
+```text
+~/Desktop/Gif@2026.05.12 07:37:23
+├── session.cast
+├── session.gif
+├── session.mp4
+└── README.md
+```
+
+全屏录制输出目录示例：
+
+```text
+~/Desktop/Gif@2026.05.12 07:37:23
+├── session.mov
+├── session.mp4
+├── session.gif
+└── README.md
+```
+
+依赖：
+
+```text
+当前终端录制：Homebrew / asciinema / agg / ffmpeg
+全屏录制：macOS screencapture / Homebrew / ffmpeg
+```
+
+结束录制建议：
+
+录制过程中直接按：
+
+```text
+Ctrl-C
+```
+
+终端模式下，`Ctrl-C` 会停止 asciinema 录制，随后执行 `session.cast` → `session.gif` → `session.mp4`。
+
+全屏模式下，`Ctrl-C` 会停止 screencapture 录制，随后执行 `session.mov` → `session.mp4` → `session.gif`。
+
+不建议输入 `exit`。你手动输入的字符本来就是录屏内容，必然有机会进入 GIF。
+
+不再使用 `Ctrl-G` 作为结束键：你的终端环境已经把 `Ctrl-G` 分配给 Finder 拖入路径解析，继续复用会触发“最后一个参数不是有效路径”。
+
+#### 3.11 `local.zsh`：Scripts 模块加载器
 
 来源文件：
 
@@ -532,7 +736,7 @@ fi
 zsh/custom/local.zsh
 ```
 
-这个文件统一放个人终端函数、项目命令和本机路径配置。里面有固定项目路径和比较强的环境假设，迁移到新机器前应先检查路径。
+这个文件不再堆业务函数，只负责按顺序加载 `Scripts/*.command`。真正的个人终端函数、项目命令和本机路径配置已经按功能拆到 `Scripts` 目录。
 
 重点命令包括：
 
@@ -558,6 +762,8 @@ zsh/custom/local.zsh
 | `shell` | fzf 选择当前电脑扫描到的 shell，并切换默认登录 shell |
 | `decode` | URL Decode 交互式解码，并自动复制结果到剪贴板 |
 | `ts` | 交互式时间戳转换；空回车会继续提示，Esc/Ctrl-C/Ctrl-D 退出；输出年、月、日、时、分、秒、周几、时区；可用 fzf 选择其他时区 |
+| `trs` | macOS 原生翻译入口，默认其他语言 → 中文，可切换中文 → 对方语言 |
+| `gif` | 终端 / 全屏录制并转为高质量 GIF / MP4，按回车默认录制当前终端，进入设置菜单可选择全屏录制 |
 
 迁移新机器前，优先检查文件开头这两个变量：
 
@@ -590,14 +796,17 @@ JOBS_DART_CLI_COMPLETION_FILE="/Users/jobs/.dart-cli-completion/zsh-config.zsh"
 - 自动安装 JDK 17 依赖 [**Homebrew**](https://brew.sh/)。
 - 替换 `~/.zshrc` 前会自动备份，但仍建议先确认当前配置没有重要未迁移内容。
 - `env.zsh` 和 `aliases.zsh` 是生成文件，不建议直接长期手改。
-- `zsh/custom/local.zsh` 是统一个人终端函数集合，里面可能包含固定项目路径；迁移到新机器后建议先检查再使用。
+- `zsh/custom/local.zsh` 是 Scripts 模块加载器；固定项目路径主要在 `Scripts/flutter_project.command` 中，迁移到新机器后建议先检查再使用。
+- `trs` 依赖 macOS 原生翻译能力；系统版本、语言资源和语言对支持情况会直接影响可用性。
 - 如果安装后没有立即生效，执行 `source ~/.zshrc`，或者重新打开终端。
 
 ## 10、推荐维护方式 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
 ```text
 公共、可复用配置     -> sync_env.txt / zsh/*.zsh
-个人终端函数集合     -> zsh/custom/local.zsh
+个人函数加载器       -> zsh/custom/local.zsh -> Scripts/*.command
+trs 终端翻译入口      -> Scripts/trs.command / ~/.local/bin/trs
+gif 终端 / 全屏录制入口 -> Scripts/gif.command / ~/.local/bin/gif
 终端默认行为         -> zsh/custom/shell_behavior.zsh
 路径拖入解析         -> zsh/custom/path_drag_resolver.zsh
 系统入口             -> ~/.zshrc 只保留加载入口
@@ -611,3 +820,49 @@ JOBS_DART_CLI_COMPLETION_FILE="/Users/jobs/.dart-cli-completion/zsh-config.zsh"
 ```
 
 <a id="🔚" href="#前言" style="font-size:17px; color:green; font-weight:bold;">我是有底线的➤点我回到首页</a>
+
+
+## 启动提示修复
+
+如果打开终端看到类似 `JobsMacEnv: 缺少模块` 的提示，说明系统里的 `~/.zshrc` 已经切到新版 `Scripts` 模块加载器，但 `~/.JobsMacEnv/Scripts` 目录还没有成功同步。
+
+请直接执行安装脚本，不要在路径前面多输入字符：
+
+```zsh
+/Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfig/install.command
+```
+
+如果提示权限不足，先执行：
+
+```zsh
+chmod +x /Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfig/install.command
+/Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfig/install.command
+```
+
+安装完成后重新打开终端，或者执行：
+
+```zsh
+source ~/.zshrc
+```
+
+## 2026-05-12 修复说明：Scripts 模块化加载
+
+本版修复 `local.zsh` 模块化拆分后启动提示 `Scripts 模块未安装完整` 的问题：
+
+- `local.zsh` 只负责加载 `Scripts/*.command`
+- `Scripts` 下的功能模块已重新按完整函数边界拆分
+- 启动时优先使用 `~/.JobsMacEnv/Scripts`
+- 旧版 `~/.JobsMacEnv/scripts` 仅作为兼容兜底
+- `clean` 仍会在检测到 Homebrew 时顺手执行 `brew cleanup`
+
+
+## Scripts 模块加载说明
+
+新版统一使用 `~/.JobsMacEnv/Scripts` 作为模块目录，`zsh/custom/local.zsh` 只负责加载模块。安装脚本会在同步完成后执行模块自检；如果打开终端出现模块缺失提示，请重新执行：
+
+```zsh
+cd /Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfig
+chmod +x install.command
+./install.command
+source ~/.zshrc
+```

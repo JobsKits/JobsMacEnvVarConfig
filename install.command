@@ -211,13 +211,16 @@ show_intro_and_wait() {
   cecho "$C_BLUE" "1) 会同步到 ~/.JobsMacEnv"
   cecho "$C_BLUE" "2) 会从 Sys/.zshrc 生成轻量版 ~/.zshrc"
   cecho "$C_BLUE" "3) 会检测 JDK 17，可选自动安装"
-  cecho "$C_BLUE" "4) 稍后会问你是否替换当前 ~/.zshrc"
+  cecho "$C_BLUE" "4) 会同步 trs / gif 命令入口到 ~/.JobsMacEnv/Scripts 和 ~/.local/bin"
+  cecho "$C_BLUE" "5) 稍后会问你是否替换当前 ~/.zshrc"
   echo ""
   cecho "$C_MAGENTA" "结构："
   cecho "$C_GRAY" "  Sys/.zshrc               -> 模板入口"
   cecho "$C_GRAY" "  ~/.zshrc                 -> 系统主入口"
   cecho "$C_GRAY" "  ~/.JobsMacEnv/zsh        -> 配置目录"
-  cecho "$C_GRAY" "  ~/.JobsMacEnv/scripts    -> 安装脚本"
+  cecho "$C_GRAY" "  ~/.JobsMacEnv/Scripts    -> 安装脚本 / trs 翻译脚本 / gif 录制脚本"
+  cecho "$C_GRAY" "  ~/.local/bin/trs         -> 终端翻译命令入口"
+  cecho "$C_GRAY" "  ~/.local/bin/gif         -> 终端录制转 GIF 入口"
   echo ""
   cecho "$C_YELLOW" "按回车继续安装..."
   read -r _
@@ -310,6 +313,48 @@ prompt_replace_system_zshrc() {
   log "已替换系统 .zshrc：$system_zshrc"
 }
 
+verify_scripts_modules() {
+  local scripts_dir="$1"
+  local required_files=(
+    common.command
+    entrypoints.command
+    path.command
+    media.command
+    session.command
+    flutter_project.command
+    update.command
+    system_install.command
+    color.command
+    shell.command
+    codec.command
+    timestamp.command
+    runtime_init.command
+  )
+
+  if [[ ! -d "$scripts_dir" ]]; then
+    err "Scripts 模块目录不存在：$scripts_dir"
+    exit 1
+  fi
+
+  local missing=()
+  local file=""
+  for file in "${required_files[@]}"; do
+    if [[ ! -f "$scripts_dir/$file" ]]; then
+      missing+=("$file")
+    fi
+  done
+
+  if (( ${#missing[@]} > 0 )); then
+    err "Scripts 模块同步不完整：${missing[*]}"
+    err "当前目录：$scripts_dir"
+    err "当前目录实际文件："
+    find "$scripts_dir" -maxdepth 1 -type f -name '*.command' -print 2>/dev/null | sort | sed 's/^/[err]   /' || true
+    exit 1
+  fi
+
+  log "Scripts 模块自检通过：$scripts_dir"
+}
+
 main() {
   local source_dir
   source_dir="$(cd "$(dirname "$0")" && pwd)"
@@ -317,7 +362,9 @@ main() {
   local target_root="$HOME/.JobsMacEnv"
   local target_zsh_dir="$target_root/zsh"
   local target_custom_dir="$target_zsh_dir/custom"
-  local target_scripts_dir="$target_root/scripts"
+  local target_scripts_dir="$target_root/Scripts"
+  local target_bin_dir="$HOME/.local/bin"
+  local old_target_scripts_dir="$target_root/scripts"
 
   local sync_file="$source_dir/sync_env.txt"
   local target_sync_file="$target_root/sync_env.txt"
@@ -345,14 +392,32 @@ main() {
   ensure_dir "$target_root"
   ensure_dir "$target_zsh_dir"
   ensure_dir "$target_custom_dir"
-  ensure_dir "$target_scripts_dir"
+  ensure_dir "$target_bin_dir"
   ensure_dir "$target_root/assets"
+
+  # macOS 默认文件系统通常大小写不敏感：scripts 与 Scripts 可能是同一个目录。
+  # 必须先清理，再重建；不能创建 Scripts 后再 rm -rf scripts，否则会把新目录删掉。
+  rm -rf "$target_scripts_dir" "$old_target_scripts_dir" 2>/dev/null || true
+  ensure_dir "$target_scripts_dir"
 
   copy_file_if_changed "$source_zshrc" "$target_zshrc_template"
   copy_file_if_changed "$source_dir/README.md" "$target_readme"
   copy_file_if_changed "$source_dir/install.command" "$target_install"
   copy_file_if_changed "$source_dir/sync_env.txt" "$target_sync_file"
-  copy_file_if_changed "$source_dir/scripts/install_jdk17.command" "$target_scripts_dir/install_jdk17.command"
+  local source_scripts_dir="$source_dir/Scripts"
+  [[ -d "$source_scripts_dir" ]] || { err "缺少目录：$source_scripts_dir"; exit 1; }
+
+  local script_file script_name
+  for script_file in "$source_scripts_dir"/*.command; do
+    [[ -f "$script_file" ]] || continue
+    script_name="$(basename "$script_file")"
+    copy_file_if_changed "$script_file" "$target_scripts_dir/$script_name"
+    chmod +x "$target_scripts_dir/$script_name"
+  done
+
+  copy_file_if_changed "$source_scripts_dir/trs.command" "$target_bin_dir/trs"
+  copy_file_if_changed "$source_scripts_dir/gif.command" "$target_bin_dir/gif"
+  copy_file_if_changed "$source_scripts_dir/install_jdk17.command" "$target_bin_dir/jdk17"
   copy_file_if_changed "$source_dir/zsh/bootstrap.zsh" "$target_zsh_dir/bootstrap.zsh"
   copy_file_if_changed "$source_dir/zsh/env_methods.zsh" "$target_zsh_dir/env_methods.zsh"
   copy_file_if_changed "$source_dir/zsh/user_mounts.zsh" "$target_zsh_dir/user_mounts.zsh"
@@ -362,8 +427,11 @@ main() {
   fi
   copy_file_if_changed "$source_dir/zsh/custom/local.zsh" "$target_custom_dir/local.zsh"
 
-  # 旧版本的个人命令文件已经合并到 local.zsh。
-  # 安装时清掉目标目录里的残留文件，避免后续误加载或误修改。
+  # 旧版本使用小写 scripts；新版本统一改为 Scripts。
+  # 注意：在大小写不敏感的 macOS 文件系统中，不能在这里删除 scripts，
+  # 因为它会等同于删除刚刚创建的 Scripts。
+
+  # 旧版本的个人命令文件已经合并到 Scripts 模块。
   if [[ -f "$target_custom_dir/legacy_functions.zsh" ]]; then
     rm -f "$target_custom_dir/legacy_functions.zsh"
     log "已移除旧文件：$target_custom_dir/legacy_functions.zsh"
@@ -374,9 +442,16 @@ main() {
   write_file_if_changed "$target_zshrc_template" "$(generate_minimal_zshrc)"
 
   chmod +x "$target_install"
-  chmod +x "$target_scripts_dir/install_jdk17.command"
+  chmod +x "$target_scripts_dir"/*.command 2>/dev/null || true
+  chmod +x "$target_bin_dir/trs" "$target_bin_dir/gif" "$target_bin_dir/jdk17"
+
+  verify_scripts_modules "$target_scripts_dir"
 
   log "已生成轻量入口文件：$target_zshrc_template"
+  log "已同步 Scripts 模块目录：$target_scripts_dir"
+  log "已安装 trs 命令入口：$target_bin_dir/trs"
+  log "已安装 gif 命令入口：$target_bin_dir/gif"
+  log "已安装 jdk17 命令入口：$target_bin_dir/jdk17"
   prompt_replace_system_zshrc "$target_zshrc_template"
 
   if [[ -f "$HOME/.zshrc" ]]; then

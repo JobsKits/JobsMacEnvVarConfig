@@ -9,6 +9,9 @@
 
 [[ -o interactive ]] || return 0
 
+# gif 录制 shell 内不绑定 Ctrl-G，避免与录制结束/路径解析产生冲突。
+[[ "${JOBS_GIF_RECORDING:-}" == "1" ]] && return 0
+
 : "${JOBS_ALIAS_DRAG_BINDKEY:=^G}"
 : "${JOBS_ALIAS_DRAG_AUTO_RESOLVE:=false}"
 
