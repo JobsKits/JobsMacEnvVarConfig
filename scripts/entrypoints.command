@@ -28,3 +28,7 @@ gif() { _jobs_run_scripts_command gif "$@"; }
 
 # jdk17：检测并安装 JDK 17。
 jdk17() { _jobs_run_scripts_command install_jdk17 "$@"; }
+
+
+# simios：检测完整 Xcode 环境并下载 / 补齐 iOS Simulator Runtime。
+simios() { _jobs_run_scripts_command simios "$@"; }

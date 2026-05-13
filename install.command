@@ -211,7 +211,7 @@ show_intro_and_wait() {
   cecho "$C_BLUE" "1) 会同步到 ~/.JobsMacEnv"
   cecho "$C_BLUE" "2) 会从 Sys/.zshrc 生成轻量版 ~/.zshrc"
   cecho "$C_BLUE" "3) 会检测 JDK 17，可选自动安装"
-  cecho "$C_BLUE" "4) 会同步 trs / gif 命令入口到 ~/.JobsMacEnv/Scripts 和 ~/.local/bin"
+  cecho "$C_BLUE" "4) 会同步 trs / gif / jdk17 / simios 命令入口到 ~/.JobsMacEnv/Scripts 和 ~/.local/bin"
   cecho "$C_BLUE" "5) 稍后会问你是否替换当前 ~/.zshrc"
   echo ""
   cecho "$C_MAGENTA" "结构："
@@ -329,6 +329,7 @@ verify_scripts_modules() {
     codec.command
     timestamp.command
     runtime_init.command
+    simios.command
   )
 
   if [[ ! -d "$scripts_dir" ]]; then
@@ -418,6 +419,7 @@ main() {
   copy_file_if_changed "$source_scripts_dir/trs.command" "$target_bin_dir/trs"
   copy_file_if_changed "$source_scripts_dir/gif.command" "$target_bin_dir/gif"
   copy_file_if_changed "$source_scripts_dir/install_jdk17.command" "$target_bin_dir/jdk17"
+  copy_file_if_changed "$source_scripts_dir/simios.command" "$target_bin_dir/simios"
   copy_file_if_changed "$source_dir/zsh/bootstrap.zsh" "$target_zsh_dir/bootstrap.zsh"
   copy_file_if_changed "$source_dir/zsh/env_methods.zsh" "$target_zsh_dir/env_methods.zsh"
   copy_file_if_changed "$source_dir/zsh/user_mounts.zsh" "$target_zsh_dir/user_mounts.zsh"
@@ -443,7 +445,7 @@ main() {
 
   chmod +x "$target_install"
   chmod +x "$target_scripts_dir"/*.command 2>/dev/null || true
-  chmod +x "$target_bin_dir/trs" "$target_bin_dir/gif" "$target_bin_dir/jdk17"
+  chmod +x "$target_bin_dir/trs" "$target_bin_dir/gif" "$target_bin_dir/jdk17" "$target_bin_dir/simios"
 
   verify_scripts_modules "$target_scripts_dir"
 
@@ -452,6 +454,7 @@ main() {
   log "已安装 trs 命令入口：$target_bin_dir/trs"
   log "已安装 gif 命令入口：$target_bin_dir/gif"
   log "已安装 jdk17 命令入口：$target_bin_dir/jdk17"
+  log "已安装 simios 命令入口：$target_bin_dir/simios"
   prompt_replace_system_zshrc "$target_zshrc_template"
 
   if [[ -f "$HOME/.zshrc" ]]; then

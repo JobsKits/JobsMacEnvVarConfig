@@ -1,0 +1,438 @@
+#!/bin/zsh
+# JobsMacEnv function module / executable script.
+# 作用：检测完整 Xcode 环境，然后下载 / 补齐 iOS Simulator Runtime。
+
+# 说明：
+# - 被 zsh/custom/local.zsh source 时，只注册 simios 函数，不自动执行。
+# - 作为 ~/.local/bin/simios 或 Scripts/simios.command 直接执行时，自动进入主流程。
+
+_jobs_simios_module_file="${(%):-%N}"
+
+_jobs_simios_cecho() {
+  local color="$1"
+  shift
+  printf "%b%s%b\n" "$color" "$*" "${JOBS_SIMIOS_C_RESET:-\033[0m}"
+}
+
+_jobs_simios_line() {
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "────────────────────────────────────────"
+}
+
+_jobs_simios_section() {
+  echo ""
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_BOLD$JOBS_SIMIOS_C_CYAN" "▶ $1"
+  _jobs_simios_line
+}
+
+_jobs_simios_log() {
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_BLUE" "[simios] $1"
+}
+
+_jobs_simios_ok() {
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GREEN" "[OK] $1"
+}
+
+_jobs_simios_warn() {
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_YELLOW" "[WARN] $1"
+}
+
+_jobs_simios_err() {
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_RED" "[ERR] $1"
+}
+
+_jobs_simios_pause_enter() {
+  local message="${1:-按回车继续...}"
+  printf "%b%s%b" "$JOBS_SIMIOS_C_MAGENTA" "$message" "$JOBS_SIMIOS_C_RESET"
+  local _input=""
+  IFS= read -r _input
+}
+
+_jobs_simios_ask_run() {
+  local message="$1"
+  local input=""
+  printf "%b%s%b" "$JOBS_SIMIOS_C_MAGENTA" "${message}（回车跳过，输入任意字符后回车执行）：" "$JOBS_SIMIOS_C_RESET"
+  IFS= read -r input
+  [[ -n "$input" ]]
+}
+
+_jobs_simios_run_root() {
+  if [[ "$(id -u)" -eq 0 ]]; then
+    "$@"
+  else
+    sudo "$@"
+  fi
+}
+
+_jobs_simios_show_readme_and_wait() {
+  clear || true
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_BOLD$JOBS_SIMIOS_C_CYAN" "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_BOLD$JOBS_SIMIOS_C_CYAN" "              simios"
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_BOLD$JOBS_SIMIOS_C_CYAN" "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_BLUE" "用途：检测完整 Xcode 环境，然后下载 / 补齐 iOS Simulator Runtime。"
+  echo ""
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GREEN" "执行顺序："
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "  1) 检测 macOS / Xcode.app 是否存在"
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "  2) 检测 xcodebuild 是否来自完整 Xcode，而不是只有 Command Line Tools"
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "  3) 检测 xcode-select 指向；不强制永久改系统，可临时使用 DEVELOPER_DIR"
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "  4) 检测 Xcode 首次启动组件 / license / 磁盘空间 / 网络连通"
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "  5) 最后由你决定是否执行 iOS 模拟器下载"
+  echo ""
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_YELLOW" "交互规则："
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "  - 普通安装 / 更新 / 升级动作：回车跳过，输入任意字符后回车执行"
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "  - 必须修复项：脚本会明确说明原因，再让你继续"
+  echo ""
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GREEN" "核心下载命令："
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "  xcodebuild -downloadPlatform iOS -verbose"
+  echo ""
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_YELLOW" "说明："
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "  xcodebuild 常见 verbose 参数是单横线 -verbose；如果你的版本支持 --verbose，脚本会自动使用 --verbose。"
+  echo ""
+  _jobs_simios_pause_enter "按回车开始体检..."
+}
+
+_jobs_simios_require_macos() {
+  _jobs_simios_section "系统检测"
+
+  if [[ "$(uname -s)" != "Darwin" ]]; then
+    _jobs_simios_err "当前不是 macOS，无法下载 Xcode iOS Simulator Runtime。"
+    return 1
+  fi
+
+  _jobs_simios_ok "当前系统是 macOS。"
+}
+
+_jobs_simios_collect_xcode_apps() {
+  local -a found
+  local item=""
+
+  for item in \
+    /Applications/Xcode.app \
+    /Applications/Xcode*.app \
+    "${HOME}/Applications/Xcode.app" \
+    "${HOME}/Applications/Xcode"*.app \
+    /Applications/Xcodes/Xcode*.app; do
+    if [[ -d "${item}/Contents/Developer" && -x "${item}/Contents/Developer/usr/bin/xcodebuild" ]]; then
+      found+=("$item")
+    fi
+  done
+
+  if (( ${#found[@]} > 0 )); then
+    printf "%s\n" "${found[@]}" | awk '!seen[$0]++'
+  fi
+}
+
+_jobs_simios_choose_xcode_app() {
+  _jobs_simios_section "Xcode 检测"
+
+  local active_dev=""
+  local active_app=""
+  active_dev="$(xcode-select -p 2>/dev/null || true)"
+
+  if [[ "$active_dev" == */Contents/Developer ]]; then
+    active_app="${active_dev%/Contents/Developer}"
+    if [[ -d "$active_app" && -x "${active_app}/Contents/Developer/usr/bin/xcodebuild" ]]; then
+      JOBS_SIMIOS_XCODE_APP="$active_app"
+      _jobs_simios_ok "当前 xcode-select 已指向完整 Xcode：$JOBS_SIMIOS_XCODE_APP"
+      return 0
+    fi
+  fi
+
+  local first_app=""
+  first_app="$(_jobs_simios_collect_xcode_apps | head -n 1)"
+
+  if [[ -z "$first_app" ]]; then
+    _jobs_simios_err "未检测到完整 Xcode.app。"
+    _jobs_simios_warn "只安装 Command Line Tools 没有现实意义：iOS Simulator Runtime 下载依赖完整 Xcode。"
+    _jobs_simios_warn "请先安装 Xcode，再重新运行：simios"
+    echo ""
+    _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "建议路径：/Applications/Xcode.app"
+    _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "安装来源：Mac App Store 或 Apple Developer 下载页"
+    return 1
+  fi
+
+  JOBS_SIMIOS_XCODE_APP="$first_app"
+  _jobs_simios_ok "检测到 Xcode：$JOBS_SIMIOS_XCODE_APP"
+}
+
+_jobs_simios_maybe_check_xcode_update() {
+  echo ""
+  if _jobs_simios_ask_run "Xcode 已存在，是否打开更新入口检查 Xcode 升级"; then
+    if command -v mas >/dev/null 2>&1; then
+      _jobs_simios_log "检测到 mas，尝试升级 App Store 版 Xcode。"
+      mas upgrade 497799835 || open "macappstore://itunes.apple.com/app/id497799835" || true
+    else
+      _jobs_simios_warn "未检测到 mas。为了避免额外引入 Homebrew / mas，本脚本不自动安装它。"
+      _jobs_simios_log "改为打开 App Store 的 Xcode 页面。"
+      open "macappstore://itunes.apple.com/app/id497799835" || true
+    fi
+  else
+    _jobs_simios_log "跳过 Xcode 升级检查。"
+  fi
+}
+
+_jobs_simios_prepare_developer_dir() {
+  _jobs_simios_section "xcode-select / DEVELOPER_DIR 检测"
+
+  JOBS_SIMIOS_DEVELOPER_DIR_SELECTED="${JOBS_SIMIOS_XCODE_APP}/Contents/Developer"
+  JOBS_SIMIOS_XCODEBUILD_BIN="${JOBS_SIMIOS_DEVELOPER_DIR_SELECTED}/usr/bin/xcodebuild"
+
+  if [[ ! -x "$JOBS_SIMIOS_XCODEBUILD_BIN" ]]; then
+    _jobs_simios_err "xcodebuild 不存在或不可执行：$JOBS_SIMIOS_XCODEBUILD_BIN"
+    return 1
+  fi
+
+  export DEVELOPER_DIR="$JOBS_SIMIOS_DEVELOPER_DIR_SELECTED"
+
+  local active_dev=""
+  active_dev="$(xcode-select -p 2>/dev/null || true)"
+
+  _jobs_simios_ok "本次脚本使用：DEVELOPER_DIR=$JOBS_SIMIOS_DEVELOPER_DIR_SELECTED"
+
+  if [[ "$active_dev" == "$JOBS_SIMIOS_DEVELOPER_DIR_SELECTED" ]]; then
+    _jobs_simios_ok "系统 xcode-select 指向正确。"
+  else
+    _jobs_simios_warn "系统 xcode-select 当前指向：${active_dev:-未设置}"
+    _jobs_simios_warn "脚本本次会临时使用 DEVELOPER_DIR，不强制修改你的全局设置。"
+    if _jobs_simios_ask_run "是否永久切换 xcode-select 到当前 Xcode"; then
+      _jobs_simios_run_root xcode-select -s "$JOBS_SIMIOS_DEVELOPER_DIR_SELECTED"
+      _jobs_simios_ok "已永久切换 xcode-select。"
+    else
+      _jobs_simios_log "跳过永久切换，仅本次脚本临时使用当前 Xcode。"
+    fi
+  fi
+}
+
+_jobs_simios_show_xcode_version() {
+  _jobs_simios_section "Xcode 版本"
+  "$JOBS_SIMIOS_XCODEBUILD_BIN" -version || {
+    _jobs_simios_err "xcodebuild 无法正常输出版本。"
+    return 1
+  }
+}
+
+_jobs_simios_check_xcodebuild_support() {
+  _jobs_simios_section "xcodebuild 能力检测"
+
+  local help_text=""
+  help_text="$({ "$JOBS_SIMIOS_XCODEBUILD_BIN" -help || true; } 2>&1)"
+
+  if ! printf "%s\n" "$help_text" | grep -q -- "downloadPlatform"; then
+    _jobs_simios_err "当前 Xcode 的 xcodebuild 不支持 -downloadPlatform。"
+    _jobs_simios_warn "这通常说明 Xcode 版本过旧，需要先升级 Xcode。"
+    _jobs_simios_maybe_check_xcode_update
+    return 1
+  fi
+
+  _jobs_simios_ok "支持 -downloadPlatform。"
+
+  if printf "%s\n" "$help_text" | grep -q -- "--verbose"; then
+    JOBS_SIMIOS_VERBOSE_ARG="--verbose"
+  else
+    JOBS_SIMIOS_VERBOSE_ARG="-verbose"
+  fi
+
+  _jobs_simios_ok "verbose 参数使用：$JOBS_SIMIOS_VERBOSE_ARG"
+}
+
+_jobs_simios_ensure_first_launch() {
+  _jobs_simios_section "Xcode 首次启动组件检测"
+
+  local help_text=""
+  help_text="$({ "$JOBS_SIMIOS_XCODEBUILD_BIN" -help || true; } 2>&1)"
+
+  if printf "%s\n" "$help_text" | grep -q -- "checkFirstLaunchStatus"; then
+    if "$JOBS_SIMIOS_XCODEBUILD_BIN" -checkFirstLaunchStatus >/dev/null 2>&1; then
+      _jobs_simios_ok "Xcode 首次启动组件状态正常。"
+    else
+      _jobs_simios_warn "Xcode 首次启动组件未完成。"
+      _jobs_simios_warn "这属于执行 xcodebuild 下载前的必要支援项，需要安装 / 初始化。"
+      _jobs_simios_pause_enter "按回车执行：sudo xcodebuild -runFirstLaunch ..."
+      _jobs_simios_run_root "$JOBS_SIMIOS_XCODEBUILD_BIN" -runFirstLaunch
+      _jobs_simios_ok "首次启动组件已处理。"
+    fi
+  else
+    _jobs_simios_warn "当前 xcodebuild 不支持 -checkFirstLaunchStatus。"
+    if _jobs_simios_ask_run "是否执行一次 xcodebuild -runFirstLaunch 做初始化"; then
+      _jobs_simios_run_root "$JOBS_SIMIOS_XCODEBUILD_BIN" -runFirstLaunch
+      _jobs_simios_ok "已执行首次启动初始化。"
+    else
+      _jobs_simios_log "跳过首次启动初始化。"
+    fi
+  fi
+}
+
+_jobs_simios_ensure_license() {
+  _jobs_simios_section "Xcode License 检测"
+
+  if "$JOBS_SIMIOS_XCODEBUILD_BIN" -license check >/dev/null 2>&1; then
+    _jobs_simios_ok "Xcode license 已同意。"
+    return 0
+  fi
+
+  _jobs_simios_warn "Xcode license 尚未同意。"
+  _jobs_simios_warn "不同意 license 时，xcodebuild 后续下载大概率会失败。"
+  _jobs_simios_pause_enter "按回车进入交互式 license 确认：sudo xcodebuild -license ..."
+  _jobs_simios_run_root "$JOBS_SIMIOS_XCODEBUILD_BIN" -license
+
+  if "$JOBS_SIMIOS_XCODEBUILD_BIN" -license check >/dev/null 2>&1; then
+    _jobs_simios_ok "Xcode license 已同意。"
+  else
+    _jobs_simios_err "license 仍未通过检查，停止执行。"
+    return 1
+  fi
+}
+
+_jobs_simios_check_disk_space() {
+  _jobs_simios_section "磁盘空间检测"
+
+  local free_kb="0"
+  local free_gb="0"
+  free_kb="$(df -k "$HOME" | awk 'NR==2 {print $4}')"
+  free_gb=$(( free_kb / 1024 / 1024 ))
+
+  if (( free_gb >= 30 )); then
+    _jobs_simios_ok "当前用户目录所在磁盘可用空间约 ${free_gb}GB。"
+  elif (( free_gb >= 15 )); then
+    _jobs_simios_warn "当前可用空间约 ${free_gb}GB，可能够用，但大型 runtime 可能吃紧。"
+  else
+    _jobs_simios_warn "当前可用空间约 ${free_gb}GB，iOS Simulator Runtime 下载很可能失败。"
+  fi
+}
+
+_jobs_simios_check_network() {
+  _jobs_simios_section "网络连通检测"
+
+  if ! command -v curl >/dev/null 2>&1; then
+    _jobs_simios_warn "未检测到 curl，跳过网络预检。macOS 正常情况下会自带 curl。"
+    return 0
+  fi
+
+  if curl -Is --connect-timeout 10 https://developer.apple.com >/dev/null 2>&1; then
+    _jobs_simios_ok "developer.apple.com 可连接。"
+  else
+    _jobs_simios_warn "developer.apple.com 连接预检失败。可能是网络、代理、VPN、DNS 或 Apple CDN 临时问题。"
+    _jobs_simios_warn "这不是本地环境硬缺失，脚本不会自动改网络设置。"
+  fi
+}
+
+_jobs_simios_list_ios_runtimes() {
+  if DEVELOPER_DIR="$JOBS_SIMIOS_DEVELOPER_DIR_SELECTED" xcrun simctl runtime list >/dev/null 2>&1; then
+    DEVELOPER_DIR="$JOBS_SIMIOS_DEVELOPER_DIR_SELECTED" xcrun simctl runtime list 2>/dev/null | grep -i "iOS" || true
+  else
+    DEVELOPER_DIR="$JOBS_SIMIOS_DEVELOPER_DIR_SELECTED" xcrun simctl list runtimes 2>/dev/null | grep -i "iOS" || true
+  fi
+}
+
+_jobs_simios_show_existing_runtimes() {
+  _jobs_simios_section "现有 iOS Runtime"
+
+  local runtimes=""
+  runtimes="$(_jobs_simios_list_ios_runtimes)"
+
+  if [[ -n "$runtimes" ]]; then
+    _jobs_simios_ok "检测到 iOS Runtime："
+    printf "%s\n" "$runtimes"
+  else
+    _jobs_simios_warn "未检测到 iOS Runtime，稍后建议执行下载。"
+  fi
+}
+
+_jobs_simios_run_download() {
+  _jobs_simios_section "下载 / 补齐 iOS Simulator Runtime"
+
+  mkdir -p "$JOBS_SIMIOS_LOG_DIR"
+
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "日志文件：$JOBS_SIMIOS_LOG_FILE"
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "将执行：xcodebuild -downloadPlatform iOS $JOBS_SIMIOS_VERBOSE_ARG"
+  echo ""
+
+  if ! _jobs_simios_ask_run "是否开始下载 / 补齐 iOS Simulator Runtime"; then
+    _jobs_simios_log "已跳过下载。"
+    return 0
+  fi
+
+  local -a args
+  args=(-downloadPlatform iOS "$JOBS_SIMIOS_VERBOSE_ARG")
+
+  set +e
+  DEVELOPER_DIR="$JOBS_SIMIOS_DEVELOPER_DIR_SELECTED" "$JOBS_SIMIOS_XCODEBUILD_BIN" "${args[@]}" 2>&1 | tee "$JOBS_SIMIOS_LOG_FILE"
+  local status=${pipestatus[1]}
+  set -e
+
+  if (( status != 0 )); then
+    _jobs_simios_err "下载命令失败，退出码：$status"
+    _jobs_simios_warn "完整日志：$JOBS_SIMIOS_LOG_FILE"
+    _jobs_simios_warn "常见原因：license 未同意、Xcode 未完成首次启动、网络 / CDN 异常、磁盘空间不足、Xcode 版本过旧。"
+    return "$status"
+  fi
+
+  _jobs_simios_ok "iOS Simulator Runtime 下载 / 补齐命令执行完成。"
+}
+
+_jobs_simios_final_report() {
+  _jobs_simios_section "完成报告"
+
+  _jobs_simios_ok "脚本执行结束。"
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "日志路径：$JOBS_SIMIOS_LOG_FILE"
+  echo ""
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GREEN" "当前 iOS Runtime："
+  _jobs_simios_list_ios_runtimes || true
+  echo ""
+  _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "如果 Xcode UI 里暂时看不到新 runtime，重启 Xcode 后再看。"
+}
+
+_jobs_simios_main() {
+  emulate -L zsh
+  set -e
+  set -o pipefail
+  setopt NULL_GLOB
+
+  JOBS_SIMIOS_C_RESET='\033[0m'
+  JOBS_SIMIOS_C_BOLD='\033[1m'
+  JOBS_SIMIOS_C_BLUE='\033[34m'
+  JOBS_SIMIOS_C_CYAN='\033[36m'
+  JOBS_SIMIOS_C_GREEN='\033[32m'
+  JOBS_SIMIOS_C_YELLOW='\033[33m'
+  JOBS_SIMIOS_C_MAGENTA='\033[35m'
+  JOBS_SIMIOS_C_RED='\033[31m'
+  JOBS_SIMIOS_C_GRAY='\033[90m'
+
+  JOBS_SIMIOS_XCODE_APP=""
+  JOBS_SIMIOS_DEVELOPER_DIR_SELECTED=""
+  JOBS_SIMIOS_XCODEBUILD_BIN=""
+  JOBS_SIMIOS_VERBOSE_ARG="-verbose"
+  JOBS_SIMIOS_LOG_DIR="${HOME}/Library/Logs/simios"
+  JOBS_SIMIOS_LOG_FILE="${JOBS_SIMIOS_LOG_DIR}/simios-$(date '+%Y%m%d-%H%M%S').log"
+
+  _jobs_simios_show_readme_and_wait
+  _jobs_simios_require_macos
+  _jobs_simios_choose_xcode_app
+  _jobs_simios_maybe_check_xcode_update
+  _jobs_simios_prepare_developer_dir
+  _jobs_simios_show_xcode_version
+  _jobs_simios_check_xcodebuild_support
+  _jobs_simios_ensure_first_launch
+  _jobs_simios_ensure_license
+  _jobs_simios_check_disk_space
+  _jobs_simios_check_network
+  _jobs_simios_show_existing_runtimes
+  _jobs_simios_run_download
+  _jobs_simios_final_report
+  _jobs_simios_pause_enter "按回车退出..."
+}
+
+# 终端入口：安装 JobsMacEnv 后可直接执行 simios
+simios() {
+  _jobs_simios_main "$@"
+}
+
+_jobs_simios_module_file_abs="${_jobs_simios_module_file:A}"
+_jobs_simios_argv0_abs="${0:A}"
+
+if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+  if [[ "$_jobs_simios_module_file" == "$0" || "$_jobs_simios_module_file_abs" == "$_jobs_simios_argv0_abs" ]]; then
+    _jobs_simios_main "$@"
+  fi
+fi
+
+unset _jobs_simios_module_file _jobs_simios_module_file_abs _jobs_simios_argv0_abs 2>/dev/null || true

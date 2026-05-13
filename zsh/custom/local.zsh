@@ -42,6 +42,7 @@ _jobs_module_files=(
   codec.command
   timestamp.command
   runtime_init.command
+  simios.command
 )
 
 _jobs_missing_modules=()
@@ -56,9 +57,23 @@ jobs_source_scripts_module() {
     return 0
   fi
 
+  local _jobs_prev_source_mode="${JOBS_MAC_ENV_SOURCE_MODE:-}"
+  JOBS_MAC_ENV_SOURCE_MODE="1"
+
   if ! source "$module_file"; then
+    if [[ -n "$_jobs_prev_source_mode" ]]; then
+      JOBS_MAC_ENV_SOURCE_MODE="$_jobs_prev_source_mode"
+    else
+      unset JOBS_MAC_ENV_SOURCE_MODE
+    fi
     _jobs_failed_modules+=("$module_file_name")
     return 0
+  fi
+
+  if [[ -n "$_jobs_prev_source_mode" ]]; then
+    JOBS_MAC_ENV_SOURCE_MODE="$_jobs_prev_source_mode"
+  else
+    unset JOBS_MAC_ENV_SOURCE_MODE
   fi
 }
 

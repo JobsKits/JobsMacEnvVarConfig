@@ -37,6 +37,7 @@
 │   ├── install_jdk17.command       # JDK 17 独立安装脚本
 │   ├── trs.command                 # macOS 原生翻译入口脚本
 │   ├── gif.command                 # 终端 / 全屏录制并转 GIF 脚本
+│   ├── simios.command              # Xcode iOS Simulator Runtime 下载 / 补齐脚本
 │   ├── common.command              # 通用辅助函数
 │   ├── entrypoints.command         # trs / gif / jdk17 包装函数
 │   ├── path.command                # zz / x 路径工具
@@ -73,6 +74,7 @@
 │   ├── install_jdk17.command
 │   ├── trs.command
 │   ├── gif.command
+│   ├── simios.command
 │   ├── common.command
 │   ├── entrypoints.command
 │   ├── path.command
@@ -107,6 +109,7 @@ chmod +x install.command
 3. 是否替换当前系统 `~/.zshrc`
 4. `trs` 首次使用时会对 `fzf` / `translate-cli` 这类必需依赖执行补齐流程
 5. `gif` 首次使用时会检测 Homebrew / asciinema / agg / ffmpeg；启动时按回车默认录制当前终端，进入设置菜单可选择全屏录制
+6. `simios` 会先检测完整 Xcode / xcode-select / xcodebuild / Xcode license / 首次启动组件，再执行 iOS Simulator Runtime 下载
 
 如果选择替换 `~/.zshrc`，脚本会先自动备份旧文件：
 
@@ -240,6 +243,7 @@ export JOBS_ALIAS_DRAG_AUTO_RESOLVE=true
 | Homebrew | 自动兼容 Apple Silicon 和 Intel 路径 |
 | trs | macOS 原生翻译入口，中文固定为一端，fzf 选择对方语言 |
 | gif | 终端 / 全屏录制入口，基于 asciinema + agg / screencapture + ffmpeg 生成高质量 GIF / MP4 |
+| simios | 检测完整 Xcode 环境并下载 / 补齐 iOS Simulator Runtime |
 
 ## 七、常用能力 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
@@ -728,7 +732,37 @@ Ctrl-C
 
 不再使用 `Ctrl-G` 作为结束键：你的终端环境已经把 `Ctrl-G` 分配给 Finder 拖入路径解析，继续复用会触发“最后一个参数不是有效路径”。
 
-#### 3.11 `local.zsh`：Scripts 模块加载器
+
+#### 3.11 `simios`：Xcode iOS Simulator Runtime 下载 / 补齐 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
+
+脚本位置：
+
+```bash
+Scripts/simios.command
+```
+
+安装后入口：
+
+```bash
+~/.JobsMacEnv/Scripts/simios.command
+~/.local/bin/simios
+```
+
+终端使用：
+
+```bash
+simios
+```
+
+用途：Xcode 升级后，先确认完整 Xcode 存在，再检查 `xcode-select`、`DEVELOPER_DIR`、`xcodebuild` 能力、首次启动组件、license、磁盘空间、网络连通和已有 iOS Runtime，最后由你决定是否执行：
+
+```bash
+xcodebuild -downloadPlatform iOS -verbose
+```
+
+交互规则：普通更新 / 升级动作默认回车跳过，输入任意字符后回车才执行；会影响 `xcodebuild` 的必要支援项会单独提示原因。
+
+#### 3.12 `local.zsh`：Scripts 模块加载器
 
 来源文件：
 
@@ -764,6 +798,7 @@ zsh/custom/local.zsh
 | `ts` | 交互式时间戳转换；空回车会继续提示，Esc/Ctrl-C/Ctrl-D 退出；输出年、月、日、时、分、秒、周几、时区；可用 fzf 选择其他时区 |
 | `trs` | macOS 原生翻译入口，默认其他语言 → 中文，可切换中文 → 对方语言 |
 | `gif` | 终端 / 全屏录制并转为高质量 GIF / MP4，按回车默认录制当前终端，进入设置菜单可选择全屏录制 |
+| `simios` | Xcode 升级后检测并下载 / 补齐 iOS Simulator Runtime |
 
 迁移新机器前，优先检查文件开头这两个变量：
 
@@ -807,6 +842,7 @@ JOBS_DART_CLI_COMPLETION_FILE="/Users/jobs/.dart-cli-completion/zsh-config.zsh"
 个人函数加载器       -> zsh/custom/local.zsh -> Scripts/*.command
 trs 终端翻译入口      -> Scripts/trs.command / ~/.local/bin/trs
 gif 终端 / 全屏录制入口 -> Scripts/gif.command / ~/.local/bin/gif
+simios iOS 模拟器补齐入口 -> Scripts/simios.command / ~/.local/bin/simios
 终端默认行为         -> zsh/custom/shell_behavior.zsh
 路径拖入解析         -> zsh/custom/path_drag_resolver.zsh
 系统入口             -> ~/.zshrc 只保留加载入口
