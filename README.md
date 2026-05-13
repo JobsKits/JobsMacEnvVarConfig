@@ -35,7 +35,7 @@
 │   └── .bash_profile
 ├── Scripts/
 │   ├── install_jdk17.command/
-│   │   ├── install_jdk17.command   # JDK 17 独立安装脚本
+│   │   ├── install_jdk17.command   # JDK 17 安装脚本，保持原版脚本位置
 │   │   └── README.md               # 对应自述与流程图
 │   ├── trs.command/
 │   │   ├── trs.command             # macOS 原生翻译入口脚本
@@ -52,8 +52,8 @@
 │   ├── m5c.command/
 │   │   ├── m5c.command             # MD5 文件一致性比较工具
 │   │   └── README.md
-│   ├── 【MacOS】去乱码.command/
-│   │   ├── 【MacOS】去乱码.command  # URL 编码去乱码 / 解码工具
+│   ├── flat.command/
+│   │   ├── flat.command  # URL 编码去乱码 / 解码工具
 │   │   └── README.md
 │   └── *.command/                  # 其余模块均按“脚本全名文件夹 + 脚本 + README”管理
 └── zsh/
@@ -82,7 +82,7 @@
 │   ├── simios.command/simios.command
 │   ├── list.command/list.command
 │   ├── m5c.command/m5c.command
-│   ├── 【MacOS】去乱码.command/【MacOS】去乱码.command
+│   ├── flat.command/flat.command
 │   └── *.command/*.command
 └── zsh/
 ```
@@ -132,7 +132,7 @@ flowchart TD
     D{是否检测到 JDK 17}
     E[询问是否自动安装 JDK 17]
     F[同步到 ~/.JobsMacEnv]
-    T[同步 list / trs / gif / jdk17 / simios / m5c / flat 到 Scripts 和 ~/.local/bin]
+    T[同步 list / trs / gif / simios / m5c / flat 到 Scripts 和 ~/.local/bin]
     G[生成环境变量和别名]
     H{是否替换 ~/.zshrc}
     I[备份并替换 ~/.zshrc]
@@ -362,7 +362,7 @@ m5c
 来源文件：
 
 ```text
-Scripts/【MacOS】去乱码.command/【MacOS】去乱码.command
+Scripts/flat.command/flat.command
 ```
 
 用法：
@@ -922,7 +922,7 @@ JOBS_DART_CLI_COMPLETION_FILE="/Users/jobs/.dart-cli-completion/zsh-config.zsh"
 - 自动安装 JDK 17 依赖 [**Homebrew**](https://brew.sh/)。
 - 替换 `~/.zshrc` 前会自动备份，但仍建议先确认当前配置没有重要未迁移内容。
 - `env.zsh` 和 `aliases.zsh` 是生成文件，不建议直接长期手改。
-- `zsh/custom/local.zsh` 是 Scripts 模块加载器；固定项目路径主要在 `Scripts/flutter_project.command/flutter_project.command` 中，迁移到新机器后建议先检查再使用。
+- `zsh/custom/local.zsh` 是 Scripts 模块加载器；固定项目路径主要在 `Scripts/_lib/jobs_flutter_lib.zsh` 中，`flutter` 函数由 `Scripts/flutter_project.command/flutter_project.command` 加载，迁移到新机器后建议先检查再使用。
 - `trs` 依赖 macOS 原生翻译能力；系统版本、语言资源和语言对支持情况会直接影响可用性。
 - 如果安装后没有立即生效，执行 `source ~/.zshrc`，或者重新打开终端。
 
@@ -936,7 +936,7 @@ trs 终端翻译入口      -> Scripts/trs.command/trs.command / ~/.local/bin/tr
 gif 终端 / 全屏录制入口 -> Scripts/gif.command/gif.command / ~/.local/bin/gif
 simios iOS 模拟器补齐入口 -> Scripts/simios.command/simios.command / ~/.local/bin/simios
 m5c MD5 文件比较入口 -> Scripts/m5c.command/m5c.command / ~/.local/bin/m5c
-flat URL 编码去乱码入口 -> Scripts/【MacOS】去乱码.command/【MacOS】去乱码.command / ~/.local/bin/flat
+flat URL 编码去乱码入口 -> Scripts/flat.command/flat.command / ~/.local/bin/flat
 终端默认行为         -> zsh/custom/shell_behavior.zsh
 路径拖入解析         -> zsh/custom/path_drag_resolver.zsh
 系统入口             -> ~/.zshrc 只保留加载入口
@@ -1003,4 +1003,13 @@ source ~/.zshrc
 
 `list` 现在作为 JobsMacEnv 自定义命令总菜单，不再打印长篇自述，也不再等待用户先按回车确认。运行后会直接使用 `fzf` 展示自定义命令和含义；如果 `fzf` 不可用，则退化为文本清单。
 
-当前纳入菜单的命令包括：`m5c`、`flat`、`trs`、`gif`、`jdk17`、`simios`、`cor`、`decode`、`ts`、`download`、`install`、`update`、`shell`、`zz`、`x`、`save`、`rb`、`a`、`b`、`i`、`flutter`、`fixfvm`、`check1`、`check`、`c`、`d`、`buildCheck`、`apk`、`ipa`、`config`。
+当前纳入菜单的功能入口包括：`m5c`、`flat`、`trs`、`gif`、`install_jdk17.command`、`simios`、`cor`、`decode`、`ts`、`download`、`install`、`update`、`shell`、`zz`、`x`、`save`、`rb`、`a`、`b`、`i`、`flutter_project.command`、`fixfvm`、`check1`、`check`、`c`、`d`、`buildCheck`、`apk`、`ipa`、`config`。
+
+
+## JobsMacEnv 自定义命令收口规则
+
+- 以终端输入窗口为准：大部分用户可输入、且不是系统原生命令的自定义命令，独立放入 `Scripts/<命令>.command/<命令>.command`；`flutter_project.command` 保持原版函数模块位置，不生成 `~/.local/bin/flutter`；`install_jdk17.command` 保持原版脚本位置，不生成 `~/.local/bin/jdk17`。
+- 每个命令目录必须有同级 `README.md`。
+- 运行时展示的自述必须写在脚本内部，不读取同级 `README.md`。
+- `list` 是菜单入口，菜单中不显示 `list` 自己，其它自定义命令都应显示。
+- `zsh/custom` 只保留加载器和交互行为；具体实现仍放在 Scripts 模块或 Scripts 私有库。

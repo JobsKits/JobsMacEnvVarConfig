@@ -32,7 +32,7 @@
 
 * 脚本文件：`install_jdk17.command`
 * 所属目录：`Scripts/install_jdk17.command/`
-* 推荐入口：`jdk17`
+* 推荐入口：`list` 菜单中的 `install_jdk17.command`，或直接执行本脚本
 * 日志策略：可执行脚本默认写入 `/tmp/脚本名.log`，函数模块由调用方统一管理日志。
 
 ## 二、🧭 脚本执行流程 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
@@ -88,7 +88,7 @@ Scripts/install_jdk17.command/install_jdk17.command
 已完成 JobsMacEnv 安装后，推荐入口：
 
 ```shell
-jdk17
+"Scripts/install_jdk17.command/install_jdk17.command"
 ```
 
 ## 五、⚠️ 常见问题 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>

@@ -12,7 +12,7 @@ if command -v rbenv >/dev/null 2>&1; then
   eval "$(rbenv init - zsh)"
 fi
 
-# Dart completion：路径由 flutter_project.command 中的 JOBS_DART_CLI_COMPLETION_FILE 配置。
+# Dart completion：路径由 Flutter 独立命令脚本中的 JOBS_DART_CLI_COMPLETION_FILE 配置。
 if [[ -n "${JOBS_DART_CLI_COMPLETION_FILE:-}" && -f "$JOBS_DART_CLI_COMPLETION_FILE" ]]; then
   source "$JOBS_DART_CLI_COMPLETION_FILE"
 fi

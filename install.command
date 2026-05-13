@@ -465,31 +465,60 @@ copy_all_script_bundles() {
       copy_script_bundle "$source_scripts_dir" "$target_scripts_dir" "$script_name"
     fi
   done
+
+  copy_scripts_private_libs "$source_scripts_dir" "$target_scripts_dir"
+}
+
+copy_scripts_private_libs() {
+  local source_scripts_dir="$1"
+  local target_scripts_dir="$2"
+  local source_lib_dir="$source_scripts_dir/_lib"
+  local target_lib_dir="$target_scripts_dir/_lib"
+
+  if [[ -d "$source_lib_dir" ]]; then
+    rm -rf "$target_lib_dir"
+    cp -R "$source_lib_dir" "$target_lib_dir"
+    success_echo "已同步 Scripts 私有库：$target_lib_dir"
+  fi
 }
 
 verify_scripts_modules() {
   local scripts_dir="$1"
   local required_files=(
-    common.command
     entrypoints.command
-    path.command
-    media.command
-    session.command
-    flutter_project.command
-    update.command
-    system_install.command
-    color.command
-    shell.command
-    codec.command
-    timestamp.command
     runtime_init.command
-    simios.command
+    list.command
+    m5c.command
+    flat.command
     trs.command
     gif.command
     install_jdk17.command
-    list.command
-    m5c.command
-    【MacOS】去乱码.command
+    simios.command
+    clean.command
+    cor.command
+    decode.command
+    ts.command
+    download.command
+    install.command
+    update.command
+    shell.command
+    zz.command
+    x.command
+    save.command
+    rb.command
+    a.command
+    b.command
+    i.command
+    flutter_project.command
+    fixfvm.command
+    check1.command
+    check.command
+    c.command
+    d.command
+    buildCheck.command
+    apk.command
+    ipa.command
+    config.command
   )
 
   [[ -d "$scripts_dir" ]] || {
@@ -507,6 +536,24 @@ verify_scripts_modules() {
 
   if (( ${#missing[@]} > 0 )); then
     error_echo "Scripts 模块同步不完整：${missing[*]}"
+    error_echo "当前目录：$scripts_dir"
+    exit 1
+  fi
+
+  local required_libs=(
+    _lib/jobs_path_lib.zsh
+    _lib/jobs_session_lib.zsh
+    _lib/jobs_flutter_lib.zsh
+  )
+
+  for file in "${required_libs[@]}"; do
+    if [[ ! -f "$scripts_dir/$file" ]]; then
+      missing+=("$file")
+    fi
+  done
+
+  if (( ${#missing[@]} > 0 )); then
+    error_echo "Scripts 私有库同步不完整：${missing[*]}"
     error_echo "当前目录：$scripts_dir"
     exit 1
   fi
@@ -546,6 +593,46 @@ install_bin_entry() {
   success_echo "已安装命令入口：$target_bin_dir/$bin_name"
 }
 
+remove_obsolete_bin_entry() {
+  local target_bin_dir="$1"
+  local bin_name="$2"
+  local target_path="$target_bin_dir/$bin_name"
+
+  [[ -e "$target_path" ]] || return 0
+
+  if [[ -f "$target_path" ]] && grep -Eq 'flutter\.command|jobs_flutter_show_readme|JOBS_MAC_ENV' "$target_path" 2>/dev/null; then
+    rm -f "$target_path"
+    note_echo "已移除旧的独立命令入口：$target_path"
+    return 0
+  fi
+
+  warn_echo "检测到 $target_path，但它不像 JobsMacEnv 旧入口，已保留。"
+}
+
+remove_obsolete_script_bin_entry() {
+  local source_scripts_dir="$1"
+  local target_bin_dir="$2"
+  local script_name="$3"
+  local bin_name="$4"
+  local target_path="$target_bin_dir/$bin_name"
+  local source_file=""
+
+  [[ -e "$target_path" ]] || return 0
+
+  if ! source_file="$(resolve_script_file "$source_scripts_dir" "$script_name" 2>/dev/null)"; then
+    warn_echo "检测到 $target_path，但找不到可比对的源脚本：$script_name，已保留。"
+    return 0
+  fi
+
+  if [[ -f "$target_path" ]] && cmp -s "$source_file" "$target_path"; then
+    rm -f "$target_path"
+    note_echo "已移除旧的独立命令入口：$target_path"
+    return 0
+  fi
+
+  warn_echo "检测到 $target_path，但它不是 JobsMacEnv 旧入口副本，已保留。"
+}
+
 # ---------- 交互 ----------
 show_intro_and_wait() {
   clear
@@ -582,18 +669,22 @@ show_intro_and_wait() {
 二、核心命令
 ------------------------------------------------------------
 
-  list   打开功能菜单
-  m5c    比较两个文件 MD5
-  flat   去乱码 / URL 解码
-  trs    视频转码相关工具
-  gif    GIF 相关工具
-  jdk17  JDK 17 安装辅助工具
-  simios iOS 模拟器辅助工具
+大部分终端可输入的自定义命令会安装到 ~/.local/bin，
+并同步到 ~/.JobsMacEnv/Scripts/<命令>.command/<命令>.command。
+
+例外：
+  - flutter_project.command 保持原版位置，只由 list 菜单按需加载；不会生成 ~/.local/bin/flutter，避免覆盖系统 Flutter。
+  - install_jdk17.command 保持原版脚本位置；不会生成 ~/.local/bin/jdk17。
+
+可执行：
+
+  list
+
+查看完整菜单。list 自己不在菜单中显示；脚本功能和可输入命令都会按“功能入口”展示。
 
 说明：
   list 是总入口，用 fzf 展示菜单。
-  flat 是去乱码入口。
-  m5c 是 MD5 文件比较入口。
+  clean / cor / decode / ts / download / install / update / shell 等均已独立成 command。
 
 ------------------------------------------------------------
 三、交互规则
@@ -648,6 +739,7 @@ Scripts 目录采用脚本独立文件夹结构：
       README.md
 
 安装时会同步整个脚本文件夹，并保留每个脚本自己的 README.md。
+内部复用逻辑放在 Scripts/_lib/ 私有库中，不作为终端命令展示。
 
 ------------------------------------------------------------
 七、功能菜单
@@ -704,7 +796,7 @@ fzf 来源 Homebrew。
         ↓
   同步 Scripts 脚本模块
         ↓
-  安装 list / m5c / flat 等入口
+  安装全部自定义命令入口
         ↓
   询问是否替换 ~/.zshrc
         ↓
@@ -820,13 +912,39 @@ main() {
 
   verify_scripts_modules "$target_scripts_dir"
 
-  install_bin_entry "$target_scripts_dir" "$target_bin_dir" trs.command trs
-  install_bin_entry "$target_scripts_dir" "$target_bin_dir" gif.command gif
-  install_bin_entry "$target_scripts_dir" "$target_bin_dir" install_jdk17.command jdk17
-  install_bin_entry "$target_scripts_dir" "$target_bin_dir" simios.command simios
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" list.command list
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" m5c.command m5c
-  install_bin_entry "$target_scripts_dir" "$target_bin_dir" '【MacOS】去乱码.command' flat
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" flat.command flat
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" trs.command trs
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" gif.command gif
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" simios.command simios
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" clean.command clean
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" cor.command cor
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" decode.command decode
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" ts.command ts
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" download.command download
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" install.command install
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" update.command update
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" shell.command shell
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" zz.command zz
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" x.command x
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" save.command save
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" rb.command rb
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" a.command a
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" b.command b
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" i.command i
+  remove_obsolete_bin_entry "$target_bin_dir" flutter
+  remove_obsolete_script_bin_entry "$target_scripts_dir" "$target_bin_dir" install_jdk17.command jdk17
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" fixfvm.command fixfvm
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" check1.command check1
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" check.command check
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" c.command c
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" d.command d
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" buildCheck.command buildCheck
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" apk.command apk
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" ipa.command ipa
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" config.command config
+
 
   success_echo "已生成轻量入口文件：$target_zshrc_template"
   success_echo "已同步 Scripts 模块目录：$target_scripts_dir"

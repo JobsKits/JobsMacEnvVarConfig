@@ -111,11 +111,10 @@ jobs_setup_flutter() {
   local use_fvm="$1"
   local candidates_csv="$2"
 
-  if [[ "$use_fvm" == "true" ]] && jobs_command_exists fvm; then
-    flutter() {
-      command fvm flutter "$@"
-    }
-    return 0
+  # 不在环境初始化层定义 flutter 自定义命令。
+  # flutter shell 函数由 Scripts/flutter_project.command/flutter_project.command 承载，保持原版位置。
+  if [[ "$use_fvm" == "true" ]]; then
+    jobs_path_add "$HOME/.pub-cache/bin"
   fi
 
   local old_ifs="$IFS"

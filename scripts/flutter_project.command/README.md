@@ -32,7 +32,7 @@
 
 * 脚本文件：`flutter_project.command`
 * 所属目录：`Scripts/flutter_project.command/`
-* 推荐入口：`source "$JOBS_MAC_ENV_HOME/Scripts/flutter_project.command/flutter_project.command"`
+* 推荐入口：由 `list` 菜单按需加载，或手动 `source "$JOBS_MAC_ENV_HOME/Scripts/flutter_project.command/flutter_project.command"`
 * 日志策略：可执行脚本默认写入 `/tmp/脚本名.log`，函数模块由调用方统一管理日志。
 
 ## 二、🧭 脚本执行流程 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>

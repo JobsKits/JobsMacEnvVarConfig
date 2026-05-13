@@ -1,1509 +1,326 @@
 #!/bin/zsh
-# JobsMacEnv function module.
-# 本文件由 JobsMacEnv 加载；不要在这里写自动执行流程。
 
-# ================================== update 菜单化：fzf 模块更新 ==================================
-# 设计目标：
-# 1. update 默认走 fzf 菜单；如果没有 fzf，则退化为“默认全量更新，不含 OpenClaw”。
-# 2. 默认全量更新是激进更新：除 OpenClaw 之外，尽量更新所有开发环境工具链。
-# 3. OpenClaw 是源码仓库同步 + 构建，耗时和副作用更高，所以默认全量不包含它。
-# 4. Go 不进入 update：Go 没有可靠的“枚举并升级所有全局工具”的标准命令。
+set -o pipefail
+setopt NO_NOMATCH
 
-JOBS_UPDATE_OPTION_DEFAULT="01. 🚀 默认全量更新，不含 OpenClaw"
-JOBS_UPDATE_OPTION_FULL_WITH_OPENCLAW="02. 🌕 全量更新，包含 OpenClaw"
-JOBS_UPDATE_OPTION_OPENCLAW_GATEWAY="03. 🧩 OpenClaw：同步源码/依赖/UI 并重启 Gateway（不打开配置面板）"
-JOBS_UPDATE_OPTION_OPENCLAW="04. 🦞 OpenClaw：同步源码并构建"
-JOBS_UPDATE_OPTION_HOMEBREW="05. 🍺 Homebrew：更新 brew / formula / cask / cleanup / doctor"
-JOBS_UPDATE_OPTION_ANDROID="06. 🤖 Android SDK：更新 sdkmanager 管理的 Android 工具链"
-JOBS_UPDATE_OPTION_FLUTTER="07. 🐦 Flutter：升级 Flutter SDK"
-JOBS_UPDATE_OPTION_DART_FVM="08. 🎯 Dart / FVM：更新 FVM"
-JOBS_UPDATE_OPTION_NODE="09. 🟢 Node / npm / pnpm / corepack：更新 Node 全局生态"
-JOBS_UPDATE_OPTION_RUST="10. 🦀 Rust / Cargo：更新 Rust toolchain 和 cargo 全局工具"
-JOBS_UPDATE_OPTION_PYTHON="11. 🐍 Python / pip / pyenv：更新 Python 工具链和 pip 全局包"
-JOBS_UPDATE_OPTION_RUBYGEMS="12. 💎 RubyGems：更新 gem 并清理旧版本"
-JOBS_UPDATE_OPTION_COCOAPODS="13. 🥥 CocoaPods：更新 Specs 仓库"
-JOBS_UPDATE_OPTION_RBENV="14. 💠 rbenv / ruby-build：更新 Ruby 版本管理工具"
+# ---------- 基础路径 ----------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
+SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "$0")"
+SCRIPT_BASENAME=$(basename "$0" | sed 's/\.[^.]*$//')
+LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 
-jobs_update_print_section() {
-  echo ""
-  echo "============================================================"
-  echo "$1"
-  echo "============================================================"
+: > "$LOG_FILE"
+
+# ---------- 彩色日志 ----------
+log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+color_echo()     { log "\033[1;32m$1\033[0m"; }
+info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+warm_echo()      { log "\033[1;33m$1\033[0m"; }
+note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+err_echo()       { log "\033[1;31m$1\033[0m"; }
+debug_echo()     { log "\033[1;35m🐞 $1\033[0m"; }
+highlight_echo() { log "\033[1;36m🔹 $1\033[0m"; }
+gray_echo()      { log "\033[0;90m$1\033[0m"; }
+bold_echo()      { log "\033[1m$1\033[0m"; }
+underline_echo() { log "\033[4m$1\033[0m"; }
+
+# ---------- 内置自述 ----------
+jobs_update_show_readme_and_wait() {
+  clear 2>/dev/null || true
+  cat <<'EOFREADME' | tee -a "$LOG_FILE"
+============================================================
+update - 环境更新
+============================================================
+
+这是 update.command 的内置自述，不读取同级 README.md。
+
+功能：
+  通过交互菜单批量更新 Homebrew、Flutter、Node、Python、Ruby、CocoaPods 等常用开发工具链。
+
+结构：
+  Scripts/update.command/update.command
+  Scripts/update.command/README.md
+
+运行：
+  update
+  update [参数...]
+
+交互规则：
+  直接按 Enter              跳过当前更新项
+  输入任意字符后回车        执行当前更新项
+
+说明：
+  - 终端可输入的自定义命令都应独立收进 Scripts。
+  - README.md 只作为源码说明；运行时展示的是脚本内置自述。
+  - 日志路径：/tmp/update.log
+============================================================
+EOFREADME
+
+  if [[ -t 0 && "${JOBS_MAC_ENV_SKIP_README:-}" != "1" ]]; then
+    log ""
+    warm_echo "按回车继续执行 update..."
+    local _answer=""
+    IFS= read -r _answer
+  fi
 }
 
-jobs_update_warn() {
-  echo "⚠️  $*"
+# ---------- 通用工具 ----------
+jobs_update_has() {
+  command -v "$1" >/dev/null 2>&1
 }
 
-jobs_update_has_brew_formula() {
-  command -v brew >/dev/null 2>&1 || return 1
-  brew list --formula "$1" >/dev/null 2>&1
-}
-
-jobs_update_run_module() {
+jobs_update_prompt_run() {
   local title="$1"
-  local func="$2"
-  local module_status=0
+  local detail="$2"
+  local answer=""
 
-  jobs_update_print_section "$title"
+  log ""
+  info_echo "$title"
+  log "👉 直接按 [Enter]：跳过"
+  log "👉 输入任意字符后回车：$detail"
+  IFS= read -r answer
 
-  if ! typeset -f "$func" >/dev/null 2>&1; then
-    jobs_update_warn "缺少模块函数：$func"
-    return 0
-  fi
-
-  "$func"
-  module_status=$?
-  if (( module_status != 0 )); then
-    jobs_update_warn "$title 执行失败，继续后续 update 模块"
-  fi
-  return 0
+  [[ -n "$answer" ]]
 }
 
-jobs_update_print_plan() {
+jobs_update_run_step() {
   local title="$1"
   shift
-  local total=$#
-  local item=""
-  local i=1
 
-  jobs_update_print_section "$title"
-  echo "本次将依次执行 $total 个子模块："
-  for item in "$@"; do
-    printf "  [%02d/%02d] %s\n" "$i" "$total" "$item"
-    (( i++ ))
-  done
-}
+  highlight_echo "$title"
+  "$@"
+  local status=$?
 
-# ------------------------------ Homebrew ------------------------------
-jobs_update_homebrew() {
-  if ! command -v brew >/dev/null 2>&1; then
-    jobs_update_warn "[brew] not installed, skip Homebrew update"
-    return 0
-  fi
-
-  brew_update_third_party
-}
-
-# ------------------------------ Android SDK ------------------------------
-jobs_find_android_sdkmanager() {
-  emulate -L zsh
-  setopt null_glob
-
-  local candidate=""
-  local brew_prefix=""
-  local -a candidates
-
-  if command -v sdkmanager >/dev/null 2>&1; then
-    whence -p sdkmanager
-    return 0
-  fi
-
-  if command -v brew >/dev/null 2>&1 && brew list --formula android-commandlinetools >/dev/null 2>&1; then
-    brew_prefix="$(brew --prefix android-commandlinetools 2>/dev/null || true)"
-  fi
-
-  candidates=(
-    "${ANDROID_HOME:-}/cmdline-tools/latest/bin/sdkmanager"
-    "${ANDROID_SDK_ROOT:-}/cmdline-tools/latest/bin/sdkmanager"
-    "$HOME/Library/Android/sdk/cmdline-tools/latest/bin/sdkmanager"
-    "$HOME/Library/Android/sdk/tools/bin/sdkmanager"
-    "$brew_prefix/bin/sdkmanager"
-    "$brew_prefix/cmdline-tools/latest/bin/sdkmanager"
-    "$HOME/Library/Android/sdk/cmdline-tools"/*/bin/sdkmanager(N)
-  )
-
-  for candidate in "${candidates[@]}"; do
-    [[ -n "$candidate" && -x "$candidate" ]] || continue
-    printf "%s\n" "$candidate"
-    return 0
-  done
-
-  return 1
-}
-
-jobs_update_android_sdk() {
-  local sdkmanager=""
-  local package_list=""
-  local latest_build_tools=""
-  local latest_platform=""
-  local -a packages
-
-  sdkmanager="$(jobs_find_android_sdkmanager 2>/dev/null || true)"
-  if [[ -z "$sdkmanager" ]]; then
-    jobs_update_warn "未找到 sdkmanager，跳过 Android SDK 更新"
-    jobs_update_warn "常见位置：$HOME/Library/Android/sdk/cmdline-tools/latest/bin/sdkmanager"
-    return 0
-  fi
-
-  echo "✅ sdkmanager：$sdkmanager"
-
-  echo "➤ 接受 Android SDK licenses"
-  yes | "$sdkmanager" --licenses >/dev/null 2>&1 || jobs_update_warn "licenses 处理失败或无需处理，继续"
-
-  echo "➤ sdkmanager --update"
-  "$sdkmanager" --update || jobs_update_warn "sdkmanager --update failed，继续"
-
-  echo "➤ 扫描 latest Android platform / build-tools"
-  package_list="$("$sdkmanager" --list 2>/dev/null || true)"
-
-  latest_build_tools="$(printf "%s\n" "$package_list" \
-    | awk -F'|' '/^ *build-tools;[0-9]/ {pkg=$1; gsub(/^[ \t]+|[ \t]+$/, "", pkg); print pkg}' \
-    | tail -n 1)"
-
-  latest_platform="$(printf "%s\n" "$package_list" \
-    | awk -F'|' '/^ *platforms;android-[0-9]+/ {pkg=$1; gsub(/^[ \t]+|[ \t]+$/, "", pkg); n=pkg; sub(/^platforms;android-/, "", n); print n "\t" pkg}' \
-    | sort -n \
-    | tail -n 1 \
-    | cut -f2-)"
-
-  packages=(
-    "platform-tools"
-    "cmdline-tools;latest"
-    "emulator"
-  )
-  [[ -n "$latest_build_tools" ]] && packages+=("$latest_build_tools")
-  [[ -n "$latest_platform" ]] && packages+=("$latest_platform")
-
-  echo "➤ 安装/更新 Android SDK packages："
-  printf "   %s\n" "${packages[@]}"
-  yes | "$sdkmanager" --install "${packages[@]}" || jobs_update_warn "Android SDK package 安装/更新失败，继续"
-}
-
-# ------------------------------ Flutter / Dart / FVM ------------------------------
-jobs_update_flutter() {
-  if ! command -v flutter >/dev/null 2>&1; then
-    jobs_update_warn "[flutter] not installed, skip Flutter update"
-    return 0
-  fi
-
-  flutter upgrade || jobs_update_warn "flutter upgrade failed，继续"
-}
-
-jobs_update_dart_fvm() {
-  if ! command -v dart >/dev/null 2>&1; then
-    jobs_update_warn "[dart] not installed, skip FVM update"
-    return 0
-  fi
-
-  dart pub global activate fvm || jobs_update_warn "dart pub global activate fvm failed，继续"
-}
-
-# ------------------------------ Node / npm / pnpm / corepack ------------------------------
-jobs_force_remove_dir() {
-  emulate -L zsh
-
-  local target="$1"
-
-  [[ -n "$target" && -e "$target" ]] || return 0
-
-  # 第一轮：普通删除。
-  rm -rf -- "$target" 2>/dev/null && return 0
-
-  # 第二轮：处理 Homebrew / npm 残留目录里常见的只读权限、ACL、immutable flag。
-  chmod -R u+rwX -- "$target" 2>/dev/null || true
-  if command -v chflags >/dev/null 2>&1; then
-    chflags -R nouchg,noschg -- "$target" 2>/dev/null || true
-  fi
-  rm -rf -- "$target" 2>/dev/null && return 0
-
-  # 第三轮：不再询问，直接 sudo 删除。这里仅针对 npm 全局残留目录调用，路径由脚本扫描得出。
-  if command -v sudo >/dev/null 2>&1; then
-    echo "➤ sudo rm -rf $target"
-    sudo rm -rf -- "$target" && return 0
-  fi
-
-  return 1
-}
-
-jobs_npm_cleanup_global_temp_dirs() {
-  emulate -L zsh
-  setopt null_glob
-
-  local npm_root="$1"
-  local tmp_dir=""
-  local base=""
-
-  [[ -n "$npm_root" && -d "$npm_root" ]] || return 0
-
-  # npm update -g 有时会把上一次失败残留的隐藏临时目录当成包名，例如：
-  #   .quicktype-zaTqycTW
-  # 这种包名以点开头，npm 会报 EINVALIDPACKAGENAME。这里仅清理这类 npm 残留，保留 .bin。
-  for tmp_dir in "$npm_root"/.*(N); do
-    base="${tmp_dir:t}"
-    [[ "$base" == "." || "$base" == ".." || "$base" == ".bin" || "$base" == ".cache" ]] && continue
-
-    if [[ "$base" == .*-* ]]; then
-      echo "➤ 清理 npm 全局残留目录：$tmp_dir"
-      if jobs_force_remove_dir "$tmp_dir"; then
-        echo "✅ 已删除 npm 残留目录：$tmp_dir"
-      else
-        jobs_update_warn "无法删除 npm 残留目录：$tmp_dir；已在 npm 包枚举里忽略隐藏目录，不会再触发 EINVALIDPACKAGENAME"
-      fi
-    fi
-  done
-}
-
-jobs_npm_read_package_name() {
-  local package_json="$1"
-  [[ -f "$package_json" ]] || return 1
-
-  if command -v node >/dev/null 2>&1; then
-    node -e 'const fs=require("fs"); const p=process.argv[1]; try { const data=JSON.parse(fs.readFileSync(p,"utf8")); if (data && data.name) console.log(data.name); } catch (_) {}' "$package_json" 2>/dev/null
+  if (( status == 0 )); then
+    success_echo "$title 完成"
   else
-    sed -n 's/^[[:space:]]*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$package_json" | head -n 1
-  fi
-}
-
-jobs_npm_global_package_names() {
-  emulate -L zsh
-  setopt null_glob
-
-  local npm_root="$1"
-  local dir=""
-  local scoped_dir=""
-  local base=""
-  local name=""
-
-  [[ -n "$npm_root" && -d "$npm_root" ]] || return 0
-
-  for dir in "$npm_root"/*(N/); do
-    base="${dir:t}"
-    [[ -z "$base" || "$base" == .* ]] && continue
-
-    if [[ "$base" == @* ]]; then
-      for scoped_dir in "$dir"/*(N/); do
-        name="$(jobs_npm_read_package_name "$scoped_dir/package.json")"
-        [[ -n "$name" ]] || continue
-        [[ "$name" == .* || "$name" == "npm" || "$name" == "pnpm" || "$name" == "openclaw" ]] && continue
-        printf "%s\n" "$name"
-      done
-    else
-      name="$(jobs_npm_read_package_name "$dir/package.json")"
-      [[ -n "$name" ]] || continue
-      [[ "$name" == .* || "$name" == "npm" || "$name" == "pnpm" || "$name" == "openclaw" ]] && continue
-      printf "%s\n" "$name"
-    fi
-  done | sort -u
-}
-
-jobs_npm_package_dir_for_name() {
-  emulate -L zsh
-
-  local npm_root="$1"
-  local package="$2"
-
-  [[ -n "$npm_root" && -n "$package" ]] || return 1
-  printf "%s/%s
-" "$npm_root" "$package"
-}
-
-jobs_npm_repair_package_permissions() {
-  emulate -L zsh
-
-  local package="$1"
-  local npm_root="$2"
-  local package_dir=""
-
-  package_dir="$(jobs_npm_package_dir_for_name "$npm_root" "$package")"
-
-  # npm 安装全局包时经常需要在 node_modules 里 rename 包目录到 .xxx 临时目录。
-  # 如果历史安装产生了 root-owned 文件，会触发 EACCES；这里直接修复当前包目录和父目录的用户写权限。
-  [[ -d "$npm_root" ]] && chmod u+rwx -- "$npm_root" 2>/dev/null || true
-  [[ -e "$package_dir" ]] && chmod -R u+rwX -- "$package_dir" 2>/dev/null || true
-
-  if command -v chflags >/dev/null 2>&1; then
-    [[ -d "$npm_root" ]] && chflags nouchg,noschg -- "$npm_root" 2>/dev/null || true
-    [[ -e "$package_dir" ]] && chflags -R nouchg,noschg -- "$package_dir" 2>/dev/null || true
-  fi
-}
-
-jobs_npm_install_global_latest() {
-  emulate -L zsh
-
-  local package="$1"
-  local npm_root="$2"
-
-  [[ -n "$package" ]] || return 0
-
-  echo "➤ npm install -g ${package}@latest"
-  if npm install -g "${package}@latest"; then
-    return 0
+    warn_echo "$title 返回非 0：$status；继续后续更新项"
   fi
 
-  jobs_update_warn "npm 全局包第一次更新失败：$package；清理残留并修复权限后重试"
-  jobs_npm_cleanup_global_temp_dirs "$npm_root"
-  jobs_npm_repair_package_permissions "$package" "$npm_root"
-
-  echo "➤ npm install -g ${package}@latest retry"
-  if npm install -g "${package}@latest"; then
-    return 0
-  fi
-
-  # 激进全量更新模式：仍失败时，不再询问，直接 sudo 重试。
-  if command -v sudo >/dev/null 2>&1; then
-    jobs_update_warn "npm 全局包普通权限仍失败：$package；直接 sudo 重试"
-    echo "➤ sudo npm install -g ${package}@latest"
-    sudo npm install -g "${package}@latest" && return 0
-  fi
-
-  jobs_update_warn "npm 全局包更新失败：$package，继续"
   return 0
 }
 
-jobs_update_npm_global_packages() {
-  emulate -L zsh
-
-  local npm_root=""
-  local package=""
-  local packages_text=""
-  local -a packages
-
-  if ! command -v npm >/dev/null 2>&1; then
-    jobs_update_warn "[npm] not installed，跳过 npm 全局包更新"
+jobs_update_source_nvm_if_needed() {
+  if jobs_update_has nvm; then
     return 0
   fi
 
-  npm_root="$(npm root -g 2>/dev/null || true)"
-  if [[ -z "$npm_root" || ! -d "$npm_root" ]]; then
-    jobs_update_warn "无法解析 npm 全局 node_modules 目录，跳过 npm 全局包更新"
-    return 0
+  local nvm_dir="${NVM_DIR:-$HOME/.nvm}"
+  if [[ -s "$nvm_dir/nvm.sh" ]]; then
+    source "$nvm_dir/nvm.sh"
+  fi
+}
+
+jobs_update_find_external_command() {
+  local command_name="$1"
+  local path_dir=""
+  local candidate=""
+  local candidate_real=""
+  local script_real=""
+
+  if [[ -n "${SCRIPT_PATH:-}" && -e "$SCRIPT_PATH" ]]; then
+    script_real="$(cd "${SCRIPT_PATH:h}" 2>/dev/null && pwd -P)/${SCRIPT_PATH:t}"
   fi
 
-  jobs_npm_cleanup_global_temp_dirs "$npm_root"
+  for path_dir in ${(s.:.)PATH}; do
+    [[ -n "$path_dir" ]] || continue
+    candidate="$path_dir/$command_name"
+    [[ -x "$candidate" ]] || continue
 
-  packages_text="$(jobs_npm_global_package_names "$npm_root")"
-  packages=("${(@f)packages_text}")
-  if (( ${#packages[@]} == 0 )); then
-    echo "✅ npm 没有发现可更新的全局包"
+    candidate_real="$(cd "${candidate:h}" 2>/dev/null && pwd -P)/${candidate:t}"
+    [[ -n "$script_real" && "$candidate_real" == "$script_real" ]] && continue
+
+    print -r -- "$candidate"
     return 0
-  fi
-
-  echo "➤ npm 全局包逐个升级到 latest（替代 npm update -g，避免隐藏残留目录导致 EINVALIDPACKAGENAME）"
-  for package in "${packages[@]}"; do
-    [[ -n "$package" ]] || continue
-    jobs_npm_install_global_latest "$package" "$npm_root"
   done
+
+  return 1
 }
 
-jobs_update_node_npm_pnpm_corepack() {
-  if command -v brew >/dev/null 2>&1; then
-    if brew list --formula node >/dev/null 2>&1; then
-      echo "➤ brew upgrade node"
-      brew upgrade node || jobs_update_warn "brew upgrade node failed，继续"
+# ---------- 更新项 ----------
+jobs_update_homebrew() {
+  if ! jobs_update_has brew; then
+    warn_echo "未检测到 Homebrew，跳过 Homebrew 更新"
+    return 0
+  fi
+
+  brew update
+  brew upgrade
+  brew cleanup
+  brew doctor || warn_echo "brew doctor 有警告，请按输出处理"
+  brew -v || true
+}
+
+jobs_update_fvm_flutter() {
+  local external_flutter=""
+
+  if jobs_update_has brew && brew list --formula fvm >/dev/null 2>&1; then
+    brew upgrade fvm || warn_echo "brew upgrade fvm 失败，继续后续步骤"
+  elif jobs_update_has dart; then
+    dart pub global activate fvm || warn_echo "dart pub global activate fvm 失败，继续后续步骤"
+  else
+    warn_echo "未检测到 brew formula fvm 或 dart，跳过 FVM 更新"
+  fi
+
+  if external_flutter="$(jobs_update_find_external_command flutter 2>/dev/null)"; then
+    "$external_flutter" upgrade || warn_echo "flutter upgrade 失败，继续后续步骤"
+    "$external_flutter" doctor -v || warn_echo "flutter doctor 有警告，请按输出处理"
+  elif jobs_update_has fvm; then
+    fvm flutter doctor -v || warn_echo "fvm flutter doctor 有警告，请按输出处理"
+  else
+    warn_echo "未检测到外部 flutter / fvm，跳过 Flutter 更新"
+  fi
+}
+
+jobs_update_node() {
+  jobs_update_source_nvm_if_needed
+
+  if jobs_update_has nvm; then
+    nvm install --lts --reinstall-packages-from=current
+    nvm alias default 'lts/*'
+    nvm use default
+  elif jobs_update_has node; then
+    warn_echo "检测到 node，但未检测到 nvm；不会擅自替换 Node 版本"
+  else
+    warn_echo "未检测到 node / nvm，跳过 Node 更新"
+  fi
+
+  if jobs_update_has corepack; then
+    corepack enable || warn_echo "corepack enable 失败，继续后续步骤"
+  fi
+
+  if jobs_update_has npm; then
+    npm -v || true
+  fi
+}
+
+jobs_update_python() {
+  if jobs_update_has pyenv; then
+    if pyenv commands | grep -qx update; then
+      pyenv update || warn_echo "pyenv update 失败，继续后续步骤"
     else
-      echo "ℹ️  brew 未管理 node，跳过 brew upgrade node"
+      warn_echo "pyenv-update 插件不存在，跳过 pyenv update"
     fi
+    pyenv rehash || true
   fi
 
-  if command -v npm >/dev/null 2>&1; then
-    echo "➤ npm install -g npm@latest"
-    npm install -g npm@latest || jobs_update_warn "npm 自升级失败，继续"
+  if jobs_update_has pipx; then
+    pipx upgrade-all || warn_echo "pipx upgrade-all 失败，继续后续步骤"
+  fi
 
-    echo "ℹ️  npm 全局包升级会跳过 npm / pnpm / openclaw；openclaw 只由 03. OpenClaw 模块处理"
-    jobs_update_npm_global_packages
+  if jobs_update_has python3; then
+    python3 -m pip install --upgrade pip || warn_echo "pip 自升级失败，继续后续步骤"
+  elif jobs_update_has python; then
+    python -m pip install --upgrade pip || warn_echo "pip 自升级失败，继续后续步骤"
   else
-    jobs_update_warn "[npm] not installed，跳过 npm 全局生态更新"
+    warn_echo "未检测到 Python，跳过 Python 更新"
+  fi
+}
+
+jobs_update_ruby() {
+  if jobs_update_has rbenv; then
+    rbenv rehash || true
   fi
 
-  # pnpm 不能无脑 npm install -g，否则会和 Homebrew/corepack 已经放在 /opt/homebrew/bin 的 pnpm 撞文件。
-  if command -v brew >/dev/null 2>&1 && brew list --formula pnpm >/dev/null 2>&1; then
-    echo "➤ brew upgrade pnpm"
-    brew upgrade pnpm || jobs_update_warn "brew upgrade pnpm failed，继续"
-  elif command -v corepack >/dev/null 2>&1; then
-    echo "➤ corepack enable"
-    corepack enable || jobs_update_warn "corepack enable failed，继续"
-
-    echo "➤ corepack prepare pnpm@latest --activate"
-    corepack prepare pnpm@latest --activate || jobs_update_warn "corepack prepare pnpm@latest --activate failed，继续"
-  elif command -v pnpm >/dev/null 2>&1; then
-    echo "ℹ️  已检测到 pnpm：$(whence -p pnpm 2>/dev/null || command -v pnpm)"
-    pnpm --version 2>/dev/null || true
-    echo "ℹ️  pnpm 已存在但不确定由谁管理，跳过 npm install -g pnpm@latest，避免 EEXIST 覆盖 Homebrew 文件"
-  elif command -v npm >/dev/null 2>&1; then
-    echo "➤ npm install -g pnpm@latest"
-    npm install -g pnpm@latest || jobs_update_warn "npm install -g pnpm@latest failed，继续"
+  if jobs_update_has gem; then
+    gem update --system || warn_echo "gem update --system 失败，继续后续步骤"
+    gem update || warn_echo "gem update 失败，继续后续步骤"
   else
-    jobs_update_warn "未检测到 npm / corepack / pnpm，跳过 pnpm 更新"
+    warn_echo "未检测到 gem，跳过 RubyGems 更新"
   fi
-}
-
-# ------------------------------ Rust / Cargo ------------------------------
-jobs_update_rust_cargo() {
-  if command -v rustup >/dev/null 2>&1; then
-    echo "➤ rustup update"
-    rustup update || jobs_update_warn "rustup update failed，继续"
-  else
-    jobs_update_warn "[rustup] not installed，跳过 Rust toolchain 更新"
-  fi
-
-  if ! command -v cargo >/dev/null 2>&1; then
-    jobs_update_warn "[cargo] not installed，跳过 cargo 全局工具更新"
-    return 0
-  fi
-
-  if ! cargo install-update --help >/dev/null 2>&1; then
-    echo "➤ 安装 cargo-update"
-    cargo install cargo-update || {
-      jobs_update_warn "cargo-update 安装失败，跳过 cargo install-update -a"
-      return 0
-    }
-  fi
-
-  echo "➤ cargo install-update -a"
-  cargo install-update -a || jobs_update_warn "cargo install-update -a failed，继续"
-}
-
-# ------------------------------ Python / pip / pyenv ------------------------------
-jobs_pip_supports_break_system_packages() {
-  python3 -m pip install --help 2>/dev/null | grep -q -- '--break-system-packages'
-}
-
-jobs_pip_upgrade_one() {
-  local package="$1"
-  local -a pip_args
-  [[ -n "$package" ]] || return 0
-
-  pip_args=(install --upgrade --user)
-  if jobs_pip_supports_break_system_packages; then
-    pip_args+=(--break-system-packages)
-  fi
-  pip_args+=("$package")
-
-  echo "➤ python3 -m pip ${pip_args[*]}"
-  python3 -m pip "${pip_args[@]}" || jobs_update_warn "pip package 用户级升级失败：$package"
-}
-
-jobs_update_python_pip_pyenv() {
-  local outdated_packages=""
-  local package=""
-
-  if command -v brew >/dev/null 2>&1; then
-    if brew list --formula pyenv >/dev/null 2>&1; then
-      echo "➤ brew upgrade pyenv"
-      brew upgrade pyenv || jobs_update_warn "brew upgrade pyenv failed，继续"
-    else
-      echo "ℹ️  brew 未管理 pyenv，跳过 brew upgrade pyenv"
-    fi
-  fi
-
-  if ! command -v python3 >/dev/null 2>&1; then
-    jobs_update_warn "[python3] not installed，跳过 Python / pip 更新"
-    return 0
-  fi
-
-  echo "ℹ️  pip 使用用户级升级：--user；如当前 Python 受 Homebrew/PEP668 管理，则自动追加 --break-system-packages"
-  jobs_pip_upgrade_one pip
-  jobs_pip_upgrade_one setuptools
-  jobs_pip_upgrade_one wheel
-
-  echo "➤ 扫描 pip outdated packages"
-  outdated_packages="$(python3 -m pip list --outdated --format=json 2>/dev/null \
-    | python3 -c 'import sys,json; data=json.load(sys.stdin); print("\n".join(item["name"] for item in data))' 2>/dev/null || true)"
-
-  if [[ -z "$outdated_packages" ]]; then
-    echo "✅ pip 没有发现可升级的包"
-    return 0
-  fi
-
-  while IFS= read -r package; do
-    [[ -n "$package" ]] || continue
-    jobs_pip_upgrade_one "$package"
-  done <<< "$outdated_packages"
-}
-
-# ------------------------------ RubyGems / CocoaPods / rbenv ------------------------------
-jobs_update_rubygems() {
-  local gem_home=""
-
-  if ! command -v gem >/dev/null 2>&1; then
-    jobs_update_warn "[gem] not installed，跳过 RubyGems 更新"
-    return 0
-  fi
-
-  gem_home="$(gem env home 2>/dev/null || true)"
-  if [[ "$gem_home" == /Library/Ruby/Gems/* || "$gem_home" == /System/Library/* ]]; then
-    jobs_update_warn "当前 gem 指向 macOS 系统 Ruby：$gem_home"
-    jobs_update_warn "跳过 gem update，避免污染系统 Ruby；请先让 rbenv Ruby 在 PATH 中优先"
-    return 0
-  fi
-
-  echo "✅ RubyGems Home：$gem_home"
-  gem update || jobs_update_warn "gem update failed，继续"
-  gem clean || jobs_update_warn "gem clean failed，继续"
 }
 
 jobs_update_cocoapods() {
-  if ! command -v pod >/dev/null 2>&1; then
-    jobs_update_warn "[pod] not installed，跳过 CocoaPods Specs 更新"
-    return 0
-  fi
-
-  pod repo update || jobs_update_warn "pod repo update failed，继续"
-}
-
-jobs_update_rbenv_ruby_build() {
-  if ! command -v brew >/dev/null 2>&1; then
-    jobs_update_warn "[brew] not installed，无法更新 rbenv / ruby-build"
-    return 0
-  fi
-
-  if brew list --formula rbenv >/dev/null 2>&1 || brew list --formula ruby-build >/dev/null 2>&1; then
-    brew upgrade rbenv ruby-build || jobs_update_warn "brew upgrade rbenv ruby-build failed，继续"
+  if jobs_update_has pod; then
+    pod repo update || warn_echo "pod repo update 失败，继续后续步骤"
+  elif jobs_update_has gem; then
+    warn_echo "未检测到 pod；可执行 gem install cocoapods 后再运行本项"
   else
-    jobs_update_warn "brew 未管理 rbenv / ruby-build，跳过"
+    warn_echo "未检测到 pod / gem，跳过 CocoaPods 更新"
   fi
 }
 
-# ================================== OpenClaw 更新（供 update 调用） ==================================
-# 记录文件：第一次输入有效 openclaw 仓库目录后写入；后续 update 会自动沿用。
-# 注意：真正执行 git pull 前仍会重新校验目录是否存在、是否是 Git 仓库、remote 是否指向 OpenClaw 官方仓库。
-: "${JOBS_OPENCLAW_REPO_RECORD_FILE:=$HOME/.JobsMacEnv/openclaw_repo_path}"
-: "${JOBS_OPENCLAW_REMOTE_URL:=https://github.com/openclaw/openclaw}"
-: "${JOBS_OPENCLAW_REMOTE_URL_HTTP:=http://github.com/openclaw/openclaw}"
-: "${JOBS_OPENCLAW_ONBOARD_MARKER_FILE:=$HOME/.JobsMacEnv/openclaw_onboard_done}"
-
-jobs_openclaw_trim_text() {
-  local s="$1"
-  s="${s#${s%%[![:space:]]*}}"
-  s="${s%${s##*[![:space:]]}}"
-  printf "%s" "$s"
-}
-
-jobs_openclaw_normalize_path() {
-  emulate -L zsh
-  setopt no_nomatch
-
-  local raw="$*"
-  local path=""
-  local resolved=""
-
-  raw="$(jobs_openclaw_trim_text "$raw")"
-
-  # Finder 拖入终端时，可能带单/双引号，也可能把空格转义成 \ 。
-  if typeset -f jobs_unescape_dragged_path >/dev/null 2>&1; then
-    path="$(jobs_unescape_dragged_path "$raw")"
+jobs_update_pub_cache() {
+  if jobs_update_has dart; then
+    dart pub global list || true
+    dart pub cache repair || warn_echo "dart pub cache repair 失败，继续后续步骤"
   else
-    # zsh quote-removal：安全处理拖入路径里的反斜杠、空格、括号、引号等。
-    path="${(Q)raw}"
-    [[ "$path" == "~"* ]] && path="${~path}"
-  fi
-
-  if [[ -e "$path" || -L "$path" ]]; then
-    if typeset -f jobs_resolve_drag_target >/dev/null 2>&1; then
-      resolved="$(jobs_resolve_drag_target "$path" 2>/dev/null || true)"
-    elif command -v realpath >/dev/null 2>&1; then
-      resolved="$(realpath "$path" 2>/dev/null || true)"
-    fi
-  fi
-
-  [[ -n "$resolved" ]] && path="$resolved"
-  printf "%s\n" "${path%/}"
-}
-
-jobs_openclaw_canonical_remote_url() {
-  emulate -L zsh
-
-  local url="$1"
-  url="$(jobs_openclaw_trim_text "$url")"
-
-  # GitHub 同一个仓库可能有多种 remote 写法：
-  #   https://github.com/openclaw/openclaw.git
-  #   http://github.com/openclaw/openclaw.git
-  #   git@github.com:openclaw/openclaw.git
-  #   ssh://git@github.com/openclaw/openclaw.git
-  # 校验时统一归一化成 https://github.com/<owner>/<repo> 再比较。
-  if [[ "$url" == git@github.com:* ]]; then
-    url="${url#git@github.com:}"
-    url="https://github.com/$url"
-  elif [[ "$url" == ssh://git@github.com/* ]]; then
-    url="${url#ssh://git@github.com/}"
-    url="https://github.com/$url"
-  elif [[ "$url" == http://github.com/* ]]; then
-    url="https://${url#http://}"
-  fi
-
-  while [[ "$url" == */ ]]; do
-    url="${url%/}"
-  done
-  url="${url%.git}"
-  while [[ "$url" == */ ]]; do
-    url="${url%/}"
-  done
-
-  printf "%s" "$url"
-}
-
-jobs_openclaw_expected_canonical_remote_url() {
-  jobs_openclaw_canonical_remote_url "$JOBS_OPENCLAW_REMOTE_URL"
-}
-
-jobs_openclaw_validate_repo() {
-  emulate -L zsh
-
-  local repo_path="$1"
-  local expected_remote=""
-  local remote_name=""
-  local remote=""
-  local remote_names=""
-  local remote_urls=""
-  local normalized_remote=""
-  local detected_remotes=""
-
-  expected_remote="$(jobs_openclaw_expected_canonical_remote_url)"
-
-  if [[ -z "$repo_path" ]]; then
-    echo "⚠️  OpenClaw 目录为空"
-    return 1
-  fi
-
-  if [[ ! -d "$repo_path" ]]; then
-    echo "⚠️  OpenClaw 目录不存在：$repo_path"
-    return 1
-  fi
-
-  if ! command -v git >/dev/null 2>&1; then
-    echo "⚠️  缺少 git，无法校验 OpenClaw 仓库"
-    return 1
-  fi
-
-  if ! git -C "$repo_path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    echo "⚠️  这不是 Git 仓库目录：$repo_path"
-    return 1
-  fi
-
-  remote_names="$(git -C "$repo_path" remote 2>/dev/null || true)"
-  while IFS= read -r remote_name; do
-    [[ -n "$remote_name" ]] || continue
-
-    remote_urls="$(git -C "$repo_path" remote get-url --all "$remote_name" 2>/dev/null || true)"
-    while IFS= read -r remote; do
-      [[ -n "$remote" ]] || continue
-      normalized_remote="$(jobs_openclaw_canonical_remote_url "$remote")"
-      detected_remotes+="   ${remote_name}: ${remote}\n"
-
-      if [[ "$normalized_remote" == "$expected_remote" ]]; then
-        return 0
-      fi
-    done <<< "$remote_urls"
-  done <<< "$remote_names"
-
-  echo "⚠️  这不是 OpenClaw 官方仓库"
-  echo "   允许远程：$JOBS_OPENCLAW_REMOTE_URL 或 $JOBS_OPENCLAW_REMOTE_URL_HTTP"
-  if [[ -n "$detected_remotes" ]]; then
-    printf "%b" "   检测到远程：\n$detected_remotes"
-  else
-    echo "   未检测到任何 git remote"
-  fi
-  return 1
-}
-
-jobs_openclaw_read_recorded_repo_path() {
-  local saved=""
-  [[ -f "$JOBS_OPENCLAW_REPO_RECORD_FILE" ]] || return 0
-  saved="$(cat "$JOBS_OPENCLAW_REPO_RECORD_FILE" 2>/dev/null || true)"
-  [[ -n "$saved" ]] || return 0
-  jobs_openclaw_normalize_path "$saved"
-}
-
-jobs_openclaw_save_repo_path() {
-  local repo_path="$1"
-  mkdir -p "${JOBS_OPENCLAW_REPO_RECORD_FILE:h}"
-  printf "%s\n" "$repo_path" > "$JOBS_OPENCLAW_REPO_RECORD_FILE"
-  echo "✅ 已记录 OpenClaw 仓库目录：$repo_path"
-}
-
-jobs_openclaw_prompt_repo_path_until_valid() {
-  emulate -L zsh
-
-  local input=""
-  local repo_path=""
-
-  while true; do
-    echo ""
-    echo "🦞 请拖入/输入 openclaw 的 git clone 本地目录后回车："
-    echo "   目录 remote 需要指向："
-    echo "   - $JOBS_OPENCLAW_REMOTE_URL"
-    echo "   - $JOBS_OPENCLAW_REMOTE_URL_HTTP"
-    echo "   直接回车则取消本次 OpenClaw 操作。"
-    read -r input
-
-    if [[ -z "$input" ]]; then
-      echo "⚠️  未提供 OpenClaw 仓库目录，取消本次 OpenClaw 操作。"
-      return 1
-    fi
-
-    repo_path="$(jobs_openclaw_normalize_path "$input")"
-    if jobs_openclaw_validate_repo "$repo_path"; then
-      OPENCLAW_REPO_PATH="$repo_path"
-      jobs_openclaw_save_repo_path "$OPENCLAW_REPO_PATH"
-      return 0
-    fi
-
-    echo "⚠️  当前目录未通过校验，请重新输入。"
-  done
-}
-
-jobs_openclaw_choose_repo_path() {
-  emulate -L zsh
-
-  local saved=""
-
-  saved="$(jobs_openclaw_read_recorded_repo_path)"
-
-  # 后续运行：不再打断用户询问；先自动使用已记录目录。
-  # 但在任何 git pull / onboard / build 前，都会重新校验目录是否存在、是否仍然指向 openclaw/openclaw。
-  if [[ -n "$saved" ]]; then
-    echo "🦞 检查已记录的 OpenClaw 仓库目录：$saved"
-    if jobs_openclaw_validate_repo "$saved"; then
-      OPENCLAW_REPO_PATH="$saved"
-      echo "✅ 使用已记录 OpenClaw 仓库目录：$OPENCLAW_REPO_PATH"
-      return 0
-    fi
-
-    echo "⚠️  已记录的 OpenClaw 目录已失效或 remote 不匹配，需要重新指定。"
-    echo "   记录文件：$JOBS_OPENCLAW_REPO_RECORD_FILE"
-  else
-    echo "🦞 未找到已记录的 OpenClaw 仓库目录。"
-  fi
-
-  # 首次运行，或历史目录失效：要求用户拖入/输入一个有效本地仓库，并通过 remote 校验后写入记录文件。
-  jobs_openclaw_prompt_repo_path_until_valid
-}
-
-jobs_openclaw_retry_run() {
-  local desc="$1"
-  local retries="$2"
-  shift 2
-
-  local i=1
-  while (( i <= retries )); do
-    echo "➤ $desc（第 $i/$retries 次）"
-    "$@" && {
-      echo "✅ $desc 成功"
-      return 0
-    }
-    echo "⚠️  $desc 失败"
-    (( i++ ))
-    sleep 1
-  done
-
-  echo "❌ $desc 最终失败"
-  return 1
-}
-
-jobs_openclaw_load_homebrew_shellenv() {
-  emulate -L zsh
-
-  local brew_bin=""
-
-  for brew_bin in /opt/homebrew/bin/brew /usr/local/bin/brew; do
-    if [[ -x "$brew_bin" ]]; then
-      eval "$("$brew_bin" shellenv)"
-      return 0
-    fi
-  done
-
-  return 1
-}
-
-jobs_openclaw_install_homebrew_if_needed() {
-  emulate -L zsh
-
-  jobs_openclaw_load_homebrew_shellenv >/dev/null 2>&1 || true
-
-  if command -v brew >/dev/null 2>&1; then
-    echo "✅ Homebrew 已安装：$(brew --version | head -n 1)"
-    return 0
-  fi
-
-  if [[ "$OSTYPE" != darwin* ]]; then
-    echo "❌ 当前系统不是 macOS，无法按 Homebrew 流程自动安装依赖"
-    return 1
-  fi
-
-  if ! command -v curl >/dev/null 2>&1; then
-    echo "❌ 缺少 curl，无法自动安装 Homebrew"
-    echo "👉 可先执行：xcode-select --install"
-    return 1
-  fi
-
-  echo ""
-  echo "🍺 未检测到 Homebrew，开始安装 Homebrew。这个过程可能需要输入系统密码。"
-  jobs_openclaw_retry_run "安装 Homebrew" 1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || return 1
-
-  jobs_openclaw_load_homebrew_shellenv >/dev/null 2>&1 || true
-
-  if command -v brew >/dev/null 2>&1; then
-    echo "✅ Homebrew 已安装：$(brew --version | head -n 1)"
-    return 0
-  fi
-
-  echo "❌ Homebrew 安装后当前 shell 仍不可用"
-  echo "👉 请重新打开终端，或检查 /opt/homebrew/bin/brew、/usr/local/bin/brew 是否存在"
-  return 1
-}
-
-jobs_openclaw_ensure_pnpm_by_brew() {
-  emulate -L zsh
-
-  if command -v pnpm >/dev/null 2>&1; then
-    echo "✅ pnpm 已安装：$(pnpm --version 2>/dev/null)"
-    return 0
-  fi
-
-  jobs_openclaw_install_homebrew_if_needed || return 1
-
-  echo "📦 未检测到 pnpm，使用 Homebrew 安装 pnpm"
-  jobs_openclaw_retry_run "安装 pnpm" 2 brew install pnpm || return 1
-
-  if command -v pnpm >/dev/null 2>&1; then
-    echo "✅ pnpm 已安装：$(pnpm --version 2>/dev/null)"
-    return 0
-  fi
-
-  echo "❌ pnpm 安装后当前 shell 仍不可用"
-  echo "👉 请重新打开终端后再执行 update，或检查 brew 的 shellenv 是否已写入 ~/.zprofile"
-  return 1
-}
-
-jobs_openclaw_brew_install_if_needed() {
-  local cmd="$1"
-  local formula="$2"
-
-  if command -v "$cmd" >/dev/null 2>&1; then
-    echo "✅ $cmd 已安装"
-    return 0
-  fi
-
-  jobs_openclaw_install_homebrew_if_needed || {
-    echo "❌ 缺少 $cmd，且 Homebrew 不可用，无法自动安装 $formula"
-    return 1
-  }
-
-  jobs_openclaw_retry_run "安装 $formula" 2 brew install "$formula"
-}
-
-jobs_openclaw_sync_repo() {
-  emulate -L zsh
-
-  local repo_path="$1"
-  local branch=""
-  local upstream=""
-
-  if ! command -v git >/dev/null 2>&1; then
-    echo "❌ 缺少 git，无法同步 OpenClaw 代码"
-    return 1
-  fi
-
-  # 关键防护：真正做 git pull / fetch 前重新校验本地目录，避免历史记录失效、目录被删、remote 被改。
-  jobs_openclaw_validate_repo "$repo_path" || {
-    echo "❌ OpenClaw 仓库目录校验失败，已停止 git pull：$repo_path"
-    return 1
-  }
-
-  branch="$(git -C "$repo_path" branch --show-current 2>/dev/null || true)"
-  if [[ -z "$branch" ]]; then
-    echo "❌ 当前 OpenClaw 仓库不是普通分支状态，无法自动同步代码：$repo_path"
-    return 1
-  fi
-
-  upstream="$(git -C "$repo_path" rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || true)"
-  if [[ -n "$upstream" ]]; then
-    jobs_openclaw_retry_run "同步 OpenClaw 代码" 2 git -C "$repo_path" pull --ff-only --autostash
-    return $?
-  fi
-
-  echo "ℹ️  当前分支未设置 upstream，尝试从 origin/$branch 同步"
-  jobs_openclaw_retry_run "获取 OpenClaw 远端代码" 2 git -C "$repo_path" fetch origin --prune || return 1
-
-  if ! git -C "$repo_path" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
-    echo "❌ 远端不存在 origin/$branch，无法自动同步 OpenClaw 代码"
-    return 1
-  fi
-
-  jobs_openclaw_retry_run "同步 OpenClaw 代码" 2 git -C "$repo_path" pull --ff-only --autostash origin "$branch"
-}
-
-jobs_openclaw_sync_dependencies() {
-  emulate -L zsh
-
-  local repo_path="$1"
-
-  if [[ -z "$repo_path" || ! -d "$repo_path" ]]; then
-    echo "❌ OpenClaw 仓库目录不存在，无法同步依赖：$repo_path"
-    return 1
-  fi
-
-  if [[ ! -f "$repo_path/package.json" ]]; then
-    echo "❌ OpenClaw 仓库目录缺少 package.json：$repo_path"
-    return 1
-  fi
-
-  # git pull 后 package.json / pnpm-lock.yaml / pnpm-workspace.yaml 可能已经变化。
-  # 不先执行 pnpm install，后续 pnpm openclaw 会在自动构建时找不到新增 workspace 包。
-  (
-    cd "$repo_path" || exit 1
-    jobs_openclaw_retry_run "OpenClaw 依赖同步 pnpm install" 2 pnpm install || exit 1
-  )
-}
-
-jobs_openclaw_build_runtime() {
-  emulate -L zsh
-
-  local repo_path="$1"
-
-  if [[ -z "$repo_path" || ! -d "$repo_path" ]]; then
-    echo "❌ OpenClaw 仓库目录不存在，无法构建运行时代码：$repo_path"
-    return 1
-  fi
-
-  if [[ ! -f "$repo_path/package.json" ]]; then
-    echo "❌ OpenClaw 仓库目录缺少 package.json：$repo_path"
-    return 1
-  fi
-
-  # git pull 后 TypeScript 源码可能已经变化；如果 Gateway 服务通过已构建 dist 运行，
-  # 只 pnpm install / pnpm ui:build 不够，必须先刷新 runtime dist。
-  (
-    cd "$repo_path" || exit 1
-    jobs_openclaw_retry_run "OpenClaw 运行时代码构建 pnpm build" 2 pnpm build || exit 1
-  )
-}
-
-jobs_openclaw_build_control_ui_assets() {
-  emulate -L zsh
-
-  local repo_path="$1"
-
-  if [[ -z "$repo_path" || ! -d "$repo_path" ]]; then
-    echo "❌ OpenClaw 仓库目录不存在，无法构建 Control UI：$repo_path"
-    return 1
-  fi
-
-  if [[ ! -f "$repo_path/package.json" ]]; then
-    echo "❌ OpenClaw 仓库目录缺少 package.json：$repo_path"
-    return 1
-  fi
-
-  # dashboard 访问 127.0.0.1:18789 时需要已生成的 Control UI 静态资源。
-  # 这和 onboard 配置面板不是一回事；不执行 onboard 也必须执行 pnpm ui:build。
-  (
-    cd "$repo_path" || exit 1
-    jobs_openclaw_retry_run "OpenClaw Control UI 构建 pnpm ui:build" 2 pnpm ui:build || exit 1
-  )
-}
-
-jobs_openclaw_launchctl_kickstart_existing_gateway() {
-  emulate -L zsh
-  setopt null_glob
-
-  [[ "$OSTYPE" == darwin* ]] || return 1
-  command -v launchctl >/dev/null 2>&1 || return 1
-
-  local plist=""
-  local label=""
-  local uid="$(id -u)"
-  local restarted=1
-
-  for plist in "$HOME"/Library/LaunchAgents/*openclaw*.plist(N); do
-    label="$(/usr/libexec/PlistBuddy -c 'Print :Label' "$plist" 2>/dev/null || plutil -extract Label raw "$plist" 2>/dev/null || true)"
-    [[ -n "$label" ]] || continue
-
-    echo "🔄 尝试重启已有 OpenClaw LaunchAgent：$label"
-    if launchctl kickstart -k "gui/$uid/$label" >/dev/null 2>&1; then
-      echo "✅ 已通过 launchctl kickstart 重启：$label"
-      restarted=0
-    else
-      echo "⚠️  launchctl kickstart 失败：$label"
-    fi
-  done
-
-  return $restarted
-}
-
-jobs_openclaw_refresh_gateway_service() {
-  emulate -L zsh
-
-  local repo_path="$1"
-
-  if jobs_openclaw_skip_gateway_restart_enabled; then
-    echo "⏭️  已设置 JOBS_OPENCLAW_SKIP_GATEWAY_RESTART=1，跳过 Gateway 服务重装/重启"
-    return 0
-  fi
-
-  if [[ -z "$repo_path" || ! -d "$repo_path" ]]; then
-    echo "❌ OpenClaw 仓库目录不存在，无法刷新 Gateway 服务：$repo_path"
-    return 1
-  fi
-
-  if [[ ! -f "$repo_path/package.json" ]]; then
-    echo "❌ OpenClaw 仓库目录缺少 package.json：$repo_path"
-    return 1
-  fi
-
-  # 注意：这里使用 gateway install/restart，而不是 onboard --install-daemon。
-  # 前者只刷新/重启 Gateway 服务，不会打开 OpenClaw setup 配置面板；
-  # 作用是让 127.0.0.1:18789 的 Gateway 进程重新读取刚构建好的 dist/control-ui。
-  (
-    cd "$repo_path" || exit 1
-    jobs_openclaw_retry_run "OpenClaw Gateway 服务刷新 pnpm openclaw gateway install --force" 1 pnpm openclaw gateway install --force || exit 1
-    jobs_openclaw_retry_run "OpenClaw Gateway 服务重启 pnpm openclaw gateway restart" 1 pnpm openclaw gateway restart || exit 1
-  ) && return 0
-
-  echo "⚠️  pnpm openclaw gateway install/restart 失败，尝试对已有 LaunchAgent 做 kickstart"
-  if jobs_openclaw_launchctl_kickstart_existing_gateway; then
-    return 0
-  fi
-
-  echo "⚠️  未能自动重启 Gateway。Control UI 已构建，但 18789 可能仍由旧 Gateway 进程提供服务。"
-  print -r -- "👉 可手动执行：cd "$repo_path" && pnpm openclaw gateway install --force && pnpm openclaw gateway restart"
-  return 1
-}
-
-jobs_openclaw_skip_gateway_restart_enabled() {
-  emulate -L zsh
-
-  case "${JOBS_OPENCLAW_SKIP_GATEWAY_RESTART:-0}" in
-    1|true|TRUE|yes|YES|y|Y) return 0 ;;
-    *) return 1 ;;
-  esac
-}
-
-jobs_openclaw_fix_path_if_needed() {
-  if command -v openclaw >/dev/null 2>&1; then
-    echo "✅ openclaw 命令可用"
-    return 0
-  fi
-
-  if ! command -v npm >/dev/null 2>&1; then
-    echo "⚠️  npm 不可用，跳过 openclaw PATH 修复"
-    return 0
-  fi
-
-  local bin="$(npm config get prefix 2>/dev/null)/bin"
-  [[ -d "$bin" ]] || {
-    echo "⚠️  npm 全局 bin 目录不存在，跳过 PATH 修复：$bin"
-    return 0
-  }
-
-  local line="export PATH=\"$bin:\$PATH\""
-  touch "$HOME/.zprofile"
-  if ! grep -Fqx "$line" "$HOME/.zprofile" 2>/dev/null; then
-    print "" >> "$HOME/.zprofile"
-    print -r -- "$line" >> "$HOME/.zprofile"
-    echo "✅ 已写入 PATH：$HOME/.zprofile"
-  fi
-
-  export PATH="$bin:$PATH"
-
-  if command -v openclaw >/dev/null 2>&1; then
-    echo "✅ openclaw 命令可用"
-  else
-    echo "⚠️  PATH 已修复；如果当前终端仍无法识别 openclaw，请重新打开终端。"
+    warn_echo "未检测到 dart，跳过 Dart pub cache 更新"
   fi
 }
 
-jobs_openclaw_gateway_status_ok() {
-  emulate -L zsh
-
-  local repo_path="$1"
-
-  if [[ -n "$repo_path" && -d "$repo_path" ]] && command -v pnpm >/dev/null 2>&1; then
-    if (
-      cd "$repo_path" || exit 1
-      pnpm openclaw gateway status >/dev/null 2>&1
-    ); then
-      echo "✅ OpenClaw Gateway status 正常，跳过 onboard"
-      return 0
-    fi
-  fi
-
-  if command -v openclaw >/dev/null 2>&1; then
-    if openclaw gateway status >/dev/null 2>&1; then
-      echo "✅ OpenClaw Gateway status 正常，跳过 onboard"
-      return 0
-    fi
-  fi
-
-  return 1
-}
-
-jobs_openclaw_daemon_seems_ok() {
-  emulate -L zsh
-  setopt null_glob
-
-  local plist=""
-  local label=""
-
-  if [[ "$OSTYPE" == darwin* ]] && command -v launchctl >/dev/null 2>&1; then
-    for plist in "$HOME"/Library/LaunchAgents/*openclaw*.plist(N); do
-      label="$(/usr/libexec/PlistBuddy -c 'Print :Label' "$plist" 2>/dev/null || plutil -extract Label raw "$plist" 2>/dev/null || true)"
-      if [[ -n "$label" ]] && launchctl print "gui/$(id -u)/$label" >/dev/null 2>&1; then
-        echo "✅ 检测到 OpenClaw LaunchAgent 正常：$label"
-        return 0
-      fi
-    done
-
-    if launchctl list 2>/dev/null | grep -qi "openclaw"; then
-      echo "✅ launchctl 中检测到 OpenClaw 服务"
-      return 0
-    fi
-  fi
-
-  if command -v systemctl >/dev/null 2>&1; then
-    if systemctl --user list-units --type=service --state=running --no-legend 2>/dev/null | grep -qi "openclaw"; then
-      echo "✅ systemd user service 中检测到 OpenClaw 服务"
-      return 0
-    fi
-  fi
-
-  if command -v pgrep >/dev/null 2>&1; then
-    if pgrep -fl "[o]penclaw" >/dev/null 2>&1; then
-      echo "✅ 进程列表中检测到 OpenClaw"
-      return 0
-    fi
-  fi
-
-  return 1
-}
-
-
-jobs_openclaw_prompt_open_dashboard() {
-  emulate -L zsh
-
-  local repo_path="$1"
-  local answer=""
-
-  echo ""
-  if [[ ! -t 0 ]]; then
-    echo "👉 如需打开控制台，手动执行：openclaw dashboard"
-    return 0
-  fi
-
-  read -r "?👉 回车打开 OpenClaw 控制台；输入任意字符跳过: " answer
-  if [[ -n "$answer" ]]; then
-    echo "⏭️  已跳过打开 OpenClaw 控制台"
-    return 0
-  fi
-
-  echo "🚀 正在打开 OpenClaw 控制台..."
-  if command -v openclaw >/dev/null 2>&1; then
-    openclaw dashboard
-    return $?
-  fi
-
-  if command -v pnpm >/dev/null 2>&1 && [[ -n "$repo_path" && -d "$repo_path" ]]; then
-    (
-      cd "$repo_path" || exit 1
-      pnpm openclaw dashboard
-    )
-    return $?
-  fi
-
-  echo "❌ 找不到 openclaw / pnpm，无法打开 OpenClaw 控制台"
-  return 1
-}
-
-jobs_openclaw_onboard_marker_exists() {
-  emulate -L zsh
-
-  local repo_path="$1"
-
-  [[ -f "$JOBS_OPENCLAW_ONBOARD_MARKER_FILE" ]] || return 1
-  grep -Fqx "repo_path=$repo_path" "$JOBS_OPENCLAW_ONBOARD_MARKER_FILE" 2>/dev/null
-}
-
-jobs_openclaw_write_onboard_marker() {
-  emulate -L zsh
-
-  local repo_path="$1"
-
-  mkdir -p "${JOBS_OPENCLAW_ONBOARD_MARKER_FILE:h}" 2>/dev/null || true
-  {
-    print -r -- "repo_path=$repo_path"
-    print -r -- "completed_at=$(date '+%Y-%m-%d %H:%M:%S %z')"
-  } >| "$JOBS_OPENCLAW_ONBOARD_MARKER_FILE" 2>/dev/null || true
-}
-
-jobs_openclaw_force_onboard_enabled() {
-  emulate -L zsh
-
-  case "${JOBS_OPENCLAW_FORCE_ONBOARD:-0}" in
-    1|true|TRUE|yes|YES|y|Y) return 0 ;;
-    *) return 1 ;;
-  esac
-}
-
-jobs_openclaw_onboard_if_needed() {
-  emulate -L zsh
-
-  local repo_path="$1"
-
-  # 这一步只做状态判断，不再默认进入 OpenClaw 的交互式 setup / onboard 面板。
-  # 原因：pnpm openclaw onboard --install-daemon 是强交互命令，检测不到 Gateway / daemon 时会弹出
-  # Security disclaimer、模型/provider、API key 等配置流程；update 不能替用户反复打开这个面板。
-  if jobs_openclaw_gateway_status_ok "$repo_path"; then
-    return 0
-  fi
-
-  if jobs_openclaw_daemon_seems_ok; then
-    echo "✅ OpenClaw daemon 看起来正常，跳过 onboard"
-    return 0
-  fi
-
-  if jobs_openclaw_onboard_marker_exists "$repo_path"; then
-    echo "✅ 已记录 OpenClaw onboard 完成过，跳过交互配置"
-    return 0
-  fi
-
-  if ! jobs_openclaw_force_onboard_enabled; then
-    echo "⏭️  未检测到 OpenClaw Gateway / daemon 完成状态；按当前策略，不自动打开 OpenClaw 配置面板。"
-    print -r -- "👉 真要重配时，手动执行：cd \"$repo_path\" && pnpm openclaw onboard --install-daemon"
-    echo "👉 或临时允许本脚本执行一次：JOBS_OPENCLAW_FORCE_ONBOARD=1 update"
-    return 0
-  fi
-
-  echo "⚠️  已开启 JOBS_OPENCLAW_FORCE_ONBOARD=1，本次才会进入 OpenClaw onboard 配置面板"
-  (
-    cd "$repo_path" || exit 1
-    jobs_openclaw_retry_run "OpenClaw onboard / install daemon" 1 pnpm openclaw onboard --install-daemon
-  ) || return 1
-
-  jobs_openclaw_write_onboard_marker "$repo_path"
-}
-
-jobs_update_openclaw_gateway_daemon() {
-  emulate -L zsh
-
-  local repo_path=""
-
-  if ! jobs_openclaw_choose_repo_path; then
-    echo "⚠️  跳过 OpenClaw Gateway / daemon 配置"
-    return 0
-  fi
-
-  repo_path="$OPENCLAW_REPO_PATH"
-
-  echo ""
-  echo "🧩 开始同步 OpenClaw 源码、依赖、Control UI 并刷新 Gateway（不打开配置面板）：$repo_path"
-
-  # 03 项和 04 项共用同一份 OpenClaw 本地仓库记录。
-  # 先校验并同步本地源码；本项默认不再执行交互式 onboard。
-  jobs_openclaw_sync_repo "$repo_path" || return 1
-
-  jobs_openclaw_install_homebrew_if_needed || return 1
-  jobs_openclaw_ensure_pnpm_by_brew || return 1
-
-  # 先同步依赖，避免源码更新后 workspace 链接仍是旧状态。
-  jobs_openclaw_sync_dependencies "$repo_path" || return 1
-
-  # 源码模式下 Gateway 服务通常读取已构建的 runtime dist。
-  # git pull 后如果不先 pnpm build，后台服务可能继续使用旧 runtime。
-  jobs_openclaw_build_runtime "$repo_path" || return 1
-
-  # 再构建 Control UI 静态资源。否则 dashboard 可能报：
-  # Control UI assets not found. Build them with `pnpm ui:build`.
-  # 这一步不会进入 OpenClaw setup / onboard 配置面板。
-  jobs_openclaw_build_control_ui_assets "$repo_path" || return 1
-
-  # 最后刷新 Gateway 服务，让 127.0.0.1:18789 重新读取刚构建好的 dist/control-ui。
-  # 这里明确使用 gateway install/restart，不调用 onboard --install-daemon，避免打开配置面板。
-  jobs_openclaw_refresh_gateway_service "$repo_path" || return 1
-
-  # 只做只读状态检查；默认不执行 pnpm openclaw onboard --install-daemon，避免打开配置面板。
-  # 如确实要由脚本执行一次配置，显式使用 JOBS_OPENCLAW_FORCE_ONBOARD=1。
-  jobs_openclaw_onboard_if_needed "$repo_path" || return 1
-
-  echo "✅ OpenClaw 源码/依赖/runtime/Control UI/Gateway 刷新完成"
-  print -r -- "👉 可检查状态：cd \"$repo_path\" && pnpm openclaw gateway status"
-  jobs_openclaw_prompt_open_dashboard "$repo_path"
-}
-
-jobs_update_openclaw() {
-  emulate -L zsh
-
-  local repo_path=""
-
-  if ! jobs_openclaw_choose_repo_path; then
-    echo "⚠️  跳过 OpenClaw 更新"
-    return 0
-  fi
-
-  repo_path="$OPENCLAW_REPO_PATH"
-
-  echo ""
-  echo "🦞 开始更新 OpenClaw：$repo_path"
-
-  jobs_openclaw_sync_repo "$repo_path" || return 1
-  jobs_openclaw_brew_install_if_needed "node" "node" || return 1
-  jobs_openclaw_brew_install_if_needed "pnpm" "pnpm" || return 1
-
-  (
-    cd "$repo_path" || exit 1
-    jobs_openclaw_retry_run "pnpm install" 2 pnpm install || exit 1
-    jobs_openclaw_retry_run "pnpm ui:build" 2 pnpm ui:build || exit 1
-    jobs_openclaw_retry_run "pnpm build" 2 pnpm build || exit 1
-  ) || return 1
-
-  if command -v npm >/dev/null 2>&1; then
-    jobs_openclaw_retry_run "安装/更新 openclaw CLI" 2 npm install -g openclaw || return 1
-  else
-    echo "⚠️  npm 不可用，跳过 openclaw CLI 安装/更新"
-  fi
-
-  jobs_openclaw_fix_path_if_needed
-  jobs_openclaw_onboard_if_needed "$repo_path" || return 1
-
-  echo "✅ OpenClaw 更新完成"
-  jobs_openclaw_prompt_open_dashboard "$repo_path"
-}
-
-# ------------------------------ update 聚合入口 ------------------------------
-jobs_update_default_all_without_openclaw() {
-  jobs_update_print_plan "$JOBS_UPDATE_OPTION_DEFAULT" \
-    "$JOBS_UPDATE_OPTION_HOMEBREW" \
-    "$JOBS_UPDATE_OPTION_ANDROID" \
-    "$JOBS_UPDATE_OPTION_FLUTTER" \
-    "$JOBS_UPDATE_OPTION_DART_FVM" \
-    "$JOBS_UPDATE_OPTION_NODE" \
-    "$JOBS_UPDATE_OPTION_RUST" \
-    "$JOBS_UPDATE_OPTION_PYTHON" \
-    "$JOBS_UPDATE_OPTION_RUBYGEMS" \
-    "$JOBS_UPDATE_OPTION_COCOAPODS" \
-    "$JOBS_UPDATE_OPTION_RBENV"
-
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_HOMEBREW" "jobs_update_homebrew"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_ANDROID" "jobs_update_android_sdk"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_FLUTTER" "jobs_update_flutter"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_DART_FVM" "jobs_update_dart_fvm"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_NODE" "jobs_update_node_npm_pnpm_corepack"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_RUST" "jobs_update_rust_cargo"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_PYTHON" "jobs_update_python_pip_pyenv"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_RUBYGEMS" "jobs_update_rubygems"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_COCOAPODS" "jobs_update_cocoapods"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_RBENV" "jobs_update_rbenv_ruby_build"
-}
-
-jobs_update_full_with_openclaw() {
-  jobs_update_print_plan "$JOBS_UPDATE_OPTION_FULL_WITH_OPENCLAW" \
-    "$JOBS_UPDATE_OPTION_HOMEBREW" \
-    "$JOBS_UPDATE_OPTION_ANDROID" \
-    "$JOBS_UPDATE_OPTION_FLUTTER" \
-    "$JOBS_UPDATE_OPTION_DART_FVM" \
-    "$JOBS_UPDATE_OPTION_NODE" \
-    "$JOBS_UPDATE_OPTION_RUST" \
-    "$JOBS_UPDATE_OPTION_PYTHON" \
-    "$JOBS_UPDATE_OPTION_RUBYGEMS" \
-    "$JOBS_UPDATE_OPTION_COCOAPODS" \
-    "$JOBS_UPDATE_OPTION_RBENV" \
-    "$JOBS_UPDATE_OPTION_OPENCLAW"
-
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_HOMEBREW" "jobs_update_homebrew"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_ANDROID" "jobs_update_android_sdk"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_FLUTTER" "jobs_update_flutter"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_DART_FVM" "jobs_update_dart_fvm"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_NODE" "jobs_update_node_npm_pnpm_corepack"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_RUST" "jobs_update_rust_cargo"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_PYTHON" "jobs_update_python_pip_pyenv"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_RUBYGEMS" "jobs_update_rubygems"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_COCOAPODS" "jobs_update_cocoapods"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_RBENV" "jobs_update_rbenv_ruby_build"
-  jobs_update_run_module "$JOBS_UPDATE_OPTION_OPENCLAW" "jobs_update_openclaw"
-}
-
-jobs_update_select_with_fzf() {
-  emulate -L zsh
-
-  local choice=""
-  local -a options
-
-  options=(
-    "$JOBS_UPDATE_OPTION_DEFAULT"
-    "$JOBS_UPDATE_OPTION_FULL_WITH_OPENCLAW"
-    "$JOBS_UPDATE_OPTION_OPENCLAW_GATEWAY"
-    "$JOBS_UPDATE_OPTION_OPENCLAW"
-    "$JOBS_UPDATE_OPTION_HOMEBREW"
-    "$JOBS_UPDATE_OPTION_ANDROID"
-    "$JOBS_UPDATE_OPTION_FLUTTER"
-    "$JOBS_UPDATE_OPTION_DART_FVM"
-    "$JOBS_UPDATE_OPTION_NODE"
-    "$JOBS_UPDATE_OPTION_RUST"
-    "$JOBS_UPDATE_OPTION_PYTHON"
-    "$JOBS_UPDATE_OPTION_RUBYGEMS"
-    "$JOBS_UPDATE_OPTION_COCOAPODS"
-    "$JOBS_UPDATE_OPTION_RBENV"
-  )
-
-  if command -v fzf >/dev/null 2>&1; then
-    choice="$(printf "%s\n" "${options[@]}" | fzf \
-      --prompt="update > " \
-      --height=70% \
-      --border \
-      --ansi \
-      --no-sort \
-      --layout=reverse \
-      --header=$'Jobs update 菜单：↑/↓ 选择，回车执行。默认推荐执行 01；OpenClaw 不包含在 01 中。' \
-      --header-first)"
-    if [[ -z "$choice" ]]; then
-      echo "⏹️  已取消 update"
-      return 0
-    fi
-  else
-    echo "⚠️  未检测到 fzf，自动执行：$JOBS_UPDATE_OPTION_DEFAULT"
-    choice="$JOBS_UPDATE_OPTION_DEFAULT"
-  fi
-
-  case "$choice" in
-    "$JOBS_UPDATE_OPTION_DEFAULT")
-      jobs_update_default_all_without_openclaw
-      ;;
-    "$JOBS_UPDATE_OPTION_FULL_WITH_OPENCLAW")
-      jobs_update_full_with_openclaw
-      ;;
-    "$JOBS_UPDATE_OPTION_OPENCLAW_GATEWAY")
-      jobs_update_run_module "$JOBS_UPDATE_OPTION_OPENCLAW_GATEWAY" "jobs_update_openclaw_gateway_daemon"
-      ;;
-    "$JOBS_UPDATE_OPTION_OPENCLAW")
-      jobs_update_run_module "$JOBS_UPDATE_OPTION_OPENCLAW" "jobs_update_openclaw"
-      ;;
-    "$JOBS_UPDATE_OPTION_HOMEBREW")
-      jobs_update_run_module "$JOBS_UPDATE_OPTION_HOMEBREW" "jobs_update_homebrew"
-      ;;
-    "$JOBS_UPDATE_OPTION_ANDROID")
-      jobs_update_run_module "$JOBS_UPDATE_OPTION_ANDROID" "jobs_update_android_sdk"
-      ;;
-    "$JOBS_UPDATE_OPTION_FLUTTER")
-      jobs_update_run_module "$JOBS_UPDATE_OPTION_FLUTTER" "jobs_update_flutter"
-      ;;
-    "$JOBS_UPDATE_OPTION_DART_FVM")
-      jobs_update_run_module "$JOBS_UPDATE_OPTION_DART_FVM" "jobs_update_dart_fvm"
-      ;;
-    "$JOBS_UPDATE_OPTION_NODE")
-      jobs_update_run_module "$JOBS_UPDATE_OPTION_NODE" "jobs_update_node_npm_pnpm_corepack"
-      ;;
-    "$JOBS_UPDATE_OPTION_RUST")
-      jobs_update_run_module "$JOBS_UPDATE_OPTION_RUST" "jobs_update_rust_cargo"
-      ;;
-    "$JOBS_UPDATE_OPTION_PYTHON")
-      jobs_update_run_module "$JOBS_UPDATE_OPTION_PYTHON" "jobs_update_python_pip_pyenv"
-      ;;
-    "$JOBS_UPDATE_OPTION_RUBYGEMS")
-      jobs_update_run_module "$JOBS_UPDATE_OPTION_RUBYGEMS" "jobs_update_rubygems"
-      ;;
-    "$JOBS_UPDATE_OPTION_COCOAPODS")
-      jobs_update_run_module "$JOBS_UPDATE_OPTION_COCOAPODS" "jobs_update_cocoapods"
-      ;;
-    "$JOBS_UPDATE_OPTION_RBENV")
-      jobs_update_run_module "$JOBS_UPDATE_OPTION_RBENV" "jobs_update_rbenv_ruby_build"
-      ;;
-    *)
-      jobs_update_warn "未知 update 选项：$choice"
-      ;;
-  esac
-}
-
-# 🔥 update（fzf 菜单化）🔥
+# ---------- 命令实现 ----------
 update() {
-  jobs_update_select_with_fzf
+  emulate -L zsh
+
+  local ran_count=0
+
+  if jobs_update_prompt_run "是否更新 Homebrew？" "执行 brew update / upgrade / cleanup / doctor"; then
+    jobs_update_run_step "Homebrew 更新" jobs_update_homebrew
+    (( ran_count++ ))
+  else
+    note_echo "已跳过 Homebrew 更新"
+  fi
+
+  if jobs_update_prompt_run "是否更新 FVM / Flutter？" "更新 FVM，并执行 flutter upgrade / doctor"; then
+    jobs_update_run_step "FVM / Flutter 更新" jobs_update_fvm_flutter
+    (( ran_count++ ))
+  else
+    note_echo "已跳过 FVM / Flutter 更新"
+  fi
+
+  if jobs_update_prompt_run "是否更新 Node 工具链？" "使用 nvm 更新 LTS，并启用 corepack"; then
+    jobs_update_run_step "Node 工具链更新" jobs_update_node
+    (( ran_count++ ))
+  else
+    note_echo "已跳过 Node 工具链更新"
+  fi
+
+  if jobs_update_prompt_run "是否更新 Python 工具链？" "执行 pyenv update / pipx upgrade-all / pip 自升级"; then
+    jobs_update_run_step "Python 工具链更新" jobs_update_python
+    (( ran_count++ ))
+  else
+    note_echo "已跳过 Python 工具链更新"
+  fi
+
+  if jobs_update_prompt_run "是否更新 Ruby 工具链？" "执行 rbenv rehash / gem update"; then
+    jobs_update_run_step "Ruby 工具链更新" jobs_update_ruby
+    (( ran_count++ ))
+  else
+    note_echo "已跳过 Ruby 工具链更新"
+  fi
+
+  if jobs_update_prompt_run "是否更新 CocoaPods？" "执行 pod repo update"; then
+    jobs_update_run_step "CocoaPods 更新" jobs_update_cocoapods
+    (( ran_count++ ))
+  else
+    note_echo "已跳过 CocoaPods 更新"
+  fi
+
+  if jobs_update_prompt_run "是否修复 Dart pub 缓存？" "执行 dart pub cache repair"; then
+    jobs_update_run_step "Dart pub 缓存修复" jobs_update_pub_cache
+    (( ran_count++ ))
+  else
+    note_echo "已跳过 Dart pub 缓存修复"
+  fi
+
+  if (( ran_count == 0 )); then
+    warn_echo "没有执行任何更新项"
+  else
+    success_echo "update 执行完成，共执行 ${ran_count} 个更新项"
+  fi
 }
+
+# ---------- 主流程统一收口 ----------
+jobs_update_main() {
+  jobs_update_show_readme_and_wait
+  update "$@"
+  gray_echo "日志路径：$LOG_FILE"
+}
+
+if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+  jobs_update_main "$@"
+fi
