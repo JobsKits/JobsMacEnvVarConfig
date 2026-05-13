@@ -34,23 +34,28 @@
 │   ├── .bashrc
 │   └── .bash_profile
 ├── Scripts/
-│   ├── install_jdk17.command       # JDK 17 独立安装脚本
-│   ├── trs.command                 # macOS 原生翻译入口脚本
-│   ├── gif.command                 # 终端 / 全屏录制并转 GIF 脚本
-│   ├── simios.command              # Xcode iOS Simulator Runtime 下载 / 补齐脚本
-│   ├── common.command              # 通用辅助函数
-│   ├── entrypoints.command         # trs / gif / jdk17 包装函数
-│   ├── path.command                # zz / x 路径工具
-│   ├── media.command               # download / yt-dlp 浏览器 cookies
-│   ├── session.command             # save / rb / config / 快捷打开
-│   ├── flutter_project.command     # Flutter 项目、构建、JDK 锁定
-│   ├── update.command              # update 菜单化更新
-│   ├── system_install.command      # install 新系统环境配置
-│   ├── color.command               # cor 颜色转换
-│   ├── shell.command               # shell 切换器
-│   ├── codec.command               # decode URL 解码
-│   ├── timestamp.command           # ts 时间戳转换
-│   └── runtime_init.command        # jenv / rbenv / Dart completion 初始化
+│   ├── install_jdk17.command/
+│   │   ├── install_jdk17.command   # JDK 17 独立安装脚本
+│   │   └── README.md               # 对应自述与流程图
+│   ├── trs.command/
+│   │   ├── trs.command             # macOS 原生翻译入口脚本
+│   │   └── README.md
+│   ├── gif.command/
+│   │   ├── gif.command             # 终端 / 全屏录制并转 GIF 脚本
+│   │   └── README.md
+│   ├── simios.command/
+│   │   ├── simios.command          # Xcode iOS Simulator Runtime 下载 / 补齐脚本
+│   │   └── README.md
+│   ├── list.command/
+│   │   ├── list.command            # fzf 功能菜单总入口
+│   │   └── README.md
+│   ├── m5c.command/
+│   │   ├── m5c.command             # MD5 文件一致性比较工具
+│   │   └── README.md
+│   ├── 【MacOS】去乱码.command/
+│   │   ├── 【MacOS】去乱码.command  # URL 编码去乱码 / 解码工具
+│   │   └── README.md
+│   └── *.command/                  # 其余模块均按“脚本全名文件夹 + 脚本 + README”管理
 └── zsh/
     ├── bootstrap.zsh               # 启动层：交互式环境、Oh My Zsh、Homebrew
     ├── env_methods.zsh             # 环境变量 / PATH 工具方法
@@ -71,23 +76,14 @@
 ├── sync_env.txt
 ├── README.md
 ├── Scripts/
-│   ├── install_jdk17.command
-│   ├── trs.command
-│   ├── gif.command
-│   ├── simios.command
-│   ├── common.command
-│   ├── entrypoints.command
-│   ├── path.command
-│   ├── media.command
-│   ├── session.command
-│   ├── flutter_project.command
-│   ├── update.command
-│   ├── system_install.command
-│   ├── color.command
-│   ├── shell.command
-│   ├── codec.command
-│   ├── timestamp.command
-│   └── runtime_init.command
+│   ├── install_jdk17.command/install_jdk17.command
+│   ├── trs.command/trs.command
+│   ├── gif.command/gif.command
+│   ├── simios.command/simios.command
+│   ├── list.command/list.command
+│   ├── m5c.command/m5c.command
+│   ├── 【MacOS】去乱码.command/【MacOS】去乱码.command
+│   └── *.command/*.command
 └── zsh/
 ```
 
@@ -107,9 +103,12 @@ chmod +x install.command
 1. 是否继续安装
 2. 是否自动安装 JDK 17
 3. 是否替换当前系统 `~/.zshrc`
-4. `trs` 首次使用时会对 `fzf` / `translate-cli` 这类必需依赖执行补齐流程
-5. `gif` 首次使用时会检测 Homebrew / asciinema / agg / ffmpeg；启动时按回车默认录制当前终端，进入设置菜单可选择全屏录制
-6. `simios` 会先检测完整 Xcode / xcode-select / xcodebuild / Xcode license / 首次启动组件，再执行 iOS Simulator Runtime 下载
+4. `list` 可打开 fzf 功能菜单，集中展示可执行能力
+5. `m5c` 可比较两个文件的 MD5，判断文件字节内容是否一致
+6. `flat` 可对 URL 编码文本执行去乱码 / 解码，并自动复制结果到剪贴板
+7. `trs` 首次使用时会对 `fzf` / `translate-cli` 这类必需依赖执行补齐流程
+8. `gif` 首次使用时会检测 Homebrew / asciinema / agg / ffmpeg；启动时按回车默认录制当前终端，进入设置菜单可选择全屏录制
+9. `simios` 会先检测完整 Xcode / xcode-select / xcodebuild / Xcode license / 首次启动组件，再执行 iOS Simulator Runtime 下载
 
 如果选择替换 `~/.zshrc`，脚本会先自动备份旧文件：
 
@@ -133,7 +132,7 @@ flowchart TD
     D{是否检测到 JDK 17}
     E[询问是否自动安装 JDK 17]
     F[同步到 ~/.JobsMacEnv]
-    T[同步 trs / gif 到 Scripts 和 ~/.local/bin]
+    T[同步 list / trs / gif / jdk17 / simios / m5c / flat 到 Scripts 和 ~/.local/bin]
     G[生成环境变量和别名]
     H{是否替换 ~/.zshrc}
     I[备份并替换 ~/.zshrc]
@@ -226,7 +225,7 @@ zsh/custom/local.zsh
 export JOBS_ALIAS_DRAG_AUTO_RESOLVE=true
 ```
 
-个人命令按功能拆到 `Scripts/*.command`，`local.zsh` 只负责加载这些模块。
+个人命令按功能拆到 `Scripts/<脚本全名>/<脚本全名>`，每个脚本文件夹都带独立 `README.md` 和 Mermaid 流程图，`local.zsh` 只负责加载这些模块。
 
 ## 六、已支持的环境 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
@@ -244,6 +243,9 @@ export JOBS_ALIAS_DRAG_AUTO_RESOLVE=true
 | trs | macOS 原生翻译入口，中文固定为一端，fzf 选择对方语言 |
 | gif | 终端 / 全屏录制入口，基于 asciinema + agg / screencapture + ffmpeg 生成高质量 GIF / MP4 |
 | simios | 检测完整 Xcode 环境并下载 / 补齐 iOS Simulator Runtime |
+| list | fzf 功能菜单总入口，展示可执行能力并分发到具体脚本 |
+| m5c | MD5 文件一致性比较工具，支持输入或拖入两个文件路径 |
+| flat | URL 编码去乱码 / 解码工具，支持普通 URL Decode 和 `--plus` 表单编码模式 |
 
 ## 七、常用能力 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
@@ -296,9 +298,95 @@ path_drag_resolver.zsh
 local.zsh
 ```
 
-也就是说，`shell_behavior.zsh` 放终端默认行为，`path_drag_resolver.zsh` 放路径拖入解析，`local.zsh` 只加载 `Scripts/*.command` 模块。
+也就是说，`shell_behavior.zsh` 放终端默认行为，`path_drag_resolver.zsh` 放路径拖入解析，`local.zsh` 只加载 `Scripts/<脚本全名>/<脚本全名>` 模块，并兼容旧版平铺结构 `Scripts/*.command`。
 
-#### 3.1 `clean`：清除终端历史 + Command+K 式清屏
+
+
+#### 3.0 `list`：功能菜单总入口
+
+来源文件：
+
+```text
+Scripts/list.command/list.command
+```
+
+用法：
+
+```zsh
+list
+```
+
+行为：
+
+- 启动后先显示脚本自述文件并等待回车。
+- 对 Homebrew 执行健康体检。
+- 对 Homebrew 安装的 `fzf` 执行健康体检。
+- 使用 `fzf` 展示当前可执行功能。
+- 选择功能后分发到对应脚本，例如 `m5c`、`flat`。
+
+注意：
+
+- `list` 命令名非常通用，存在和 alias、函数或第三方工具冲突的风险。
+- 安装脚本会检测命令名冲突并给出警告，但不会静默覆盖其他路径里的命令。
+- 涉及 Homebrew / fzf 更新时，统一规则是：回车跳过，输入任意字符后回车才执行更新流程。
+
+#### 3.1 `m5c`：MD5 文件一致性比较
+
+来源文件：
+
+```text
+Scripts/m5c.command/m5c.command
+```
+
+用法：
+
+```zsh
+m5c
+```
+
+行为：
+
+- 启动后先显示脚本自述文件并等待回车。
+- 让用户输入或拖入第一个文件路径。
+- 再让用户输入或拖入第二个文件路径。
+- 分别计算两个文件的 MD5。
+- 输出两个文件的字节内容是否一致。
+
+注意：
+
+- `m5c` 表示 MD5 Compare，命令名短，不覆盖 macOS 系统自带 `md5`。
+- MD5 适合日常文件校验和去重，不适合密码、安全签名或强安全校验。
+
+#### 3.2 `flat`：URL 编码去乱码 / 解码
+
+来源文件：
+
+```text
+Scripts/【MacOS】去乱码.command/【MacOS】去乱码.command
+```
+
+用法：
+
+```zsh
+flat
+flat "%E4%BD%A0%E5%A5%BD"
+flat --plus "hello+world%21"
+```
+
+行为：
+
+- 启动后先显示脚本自述文件并等待回车。
+- 无参数时进入交互输入，可连续解码多段 URL 编码文本。
+- 带参数时逐个解码参数。
+- 解码结果会自动复制到系统剪贴板。
+
+注意：
+
+- 默认模式只做标准 URL Decode。
+- `--plus` 会把 `+` 解析为空格，适合表单编码内容。
+- `flat` 作为去乱码入口，短、好输入，并通过 `list` 菜单展示用途，降低记忆成本。
+
+#### 3.3 `clean`：清除终端历史 + Command+K 式清屏
 
 来源文件：
 
@@ -337,7 +425,7 @@ clean
 - `clear` 只清当前可视区域，不清滚动缓冲；`clean` 使用 ANSI scrollback 清理序列和 iTerm2 ClearScrollback 扩展，目标效果对齐 Command+K。
 - 这里没有调用 `clear` 命令，因此不是普通 clear 的效果。
 
-#### 3.2 `zz <路径>`：跳转到真实目录
+#### 3.4 `zz <路径>`：跳转到真实目录
 
 来源文件：
 
@@ -372,7 +460,7 @@ zz /Users/jobs/Downloads/demo.command
 
 适合场景：拖文件、拖目录、点到 Finder 替身、遇到软链接时，不用手动 `cd`、`dirname`、`realpath`。
 
-#### 3.3 `x <脚本文件>`：给脚本加执行权限并立即执行
+#### 3.5 `x <脚本文件>`：给脚本加执行权限并立即执行
 
 来源文件：
 
@@ -403,7 +491,7 @@ x ~/Downloads/test.sh
 
 适合场景：下载了 `.command` / `.sh`，不想每次手动写 `chmod +x` 再执行。
 
-#### 3.4 `cor`：颜色格式转换器
+#### 3.6 `cor`：颜色格式转换器
 
 来源文件：
 
@@ -435,7 +523,7 @@ cor '0x80D2D4DE'
 - 命令行参数里 `#`、括号、逗号容易被 shell 解释，建议直接用交互模式，或者给颜色值加引号。
 - `0xAARRGGBB` 的透明度在最前面，例如 `0x80D2D4DE`。
 
-#### 3.5 `shell`：用 fzf 选择并切换默认 Shell
+#### 3.7 `shell`：用 fzf 选择并切换默认 Shell
 
 来源文件：
 
@@ -471,7 +559,7 @@ brew install fzf
 - `nu` / Nushell 如果是 Homebrew 安装，常见路径是 `/opt/homebrew/bin/nu` 或 `/usr/local/bin/nu`。只要扫描到可执行文件，就会进列表；但作为默认登录 shell 前，macOS 仍要求它在 `/etc/shells` 里。
 - 切换完成后，需要重新打开终端窗口才会完整生效。
 
-#### 3.6 `download <url>`：用 yt-dlp 下载并自动带浏览器 cookies
+#### 3.8 `download <url>`：用 yt-dlp 下载并自动带浏览器 cookies
 
 来源文件：
 
@@ -501,7 +589,7 @@ brew install yt-dlp
 
 适合场景：需要登录态 cookies 才能下载的视频链接，不想每次手动指定浏览器。
 
-#### 3.7 `Ctrl + G`：把命令行最后一个路径参数解析成真实路径
+#### 3.9 `Ctrl + G`：把命令行最后一个路径参数解析成真实路径
 
 来源文件：
 
@@ -544,7 +632,7 @@ export JOBS_ALIAS_DRAG_AUTO_RESOLVE=true
 - `JOBS_ALIAS_DRAG_AUTO_RESOLVE=true` 后，粘贴 / 拖入单个有效路径时会尝试自动转成真实路径。
 - 不想自动解析时，不设置 `JOBS_ALIAS_DRAG_AUTO_RESOLVE`，只保留 `Ctrl + G` 手动触发即可。
 
-#### 3.8 `shell_behavior.zsh`：交互式终端默认行为
+#### 3.10 `shell_behavior.zsh`：交互式终端默认行为
 
 来源文件：
 
@@ -566,19 +654,19 @@ if [[ -o interactive ]] && [[ -d "$HOME/Desktop" ]]; then
 fi
 ```
 
-#### 3.9 `trs`：macOS 原生翻译入口 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
+#### 3.11 `trs`：macOS 原生翻译入口 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
 来源文件：
 
 ```text
-Scripts/trs.command
+Scripts/trs.command/trs.command
 zsh/custom/local.zsh
 ```
 
 安装后入口：
 
 ```text
-~/.JobsMacEnv/Scripts/trs.command
+~/.JobsMacEnv/Scripts/trs.command/trs.command
 ~/.local/bin/trs
 ```
 
@@ -646,19 +734,19 @@ translate-cli
 ```
 
 
-#### 3.10 `gif`：终端 / 全屏录制并转为高质量 GIF / MP4 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
+#### 3.12 `gif`：终端 / 全屏录制并转为高质量 GIF / MP4 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
 来源文件：
 
 ```text
-Scripts/gif.command
+Scripts/gif.command/gif.command
 zsh/custom/local.zsh
 ```
 
 安装后入口：
 
 ```text
-~/.JobsMacEnv/Scripts/gif.command
+~/.JobsMacEnv/Scripts/gif.command/gif.command
 ~/.local/bin/gif
 ```
 
@@ -733,18 +821,18 @@ Ctrl-C
 不再使用 `Ctrl-G` 作为结束键：你的终端环境已经把 `Ctrl-G` 分配给 Finder 拖入路径解析，继续复用会触发“最后一个参数不是有效路径”。
 
 
-#### 3.11 `simios`：Xcode iOS Simulator Runtime 下载 / 补齐 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
+#### 3.13 `simios`：Xcode iOS Simulator Runtime 下载 / 补齐 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
 脚本位置：
 
 ```bash
-Scripts/simios.command
+Scripts/simios.command/simios.command
 ```
 
 安装后入口：
 
 ```bash
-~/.JobsMacEnv/Scripts/simios.command
+~/.JobsMacEnv/Scripts/simios.command/simios.command
 ~/.local/bin/simios
 ```
 
@@ -762,7 +850,7 @@ xcodebuild -downloadPlatform iOS -verbose
 
 交互规则：普通更新 / 升级动作默认回车跳过，输入任意字符后回车才执行；会影响 `xcodebuild` 的必要支援项会单独提示原因。
 
-#### 3.12 `local.zsh`：Scripts 模块加载器
+#### 3.14 `local.zsh`：Scripts 模块加载器
 
 来源文件：
 
@@ -770,7 +858,7 @@ xcodebuild -downloadPlatform iOS -verbose
 zsh/custom/local.zsh
 ```
 
-这个文件不再堆业务函数，只负责按顺序加载 `Scripts/*.command`。真正的个人终端函数、项目命令和本机路径配置已经按功能拆到 `Scripts` 目录。
+这个文件不再堆业务函数，只负责按顺序加载 `Scripts/<脚本全名>/<脚本全名>`。真正的个人终端函数、项目命令和本机路径配置已经按功能拆到 `Scripts` 目录，每个脚本目录内都有对应 `README.md`。
 
 重点命令包括：
 
@@ -799,6 +887,9 @@ zsh/custom/local.zsh
 | `trs` | macOS 原生翻译入口，默认其他语言 → 中文，可切换中文 → 对方语言 |
 | `gif` | 终端 / 全屏录制并转为高质量 GIF / MP4，按回车默认录制当前终端，进入设置菜单可选择全屏录制 |
 | `simios` | Xcode 升级后检测并下载 / 补齐 iOS Simulator Runtime |
+| `list` | 打开 fzf 功能菜单，集中展示可执行能力 |
+| `m5c` | 输入或拖入两个文件路径，比较 MD5 并判断字节内容是否一致 |
+| `flat` | URL 编码去乱码 / 解码，并自动复制结果到剪贴板 |
 
 迁移新机器前，优先检查文件开头这两个变量：
 
@@ -831,7 +922,7 @@ JOBS_DART_CLI_COMPLETION_FILE="/Users/jobs/.dart-cli-completion/zsh-config.zsh"
 - 自动安装 JDK 17 依赖 [**Homebrew**](https://brew.sh/)。
 - 替换 `~/.zshrc` 前会自动备份，但仍建议先确认当前配置没有重要未迁移内容。
 - `env.zsh` 和 `aliases.zsh` 是生成文件，不建议直接长期手改。
-- `zsh/custom/local.zsh` 是 Scripts 模块加载器；固定项目路径主要在 `Scripts/flutter_project.command` 中，迁移到新机器后建议先检查再使用。
+- `zsh/custom/local.zsh` 是 Scripts 模块加载器；固定项目路径主要在 `Scripts/flutter_project.command/flutter_project.command` 中，迁移到新机器后建议先检查再使用。
 - `trs` 依赖 macOS 原生翻译能力；系统版本、语言资源和语言对支持情况会直接影响可用性。
 - 如果安装后没有立即生效，执行 `source ~/.zshrc`，或者重新打开终端。
 
@@ -839,10 +930,13 @@ JOBS_DART_CLI_COMPLETION_FILE="/Users/jobs/.dart-cli-completion/zsh-config.zsh"
 
 ```text
 公共、可复用配置     -> sync_env.txt / zsh/*.zsh
-个人函数加载器       -> zsh/custom/local.zsh -> Scripts/*.command
-trs 终端翻译入口      -> Scripts/trs.command / ~/.local/bin/trs
-gif 终端 / 全屏录制入口 -> Scripts/gif.command / ~/.local/bin/gif
-simios iOS 模拟器补齐入口 -> Scripts/simios.command / ~/.local/bin/simios
+个人函数加载器       -> zsh/custom/local.zsh -> Scripts/<脚本全名>/<脚本全名>
+list 功能菜单入口      -> Scripts/list.command/list.command / ~/.local/bin/list
+trs 终端翻译入口      -> Scripts/trs.command/trs.command / ~/.local/bin/trs
+gif 终端 / 全屏录制入口 -> Scripts/gif.command/gif.command / ~/.local/bin/gif
+simios iOS 模拟器补齐入口 -> Scripts/simios.command/simios.command / ~/.local/bin/simios
+m5c MD5 文件比较入口 -> Scripts/m5c.command/m5c.command / ~/.local/bin/m5c
+flat URL 编码去乱码入口 -> Scripts/【MacOS】去乱码.command/【MacOS】去乱码.command / ~/.local/bin/flat
 终端默认行为         -> zsh/custom/shell_behavior.zsh
 路径拖入解析         -> zsh/custom/path_drag_resolver.zsh
 系统入口             -> ~/.zshrc 只保留加载入口
@@ -885,8 +979,8 @@ source ~/.zshrc
 
 本版修复 `local.zsh` 模块化拆分后启动提示 `Scripts 模块未安装完整` 的问题：
 
-- `local.zsh` 只负责加载 `Scripts/*.command`
-- `Scripts` 下的功能模块已重新按完整函数边界拆分
+- `local.zsh` 只负责加载 `Scripts/<脚本全名>/<脚本全名>`，并兼容旧版平铺结构 `Scripts/*.command`
+- `Scripts` 下的功能模块已重新按“脚本全名文件夹 + 脚本 + README.md”拆分
 - 启动时优先使用 `~/.JobsMacEnv/Scripts`
 - 旧版 `~/.JobsMacEnv/scripts` 仅作为兼容兜底
 - `clean` 仍会在检测到 Homebrew 时顺手执行 `brew cleanup`
@@ -894,7 +988,7 @@ source ~/.zshrc
 
 ## Scripts 模块加载说明
 
-新版统一使用 `~/.JobsMacEnv/Scripts` 作为模块目录，`zsh/custom/local.zsh` 只负责加载模块。安装脚本会在同步完成后执行模块自检；如果打开终端出现模块缺失提示，请重新执行：
+新版统一使用 `~/.JobsMacEnv/Scripts` 作为模块目录，`zsh/custom/local.zsh` 只负责加载模块。模块标准路径为 `Scripts/<脚本全名>/<脚本全名>`。安装脚本会在同步完成后执行模块自检；如果打开终端出现模块缺失提示，请重新执行：
 
 ```zsh
 cd /Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfig
@@ -902,3 +996,11 @@ chmod +x install.command
 ./install.command
 source ~/.zshrc
 ```
+
+> 说明：脚本运行时展示的自述已内置在 `.command` 脚本中，不读取本 README.md；本文件仅用于仓库/文件夹阅读。
+
+## list 菜单入口调整说明
+
+`list` 现在作为 JobsMacEnv 自定义命令总菜单，不再打印长篇自述，也不再等待用户先按回车确认。运行后会直接使用 `fzf` 展示自定义命令和含义；如果 `fzf` 不可用，则退化为文本清单。
+
+当前纳入菜单的命令包括：`m5c`、`flat`、`trs`、`gif`、`jdk17`、`simios`、`cor`、`decode`、`ts`、`download`、`install`、`update`、`shell`、`zz`、`x`、`save`、`rb`、`a`、`b`、`i`、`flutter`、`fixfvm`、`check1`、`check`、`c`、`d`、`buildCheck`、`apk`、`ipa`、`config`。

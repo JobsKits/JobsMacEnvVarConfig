@@ -1,105 +1,231 @@
-#!/usr/bin/env bash
+#!/bin/zsh
 
 set -euo pipefail
 
-C_RESET='\033[0m'
-C_BOLD='\033[1m'
-C_BLUE='\033[34m'
-C_CYAN='\033[36m'
-C_GREEN='\033[32m'
-C_YELLOW='\033[33m'
-C_MAGENTA='\033[35m'
-C_RED='\033[31m'
-C_GRAY='\033[90m'
+# ---------- 基础路径 ----------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
+SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "$0")"
+SCRIPT_BASENAME=$(basename "$0" | sed 's/\.[^.]*$//')
+LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 
-cecho() {
-  local color="$1"
-  shift
-  printf "%b%s%b\n" "$color" "$*" "$C_RESET"
-}
+: > "$LOG_FILE"
 
-log() {
-  cecho "$C_GREEN" "[env-sync] $1"
-}
+# ---------- 彩色日志 ----------
+log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+color_echo()     { log "\033[1;32m$1\033[0m"; }
+info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+warm_echo()      { log "\033[1;33m$1\033[0m"; }
+note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+err_echo()       { log "\033[1;31m$1\033[0m"; }
+debug_echo()     { log "\033[1;35m🐞 $1\033[0m"; }
+highlight_echo() { log "\033[1;36m🔹 $1\033[0m"; }
+gray_echo()      { log "\033[0;90m$1\033[0m"; }
+bold_echo()      { log "\033[1m$1\033[0m"; }
+underline_echo() { log "\033[4m$1\033[0m"; }
 
-warn() {
-  cecho "$C_YELLOW" "[warn] $1"
-}
+# ---------- 默认配置 ----------
+CURRENT_SECTION=""
+JAVA_VERSION="17"
+JAVA_CANDIDATES="temurin@17,zulu@17,openjdk@17"
+ANDROID_SDK_DEFAULT='$HOME/Library/Android/sdk'
+USE_FVM="true"
+FLUTTER_CANDIDATES='$HOME/fvm/default/bin,$HOME/development/flutter/bin'
+ENABLE_PNPM="true"
+ENABLE_COREPACK="true"
+NVM_DIR='$HOME/.nvm'
+ENABLE_CARGO="true"
+CARGO_HOME='$HOME/.cargo'
+ENABLE_PYENV="true"
+PYENV_ROOT='$HOME/.pyenv'
+ENABLE_RBENV="true"
+RBENV_ROOT='$HOME/.rbenv'
+ENABLE_GO="true"
+GOPATH='$HOME/go'
+PATH_LIST=()
+ALIAS_LIST=()
 
-err() {
-  cecho "$C_RED" "[err] $1"
-}
-
+# ---------- 通用工具 ----------
 ensure_dir() {
   local dir="$1"
   [[ -d "$dir" ]] || mkdir -p "$dir"
 }
 
+trim() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf "%s" "$value"
+}
+
 write_file_if_changed() {
   local target="$1"
   local content="$2"
-  local tmp
+  local tmp=""
 
   tmp="$(mktemp)"
   printf "%s" "$content" > "$tmp"
 
   if [[ -f "$target" ]] && cmp -s "$tmp" "$target"; then
     rm -f "$tmp"
-    log "无变化，跳过：$target"
+    info_echo "无变化，跳过：$target"
     return 0
   fi
 
   mv "$tmp" "$target"
-  log "已写入：$target"
+  success_echo "已写入：$target"
 }
 
 copy_file_if_changed() {
   local src="$1"
   local target="$2"
-  [[ -f "$src" ]] || { err "缺少文件：$src"; exit 1; }
+
+  [[ -f "$src" ]] || {
+    error_echo "缺少文件：$src"
+    exit 1
+  }
+
   write_file_if_changed "$target" "$(cat "$src")"
 }
 
-CURRENT_SECTION=""
-JAVA_VERSION="17"
-JAVA_CANDIDATES="temurin@17,zulu@17,openjdk@17"
-ANDROID_SDK_DEFAULT="\$HOME/Library/Android/sdk"
-USE_FVM="true"
-FLUTTER_CANDIDATES="\$HOME/fvm/default/bin,\$HOME/development/flutter/bin"
-ENABLE_PNPM="true"
-ENABLE_COREPACK="true"
-NVM_DIR="\$HOME/.nvm"
-ENABLE_CARGO="true"
-CARGO_HOME="\$HOME/.cargo"
-ENABLE_PYENV="true"
-PYENV_ROOT="\$HOME/.pyenv"
-ENABLE_RBENV="true"
-RBENV_ROOT="\$HOME/.rbenv"
-ENABLE_GO="true"
-GOPATH="\$HOME/go"
-PATH_LIST=()
-ALIAS_LIST=()
-
-trim() {
-  local s="$1"
-  s="${s#${s%%[![:space:]]*}}"
-  s="${s%${s##*[![:space:]]}}"
-  printf "%s" "$s"
+get_cpu_arch() {
+  uname -m
 }
 
+find_brew_bin() {
+  if command -v brew >/dev/null 2>&1; then
+    command -v brew
+    return 0
+  fi
+
+  local candidate=""
+  for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [[ -x "$candidate" ]]; then
+      print -r -- "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+profile_file_for_shell() {
+  local shell_path="${SHELL##*/}"
+
+  case "$shell_path" in
+    zsh)  print -r -- "$HOME/.zprofile" ;;
+    bash) print -r -- "$HOME/.bash_profile" ;;
+    *)    print -r -- "$HOME/.profile" ;;
+  esac
+}
+
+inject_shellenv_block() {
+  local profile_file="$1"
+  local shellenv="$2"
+  local id="homebrew_env"
+  local header="# >>> ${id} 环境变量 >>>"
+  local footer="# <<< ${id} 环境变量 <<<"
+
+  if [[ -z "$profile_file" || -z "$shellenv" ]]; then
+    error_echo "缺少参数：inject_shellenv_block <profile_file> <shellenv>"
+    return 1
+  fi
+
+  ensure_dir "$(dirname "$profile_file")"
+  touch "$profile_file"
+
+  if grep -Fq "$header" "$profile_file"; then
+    info_echo "Homebrew 环境变量块已存在：$profile_file"
+  elif grep -Fq "$shellenv" "$profile_file"; then
+    info_echo "Homebrew shellenv 已存在：$profile_file"
+  else
+    {
+      echo ""
+      echo "$header"
+      echo "$shellenv"
+      echo "$footer"
+    } >> "$profile_file"
+    success_echo "已写入 Homebrew 环境变量：$profile_file"
+  fi
+
+  eval "$shellenv"
+  success_echo "Homebrew shellenv 已在当前终端生效"
+}
+
+install_homebrew() {
+  local arch="$(get_cpu_arch)"
+  local profile_file="$(profile_file_for_shell)"
+  local brew_bin=""
+  local shellenv_cmd=""
+  local confirm=""
+
+  if brew_bin="$(find_brew_bin 2>/dev/null)"; then
+    shellenv_cmd="eval \"\$(${brew_bin} shellenv)\""
+    inject_shellenv_block "$profile_file" "$shellenv_cmd"
+
+    info_echo "Homebrew 已安装：$brew_bin"
+    log "👉 直接按 [Enter]：跳过 Homebrew 更新"
+    log "👉 输入任意字符后回车：执行 brew update && brew upgrade && brew cleanup && brew doctor && brew -v"
+    IFS= read -r confirm
+
+    if [[ -z "$confirm" ]]; then
+      note_echo "已跳过 Homebrew 更新"
+      return 0
+    fi
+
+    info_echo "正在更新 Homebrew..."
+    brew update  || { error_echo "brew update 失败"; return 1; }
+    brew upgrade || { error_echo "brew upgrade 失败"; return 1; }
+    brew cleanup || { error_echo "brew cleanup 失败"; return 1; }
+    brew doctor  || warn_echo "brew doctor 有警告/错误，请按提示处理"
+    brew -v      || warn_echo "打印 brew 版本失败，可忽略"
+    success_echo "Homebrew 更新流程完成"
+    return 0
+  fi
+
+  warn_echo "未检测到 Homebrew，开始安装...（架构：$arch）"
+
+  if [[ "$arch" == "arm64" ]]; then
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || {
+      error_echo "Homebrew 安装失败（arm64）"
+      exit 1
+    }
+    brew_bin="/opt/homebrew/bin/brew"
+  else
+    arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || {
+      error_echo "Homebrew 安装失败（x86_64）"
+      exit 1
+    }
+    brew_bin="/usr/local/bin/brew"
+  fi
+
+  [[ -x "$brew_bin" ]] || {
+    error_echo "Homebrew 安装后仍未找到 brew：$brew_bin"
+    exit 1
+  }
+
+  shellenv_cmd="eval \"\$(${brew_bin} shellenv)\""
+  inject_shellenv_block "$profile_file" "$shellenv_cmd"
+  success_echo "Homebrew 安装完成"
+}
+
+# ---------- 配置解析 ----------
 parse_sync_file() {
   local file="$1"
 
   while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
-    local line
+    local line=""
     line="$(trim "$raw_line")"
 
     [[ -z "$line" ]] && continue
-    [[ "$line" =~ ^# ]] && continue
+    [[ "${line[1]}" == "#" ]] && continue
 
-    if [[ "$line" =~ ^\[.*\]$ ]]; then
-      CURRENT_SECTION="${line#[}"
-      CURRENT_SECTION="${CURRENT_SECTION%]}"
+    # zsh 对未闭合/转义不当的 [] glob 很敏感，这里不用 [[ "$line" == \[*\] ]]。
+    # 直接判断首尾字符，稳定识别 sync_env.txt 的 [SECTION]。
+    if (( ${#line} >= 2 )) && [[ "${line[1]}" == "[" && "${line[-1]}" == "]" ]]; then
+      CURRENT_SECTION="${line[2,-2]}"
       continue
     fi
 
@@ -156,7 +282,7 @@ EOFVARS
 
   echo ""
   echo "# PATH"
-  local item
+  local item=""
   for item in "${PATH_LIST[@]}"; do
     echo "jobs_path_add \"${item}\""
   done
@@ -174,7 +300,8 @@ EOFPNPM
 
 generate_aliases_content() {
   echo "# 自动生成别名"
-  local item
+
+  local item=""
   for item in "${ALIAS_LIST[@]}"; do
     local name="${item%%=*}"
     local value="${item#*=}"
@@ -203,29 +330,7 @@ jobs_source_if_exists "$JOBS_MAC_ENV_HOME/zsh/user_mounts.zsh"
 EOFZSHRC
 }
 
-show_intro_and_wait() {
-  echo ""
-  cecho "$C_BOLD$C_CYAN" "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  cecho "$C_BOLD$C_CYAN" "      JobsMacEnv 安装提示"
-  cecho "$C_BOLD$C_CYAN" "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  cecho "$C_BLUE" "1) 会同步到 ~/.JobsMacEnv"
-  cecho "$C_BLUE" "2) 会从 Sys/.zshrc 生成轻量版 ~/.zshrc"
-  cecho "$C_BLUE" "3) 会检测 JDK 17，可选自动安装"
-  cecho "$C_BLUE" "4) 会同步 trs / gif / jdk17 / simios 命令入口到 ~/.JobsMacEnv/Scripts 和 ~/.local/bin"
-  cecho "$C_BLUE" "5) 稍后会问你是否替换当前 ~/.zshrc"
-  echo ""
-  cecho "$C_MAGENTA" "结构："
-  cecho "$C_GRAY" "  Sys/.zshrc               -> 模板入口"
-  cecho "$C_GRAY" "  ~/.zshrc                 -> 系统主入口"
-  cecho "$C_GRAY" "  ~/.JobsMacEnv/zsh        -> 配置目录"
-  cecho "$C_GRAY" "  ~/.JobsMacEnv/Scripts    -> 安装脚本 / trs 翻译脚本 / gif 录制脚本"
-  cecho "$C_GRAY" "  ~/.local/bin/trs         -> 终端翻译命令入口"
-  cecho "$C_GRAY" "  ~/.local/bin/gif         -> 终端录制转 GIF 入口"
-  echo ""
-  cecho "$C_YELLOW" "按回车继续安装..."
-  read -r _
-}
-
+# ---------- Java ----------
 has_java_version() {
   local version="$1"
   [[ -x /usr/libexec/java_home ]] || return 1
@@ -245,72 +350,121 @@ install_jdk_formula_or_cask() {
 install_jdk17_if_needed() {
   local version="$1"
   local candidates_csv="$2"
+  local answer=""
 
   if has_java_version "$version"; then
-    log "已检测到 JDK ${version}，跳过安装"
+    success_echo "已检测到 JDK ${version}，跳过安装"
     return 0
   fi
 
-  warn "系统未检测到 JDK ${version}"
+  warn_echo "系统未检测到 JDK ${version}"
+  log "👉 直接按 [Enter]：跳过 JDK ${version} 安装"
+  log "👉 输入任意字符后回车：自动安装 JDK ${version}"
+  IFS= read -r answer
+
+  if [[ -z "$answer" ]]; then
+    note_echo "已跳过 JDK ${version} 自动安装"
+    return 0
+  fi
 
   if ! command -v brew >/dev/null 2>&1; then
-    warn "未检测到 Homebrew，无法自动安装 JDK ${version}"
-    warn "你可以后续手动安装后再执行：source ~/.zshrc"
-    return 0
+    error_echo "未检测到 Homebrew，无法自动安装 JDK ${version}"
+    return 1
   fi
 
-  local answer=""
-  read -r -p "是否现在自动安装 JDK ${version} ？回车安装，输入任意字符跳过: " answer
-  if [[ -n "$answer" ]]; then
-    warn "已跳过 JDK ${version} 自动安装"
-    return 0
-  fi
-
-  local old_ifs="$IFS"
-  IFS=','
-  local candidate
-  for candidate in $candidates_csv; do
+  local candidate=""
+  for candidate in ${(s:,:)candidates_csv}; do
     candidate="$(trim "$candidate")"
     [[ -n "$candidate" ]] || continue
-    log "尝试安装：$candidate"
+
+    info_echo "尝试安装：$candidate"
     if install_jdk_formula_or_cask "$candidate"; then
-      IFS="$old_ifs"
       if has_java_version "$version"; then
-        log "JDK ${version} 安装完成"
-        return 0
+        success_echo "JDK ${version} 安装完成"
+      else
+        warn_echo "$candidate 安装完成，但系统暂未识别到 JDK ${version}，继续后续流程"
       fi
-      warn "$candidate 安装完成，但系统暂未识别到 JDK ${version}，继续后续流程"
       return 0
     fi
-    warn "$candidate 安装失败，继续尝试下一个"
-  done
-  IFS="$old_ifs"
 
-  err "JDK ${version} 自动安装失败，请手动安装后再执行 source ~/.zshrc"
+    warn_echo "$candidate 安装失败，继续尝试下一个"
+  done
+
+  error_echo "JDK ${version} 自动安装失败，请手动安装后再执行 source ~/.zshrc"
   return 0
 }
 
-prompt_replace_system_zshrc() {
-  local generated_zshrc="$1"
-  local system_zshrc="$HOME/.zshrc"
-  local answer=""
+# ---------- Scripts ----------
+resolve_script_file() {
+  local scripts_dir="$1"
+  local script_name="$2"
+  local nested_file="$scripts_dir/$script_name/$script_name"
+  local flat_file="$scripts_dir/$script_name"
 
-  echo ""
-  read -r -p "是否对系统目前的 .zshrc 进行替换，回车就替换，输入任意字符就不替换: " answer
-
-  if [[ -n "$answer" ]]; then
-    log "已跳过替换系统 .zshrc"
+  if [[ -f "$nested_file" ]]; then
+    print -r -- "$nested_file"
     return 0
   fi
 
-  if [[ -f "$system_zshrc" ]]; then
-    local backup="$HOME/.zshrc.backup.$(date +%Y%m%d%H%M%S)"
-    cp "$system_zshrc" "$backup"
-    log "已备份当前 .zshrc：$backup"
+  if [[ -f "$flat_file" ]]; then
+    print -r -- "$flat_file"
+    return 0
   fi
 
-  cp "$generated_zshrc" "$system_zshrc"
-  log "已替换系统 .zshrc：$system_zshrc"
+  return 1
+}
+
+copy_script_bundle() {
+  local source_scripts_dir="$1"
+  local target_scripts_dir="$2"
+  local script_name="$3"
+  local source_bundle="$source_scripts_dir/$script_name"
+  local source_file=""
+  local target_bundle="$target_scripts_dir/$script_name"
+  local target_file="$target_bundle/$script_name"
+
+  ensure_dir "$target_scripts_dir"
+  rm -rf "$target_bundle"
+  ensure_dir "$target_bundle"
+
+  if [[ -d "$source_bundle" ]]; then
+    cp -R "$source_bundle/." "$target_bundle/"
+  elif [[ -f "$source_bundle" ]]; then
+    cp "$source_bundle" "$target_file"
+  else
+    error_echo "缺少脚本：$source_bundle"
+    exit 1
+  fi
+
+  source_file="$(resolve_script_file "$target_scripts_dir" "$script_name")" || {
+    error_echo "脚本复制失败：$script_name"
+    exit 1
+  }
+
+  chmod +x "$source_file"
+  success_echo "已同步脚本：$script_name"
+}
+
+copy_all_script_bundles() {
+  local source_scripts_dir="$1"
+  local target_scripts_dir="$2"
+  local item=""
+  local script_name=""
+
+  [[ -d "$source_scripts_dir" ]] || {
+    error_echo "缺少目录：$source_scripts_dir"
+    exit 1
+  }
+
+  rm -rf "$target_scripts_dir"
+  ensure_dir "$target_scripts_dir"
+
+  for item in "$source_scripts_dir"/*.command(N); do
+    if [[ -d "$item" || -f "$item" ]]; then
+      script_name="$(basename "$item")"
+      copy_script_bundle "$source_scripts_dir" "$target_scripts_dir" "$script_name"
+    fi
+  done
 }
 
 verify_scripts_modules() {
@@ -330,36 +484,270 @@ verify_scripts_modules() {
     timestamp.command
     runtime_init.command
     simios.command
+    trs.command
+    gif.command
+    install_jdk17.command
+    list.command
+    m5c.command
+    【MacOS】去乱码.command
   )
 
-  if [[ ! -d "$scripts_dir" ]]; then
-    err "Scripts 模块目录不存在：$scripts_dir"
+  [[ -d "$scripts_dir" ]] || {
+    error_echo "Scripts 模块目录不存在：$scripts_dir"
     exit 1
-  fi
+  }
 
   local missing=()
   local file=""
   for file in "${required_files[@]}"; do
-    if [[ ! -f "$scripts_dir/$file" ]]; then
+    if ! resolve_script_file "$scripts_dir" "$file" >/dev/null 2>&1; then
       missing+=("$file")
     fi
   done
 
   if (( ${#missing[@]} > 0 )); then
-    err "Scripts 模块同步不完整：${missing[*]}"
-    err "当前目录：$scripts_dir"
-    err "当前目录实际文件："
-    find "$scripts_dir" -maxdepth 1 -type f -name '*.command' -print 2>/dev/null | sort | sed 's/^/[err]   /' || true
+    error_echo "Scripts 模块同步不完整：${missing[*]}"
+    error_echo "当前目录：$scripts_dir"
     exit 1
   fi
 
-  log "Scripts 模块自检通过：$scripts_dir"
+  success_echo "Scripts 模块自检通过：$scripts_dir"
 }
 
-main() {
-  local source_dir
-  source_dir="$(cd "$(dirname "$0")" && pwd)"
+warn_if_command_conflict() {
+  local bin_name="$1"
+  local target_bin_dir="$2"
+  local existing=""
+  local target_path="$target_bin_dir/$bin_name"
 
+  existing="$(command -v "$bin_name" 2>/dev/null || true)"
+  if [[ -n "$existing" && "$existing" != "$target_path" ]]; then
+    warn_echo "命令名可能冲突：$bin_name -> $existing"
+    warn_echo "本次仍会写入：$target_path；如调用结果不符合预期，请检查 PATH 顺序或 alias / function。"
+  fi
+}
+
+install_bin_entry() {
+  local source_scripts_dir="$1"
+  local target_bin_dir="$2"
+  local script_name="$3"
+  local bin_name="$4"
+  local source_file=""
+
+  warn_if_command_conflict "$bin_name" "$target_bin_dir"
+
+  source_file="$(resolve_script_file "$source_scripts_dir" "$script_name")" || {
+    error_echo "缺少入口脚本：$script_name"
+    exit 1
+  }
+
+  copy_file_if_changed "$source_file" "$target_bin_dir/$bin_name"
+  chmod +x "$target_bin_dir/$bin_name"
+  success_echo "已安装命令入口：$target_bin_dir/$bin_name"
+}
+
+# ---------- 交互 ----------
+show_intro_and_wait() {
+  clear
+
+  cat <<'EOFINSTALL' | tee -a "$LOG_FILE"
+============================================================
+🌍 JobsMacEnvVarConfig 安装 / 同步工具
+============================================================
+
+这是 install.command 内置自述，不读取外部 README.md。
+作用：把当前目录里的终端环境配置、Scripts 脚本模块、快捷命令同步到本机。
+
+------------------------------------------------------------
+一、同步位置
+------------------------------------------------------------
+
+会同步到：
+
+  ~/.JobsMacEnv/
+
+主要内容包括：
+
+  ~/.JobsMacEnv/zsh/
+  ~/.JobsMacEnv/Scripts/
+  ~/.JobsMacEnv/sync_env.txt
+  ~/.JobsMacEnv/README.md
+  ~/.JobsMacEnv/install.command
+
+快捷命令会安装到：
+
+  ~/.local/bin/
+
+------------------------------------------------------------
+二、核心命令
+------------------------------------------------------------
+
+  list   打开功能菜单
+  m5c    比较两个文件 MD5
+  flat   去乱码 / URL 解码
+  trs    视频转码相关工具
+  gif    GIF 相关工具
+  jdk17  JDK 17 安装辅助工具
+  simios iOS 模拟器辅助工具
+
+说明：
+  list 是总入口，用 fzf 展示菜单。
+  flat 是去乱码入口。
+  m5c 是 MD5 文件比较入口。
+
+------------------------------------------------------------
+三、交互规则
+------------------------------------------------------------
+
+普通安装 / 更新 / 升级步骤：
+
+  直接按 Enter              跳过
+  输入任意字符后回车        执行
+
+危险操作：
+
+  必须输入 YES 才执行
+
+不会用普通回车触发危险操作。
+
+------------------------------------------------------------
+四、Homebrew
+------------------------------------------------------------
+
+脚本会检查 Homebrew。
+
+未安装：
+  自动安装 Homebrew
+  自动写入 shellenv
+  当前终端立即生效
+
+已安装：
+  直接按 Enter              跳过 Homebrew 更新
+  输入任意字符后回车        执行 brew update / upgrade / cleanup / doctor
+
+------------------------------------------------------------
+五、JDK 17
+------------------------------------------------------------
+
+脚本会检查 JDK 17。
+
+如果不存在，会询问是否通过 Homebrew 自动安装：
+
+  直接按 Enter              跳过安装
+  输入任意字符后回车        自动安装
+
+------------------------------------------------------------
+六、Scripts 结构
+------------------------------------------------------------
+
+Scripts 目录采用脚本独立文件夹结构：
+
+  Scripts/
+    xxx.command/
+      xxx.command
+      README.md
+
+安装时会同步整个脚本文件夹，并保留每个脚本自己的 README.md。
+
+------------------------------------------------------------
+七、功能菜单
+------------------------------------------------------------
+
+安装完成后，输入：
+
+  list
+
+即可打开功能菜单。
+
+list 会检查：
+
+  brew 是否可用
+  fzf 是否可用
+  fzf 是否需要安装
+
+fzf 来源 Homebrew。
+
+------------------------------------------------------------
+八、zshrc
+------------------------------------------------------------
+
+脚本会生成轻量入口文件：
+
+  ~/.JobsMacEnv/.zshrc
+
+之后会询问是否替换：
+
+  ~/.zshrc
+
+规则：
+
+  直接按 Enter              跳过替换
+  输入 YES 后回车           备份并替换 ~/.zshrc
+
+------------------------------------------------------------
+九、流程
+------------------------------------------------------------
+
+  启动 install.command
+        ↓
+  显示本内置自述并等待回车
+        ↓
+  解析 sync_env.txt
+        ↓
+  检查 Homebrew
+        ↓
+  检查 JDK 17
+        ↓
+  同步 ~/.JobsMacEnv
+        ↓
+  同步 zsh 配置
+        ↓
+  同步 Scripts 脚本模块
+        ↓
+  安装 list / m5c / flat 等入口
+        ↓
+  询问是否替换 ~/.zshrc
+        ↓
+  完成
+
+============================================================
+EOFINSTALL
+
+  log ""
+  warm_echo "按回车继续安装 / 同步..."
+  local _answer=""
+  IFS= read -r _answer
+}
+
+prompt_replace_system_zshrc() {
+  local generated_zshrc="$1"
+  local system_zshrc="$HOME/.zshrc"
+  local answer=""
+
+  log ""
+  warn_echo "是否替换系统当前 ~/.zshrc？"
+  log "👉 直接按 [Enter]：跳过替换"
+  log "👉 输入 YES 后回车：备份并替换 ~/.zshrc"
+  IFS= read -r answer
+
+  if [[ "$answer" != "YES" ]]; then
+    note_echo "已跳过替换系统 .zshrc"
+    return 0
+  fi
+
+  if [[ -f "$system_zshrc" ]]; then
+    local backup="$HOME/.zshrc.backup.$(date +%Y%m%d%H%M%S)"
+    cp "$system_zshrc" "$backup"
+    success_echo "已备份当前 .zshrc：$backup"
+  fi
+
+  cp "$generated_zshrc" "$system_zshrc"
+  success_echo "已替换系统 .zshrc：$system_zshrc"
+}
+
+# ---------- 主流程 ----------
+main() {
+  local source_dir="$SCRIPT_DIR"
   local target_root="$HOME/.JobsMacEnv"
   local target_zsh_dir="$target_root/zsh"
   local target_custom_dir="$target_zsh_dir/custom"
@@ -376,6 +764,7 @@ main() {
   local target_aliases="$target_zsh_dir/aliases.zsh"
   local sys_dir="$source_dir/Sys"
   local source_zshrc="$sys_dir/.zshrc"
+  local source_scripts_dir="$source_dir/Scripts"
 
   if [[ ! -f "$source_zshrc" && -f "$source_dir/.zshrc" ]]; then
     source_zshrc="$source_dir/.zshrc"
@@ -383,12 +772,14 @@ main() {
 
   show_intro_and_wait
 
-  [[ -f "$sync_file" ]] || { err "缺少 sync_env.txt"; exit 1; }
-  [[ -f "$source_zshrc" ]] || { err "缺少文件：$source_zshrc"; exit 1; }
+  [[ -f "$sync_file" ]] || { error_echo "缺少 sync_env.txt"; exit 1; }
+  [[ -f "$source_zshrc" ]] || { error_echo "缺少文件：$source_zshrc"; exit 1; }
+
   parse_sync_file "$sync_file"
+  install_homebrew
   install_jdk17_if_needed "$JAVA_VERSION" "$JAVA_CANDIDATES"
 
-  log "开始同步 JobsMacEnv 到：$target_root"
+  highlight_echo "开始同步 JobsMacEnv 到：$target_root"
 
   ensure_dir "$target_root"
   ensure_dir "$target_zsh_dir"
@@ -396,47 +787,29 @@ main() {
   ensure_dir "$target_bin_dir"
   ensure_dir "$target_root/assets"
 
-  # macOS 默认文件系统通常大小写不敏感：scripts 与 Scripts 可能是同一个目录。
-  # 必须先清理，再重建；不能创建 Scripts 后再 rm -rf scripts，否则会把新目录删掉。
-  rm -rf "$target_scripts_dir" "$old_target_scripts_dir" 2>/dev/null || true
-  ensure_dir "$target_scripts_dir"
+  rm -rf "$old_target_scripts_dir" 2>/dev/null || true
 
   copy_file_if_changed "$source_zshrc" "$target_zshrc_template"
   copy_file_if_changed "$source_dir/README.md" "$target_readme"
   copy_file_if_changed "$source_dir/install.command" "$target_install"
   copy_file_if_changed "$source_dir/sync_env.txt" "$target_sync_file"
-  local source_scripts_dir="$source_dir/Scripts"
-  [[ -d "$source_scripts_dir" ]] || { err "缺少目录：$source_scripts_dir"; exit 1; }
 
-  local script_file script_name
-  for script_file in "$source_scripts_dir"/*.command; do
-    [[ -f "$script_file" ]] || continue
-    script_name="$(basename "$script_file")"
-    copy_file_if_changed "$script_file" "$target_scripts_dir/$script_name"
-    chmod +x "$target_scripts_dir/$script_name"
-  done
+  copy_all_script_bundles "$source_scripts_dir" "$target_scripts_dir"
 
-  copy_file_if_changed "$source_scripts_dir/trs.command" "$target_bin_dir/trs"
-  copy_file_if_changed "$source_scripts_dir/gif.command" "$target_bin_dir/gif"
-  copy_file_if_changed "$source_scripts_dir/install_jdk17.command" "$target_bin_dir/jdk17"
-  copy_file_if_changed "$source_scripts_dir/simios.command" "$target_bin_dir/simios"
   copy_file_if_changed "$source_dir/zsh/bootstrap.zsh" "$target_zsh_dir/bootstrap.zsh"
   copy_file_if_changed "$source_dir/zsh/env_methods.zsh" "$target_zsh_dir/env_methods.zsh"
   copy_file_if_changed "$source_dir/zsh/user_mounts.zsh" "$target_zsh_dir/user_mounts.zsh"
   copy_file_if_changed "$source_dir/zsh/custom/shell_behavior.zsh" "$target_custom_dir/shell_behavior.zsh"
+
   if [[ -f "$source_dir/zsh/custom/path_drag_resolver.zsh" ]]; then
     copy_file_if_changed "$source_dir/zsh/custom/path_drag_resolver.zsh" "$target_custom_dir/path_drag_resolver.zsh"
   fi
+
   copy_file_if_changed "$source_dir/zsh/custom/local.zsh" "$target_custom_dir/local.zsh"
 
-  # 旧版本使用小写 scripts；新版本统一改为 Scripts。
-  # 注意：在大小写不敏感的 macOS 文件系统中，不能在这里删除 scripts，
-  # 因为它会等同于删除刚刚创建的 Scripts。
-
-  # 旧版本的个人命令文件已经合并到 Scripts 模块。
   if [[ -f "$target_custom_dir/legacy_functions.zsh" ]]; then
     rm -f "$target_custom_dir/legacy_functions.zsh"
-    log "已移除旧文件：$target_custom_dir/legacy_functions.zsh"
+    note_echo "已移除旧文件：$target_custom_dir/legacy_functions.zsh"
   fi
 
   write_file_if_changed "$target_env" "$(generate_env_content)"
@@ -444,24 +817,28 @@ main() {
   write_file_if_changed "$target_zshrc_template" "$(generate_minimal_zshrc)"
 
   chmod +x "$target_install"
-  chmod +x "$target_scripts_dir"/*.command 2>/dev/null || true
-  chmod +x "$target_bin_dir/trs" "$target_bin_dir/gif" "$target_bin_dir/jdk17" "$target_bin_dir/simios"
 
   verify_scripts_modules "$target_scripts_dir"
 
-  log "已生成轻量入口文件：$target_zshrc_template"
-  log "已同步 Scripts 模块目录：$target_scripts_dir"
-  log "已安装 trs 命令入口：$target_bin_dir/trs"
-  log "已安装 gif 命令入口：$target_bin_dir/gif"
-  log "已安装 jdk17 命令入口：$target_bin_dir/jdk17"
-  log "已安装 simios 命令入口：$target_bin_dir/simios"
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" trs.command trs
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" gif.command gif
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" install_jdk17.command jdk17
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" simios.command simios
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" list.command list
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" m5c.command m5c
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" '【MacOS】去乱码.command' flat
+
+  success_echo "已生成轻量入口文件：$target_zshrc_template"
+  success_echo "已同步 Scripts 模块目录：$target_scripts_dir"
+
   prompt_replace_system_zshrc "$target_zshrc_template"
 
   if [[ -f "$HOME/.zshrc" ]]; then
-    log "如需立即生效，请执行：source ~/.zshrc"
+    note_echo "如需立即生效，请执行：source ~/.zshrc"
   fi
 
-  log "同步完成"
+  success_echo "同步完成"
+  gray_echo "日志路径：$LOG_FILE"
 }
 
 main "$@"

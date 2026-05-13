@@ -4,7 +4,7 @@
 
 # 说明：
 # - 被 zsh/custom/local.zsh source 时，只注册 simios 函数，不自动执行。
-# - 作为 ~/.local/bin/simios 或 Scripts/simios.command 直接执行时，自动进入主流程。
+# - 作为 ~/.local/bin/simios 或 Scripts/simios.command/simios.command 直接执行时，自动进入主流程。
 
 _jobs_simios_module_file="${(%):-%N}"
 
