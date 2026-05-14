@@ -494,6 +494,7 @@ verify_scripts_modules() {
     gif.command
     install_jdk17.command
     simios.command
+    pods.command
     clean.command
     cor.command
     decode.command
@@ -918,6 +919,7 @@ main() {
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" trs.command trs
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" gif.command gif
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" simios.command simios
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" pods.command pods
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" clean.command clean
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" cor.command cor
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" decode.command decode

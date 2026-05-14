@@ -240,6 +240,7 @@ build_menu_items() {
 翻译	trs	macOS 原生翻译入口	script	trs.command
 录制 / GIF	gif	终端 / 全屏录制并导出 GIF / MP4	script	gif.command
 iOS 模拟器	simios	检测 Xcode 环境并下载 / 补齐 iOS Simulator Runtime	script	simios.command
+本地 Pod 自检	pods	检查本地 CocoaPods Pod 编译与 podspec lint 结果	script	pods.command
 终端清理	clean	清空终端历史、zsh_sessions，并执行 brew cleanup	script	clean.command
 颜色转换	cor	颜色格式转换器，支持 HEX / RGB / RGBA / 0xAARRGGBB	script	cor.command
 URL 解码	decode	交互式 URL Decode，并自动复制到剪贴板	script	decode.command
@@ -402,6 +403,7 @@ show_menu() {
   local command_name=""
   local run_type=""
   local target_name=""
+  local display_line=""
   local menu_status=0
   local feature_status=0
 
@@ -432,7 +434,7 @@ show_menu() {
 
     local title=""
     local description=""
-    IFS=$'\t' read -r title command_name description run_type target_name <<< "$selected"
+    IFS=$'\t' read -r title command_name description run_type target_name display_line <<< "$selected"
 
     run_feature "$command_name" "$run_type" "$target_name"
     feature_status=$?

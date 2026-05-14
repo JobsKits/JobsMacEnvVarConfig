@@ -104,6 +104,8 @@ trs() { _jobs_run_scripts_command trs "$@"; }
 gif() { _jobs_run_scripts_command gif "$@"; }
 # simios：simios
 simios() { _jobs_run_scripts_command simios "$@"; }
+# pods：本地 CocoaPods Pod 编译 / podspec lint 自检。
+pods() { _jobs_run_scripts_command pods "$@"; }
 # clean：清空 zsh 历史、zsh_sessions 残留，并在检测到 Homebrew 时顺手执行 brew cleanup。
 clean() { _jobs_run_scripts_command clean "$@"; }
 # cor：转换 HEX / RGB / RGBA / 0xAARRGGBB，并输出终端色块预览。

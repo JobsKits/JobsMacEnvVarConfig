@@ -48,6 +48,8 @@
 │   │   └── README.md
 │   ├── list.command/
 │   │   ├── list.command            # fzf 功能菜单总入口
+│   ├── pods.command/
+│   │   ├── pods.command            # 本地 CocoaPods Pod 编译 / podspec lint 自检入口
 │   │   └── README.md
 │   ├── m5c.command/
 │   │   ├── m5c.command             # MD5 文件一致性比较工具
@@ -932,6 +934,7 @@ JOBS_DART_CLI_COMPLETION_FILE="/Users/jobs/.dart-cli-completion/zsh-config.zsh"
 公共、可复用配置     -> sync_env.txt / zsh/*.zsh
 个人函数加载器       -> zsh/custom/local.zsh -> Scripts/<脚本全名>/<脚本全名>
 list 功能菜单入口      -> Scripts/list.command/list.command / ~/.local/bin/list
+pods 本地 Pod 自检入口 -> Scripts/pods.command/pods.command / ~/.local/bin/pods
 trs 终端翻译入口      -> Scripts/trs.command/trs.command / ~/.local/bin/trs
 gif 终端 / 全屏录制入口 -> Scripts/gif.command/gif.command / ~/.local/bin/gif
 simios iOS 模拟器补齐入口 -> Scripts/simios.command/simios.command / ~/.local/bin/simios
