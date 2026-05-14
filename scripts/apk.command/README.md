@@ -1,17 +1,19 @@
 # apk.command
+![Jobs倾情奉献](https://picsum.photos/1500/400 "Jobs出品，必属精品")
+[toc]
 
-## 功能
+## 一、功能
 
 检查 Flutter / FVM / JDK 17 后构建 Android APK。
 
-## 运行
+## 二、运行
 
 ```zsh
 apk
 apk [参数...]
 ```
 
-## 结构约定
+## 三、结构约定
 
 运行时打印的自述已经写死在 `apk.command` 内部，不依赖本 README。
 
