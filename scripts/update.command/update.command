@@ -35,33 +35,33 @@ jobs_update_show_readme_and_wait() {
 update - 环境更新
 ============================================================
 
-这是 update.command 的内置自述，不读取同级 README.md。
+即将按菜单升级 / 维护：
 
-功能：
-  通过交互菜单批量更新 Homebrew、Flutter、Node、Python、Ruby、CocoaPods 等常用开发工具链。
+  1. Homebrew
+     brew update / brew upgrade / brew cleanup / brew doctor
 
-结构：
-  Scripts/update.command/update.command
-  Scripts/update.command/README.md
+  2. FVM / Flutter
+     升级 FVM，执行 flutter upgrade / flutter doctor
 
-运行：
-  update
-  update [参数...]
+  3. Node
+     使用 nvm 更新 LTS，启用 corepack
 
-交互规则：
-  直接按 Enter              跳过当前更新项
-  输入任意字符后回车        执行当前更新项
+  4. Python
+     pyenv update、pipx upgrade-all、pip 自升级
 
-说明：
-  - 终端可输入的自定义命令都应独立收进 Scripts。
-  - README.md 只作为源码说明；运行时展示的是脚本内置自述。
-  - 日志路径：/tmp/update.log
-============================================================
+  5. Ruby
+     rbenv rehash、gem update
+
+  6. CocoaPods
+     pod repo update
+
+  7. Dart pub 缓存
+     dart pub cache repair
+
+按回车继续执行 update...
 EOFREADME
 
   if [[ -t 0 && "${JOBS_MAC_ENV_SKIP_README:-}" != "1" ]]; then
-    log ""
-    warm_echo "按回车继续执行 update..."
     local _answer=""
     IFS= read -r _answer
   fi
@@ -79,11 +79,11 @@ jobs_update_prompt_run() {
 
   log ""
   info_echo "$title"
-  log "👉 直接按 [Enter]：跳过"
-  log "👉 输入任意字符后回车：$detail"
+  log "👉 直接按 [Enter]：$detail"
+  log "👉 输入任意字符后回车：跳过"
   IFS= read -r answer
 
-  [[ -n "$answer" ]]
+  [[ -z "$answer" ]]
 }
 
 jobs_update_run_step() {
@@ -92,12 +92,12 @@ jobs_update_run_step() {
 
   highlight_echo "$title"
   "$@"
-  local status=$?
+  local exit_code=$?
 
-  if (( status == 0 )); then
+  if (( exit_code == 0 )); then
     success_echo "$title 完成"
   else
-    warn_echo "$title 返回非 0：$status；继续后续更新项"
+    warn_echo "$title 返回非 0：${exit_code}；继续后续更新项"
   fi
 
   return 0
