@@ -12,8 +12,9 @@ setopt NO_NOMATCH
 # 2. 启动后先显示内置 README，并等待回车确认。
 # 3. 菜单使用 fzf 多选；如果新系统没有 fzf，会先提示安装 Homebrew / fzf。
 # 4. 每个被选择的部件都会先自检：不存在就安装最新，存在就更新。
-# 5. 真正安装 / 更新前都会强提示：回车执行，任意字符 + 回车跳过。
-# 6. 注意：install 这个命令名与系统 /usr/bin/install 存在冲突风险。
+# 5. 第三方依赖已存在时，会统一确认一次是否升级，不再逐项询问。
+# 6. 其他安装 / 更新动作执行前会强提示：回车执行，任意字符 + 回车跳过。
+# 7. 注意：install 这个命令名与系统 /usr/bin/install 存在冲突风险。
 # ============================================================
 
 # ---------- 基础路径 ----------
@@ -25,6 +26,7 @@ LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 # ---------- 全局状态 ----------
 TOTAL_STAGES=0
 CURRENT_STAGE=0
+THIRD_PARTY_EXISTING_UPGRADE_CONFIRMED=""
 readonly ALL_MENU_ITEM="✅ 全选安装"
 
 readonly JOBS_SOFTWARE_REPO="https://github.com/JobsKits/JobsSoftware.MacOS.git"
@@ -82,6 +84,26 @@ confirm_execute() {
   fi
 
   warn_echo "已跳过：${title}"
+  return 1
+}
+
+confirm_existing_third_party_upgrade_once() {
+  if [[ "${THIRD_PARTY_EXISTING_UPGRADE_CONFIRMED}" == "1" ]]; then
+    return 0
+  fi
+
+  if [[ "${THIRD_PARTY_EXISTING_UPGRADE_CONFIRMED}" == "0" ]]; then
+    return 1
+  fi
+
+  if confirm_execute "已检测到部分第三方依赖已存在，是否统一升级已存在的 brew cask / brew formula / npm 全局包 / gem 包？" "统一升级"; then
+    THIRD_PARTY_EXISTING_UPGRADE_CONFIRMED="1"
+    success_echo "本轮已存在第三方依赖将统一执行升级，后续不再逐项询问。"
+    return 0
+  fi
+
+  THIRD_PARTY_EXISTING_UPGRADE_CONFIRMED="0"
+  warn_echo "本轮已存在第三方依赖将统一跳过升级，后续不再逐项询问。"
   return 1
 }
 
@@ -321,7 +343,12 @@ install.command - macOS 新系统配置（fzf 菜单版）
   4. 每个部件都会先自检：
      - 不存在：安装最新版
      - 已存在：更新到最新版 / 刷新配置
-  5. 每个安装 / 更新动作执行前都会强提示：
+  5. 第三方依赖已存在时统一确认一次是否升级，不再逐项询问：
+     - brew cask
+     - brew formula
+     - npm 全局包
+     - gem 包
+  6. 其他安装 / 更新动作执行前都会强提示：
      - 直接回车：执行安装 / 更新
      - 输入任意字符后回车：跳过
 
@@ -597,17 +624,19 @@ component_brew_formula() {
   fi
 
   local installed=0
-  local action_word="安装"
   local desc="未检测到 brew formula：${display_name}，是否安装最新版？"
 
   if brew_formula_installed "${check_name}"; then
     installed=1
-    action_word="更新"
-    desc="brew formula 已存在：${display_name}，是否更新到最新版？"
-  fi
 
-  if ! confirm_execute "${desc}" "${action_word}"; then
-    return 0
+    if ! confirm_existing_third_party_upgrade_once; then
+      warn_echo "已按统一选择跳过升级 brew formula：${display_name}"
+      return 0
+    fi
+  else
+    if ! confirm_execute "${desc}" "安装"; then
+      return 0
+    fi
   fi
 
   if [[ -n "${tap_name}" ]]; then
@@ -660,17 +689,19 @@ component_brew_cask() {
   fi
 
   local installed=0
-  local action_word="安装"
   local desc="未检测到 brew cask：${display_name}，是否安装最新版？"
 
   if brew_cask_installed "${cask_name}"; then
     installed=1
-    action_word="更新"
-    desc="brew cask 已存在：${display_name}，是否更新到最新版？"
-  fi
 
-  if ! confirm_execute "${desc}" "${action_word}"; then
-    return 0
+    if ! confirm_existing_third_party_upgrade_once; then
+      warn_echo "已按统一选择跳过升级 brew cask：${display_name}"
+      return 0
+    fi
+  else
+    if ! confirm_execute "${desc}" "安装"; then
+      return 0
+    fi
   fi
 
   if (( installed )); then
@@ -695,17 +726,19 @@ component_npm_quicktype() {
   fi
 
   local installed=0
-  local action_word="安装"
   local desc="未检测到 npm 全局包 quicktype，是否安装？"
 
   if npm list -g quicktype --depth=0 >/dev/null 2>&1; then
     installed=1
-    action_word="更新"
-    desc="npm 全局包 quicktype 已存在，是否更新？"
-  fi
 
-  if ! confirm_execute "${desc}" "${action_word}"; then
-    return 0
+    if ! confirm_existing_third_party_upgrade_once; then
+      warn_echo "已按统一选择跳过升级 npm 全局包：quicktype"
+      return 0
+    fi
+  else
+    if ! confirm_execute "${desc}" "安装"; then
+      return 0
+    fi
   fi
 
   if (( installed )); then
@@ -725,17 +758,19 @@ component_gem_cocoapods() {
   fi
 
   local installed=0
-  local action_word="安装"
   local desc="未检测到 gem 包 cocoapods，是否安装？"
 
   if gem list -i cocoapods >/dev/null 2>&1; then
     installed=1
-    action_word="更新"
-    desc="gem 包 cocoapods 已存在，是否更新？"
-  fi
 
-  if ! confirm_execute "${desc}" "${action_word}"; then
-    return 0
+    if ! confirm_existing_third_party_upgrade_once; then
+      warn_echo "已按统一选择跳过升级 gem 包：cocoapods"
+      return 0
+    fi
+  else
+    if ! confirm_execute "${desc}" "安装"; then
+      return 0
+    fi
   fi
 
   if (( installed )); then
@@ -893,7 +928,7 @@ choose_menu_items() {
     --height=90% \
     --border \
     --prompt='选择要安装 / 更新的功能 > ' \
-    --header='Tab 多选，Enter 确认；选择「✅ 全选安装」会依次处理所有部件；每个部件仍需回车确认。')"
+    --header='Tab 多选，Enter 确认；选择「✅ 全选安装」会依次处理所有部件；已存在第三方依赖升级只统一确认一次。')"
 
   if [[ -z "${selections}" ]]; then
     warn_echo "未选择任何功能，脚本结束。"
