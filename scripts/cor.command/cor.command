@@ -13,44 +13,46 @@ LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
-color_echo()     { log "[1;32m$1[0m"; }
-info_echo()      { log "[1;34mℹ $1[0m"; }
-success_echo()   { log "[1;32m✔ $1[0m"; }
-warn_echo()      { log "[1;33m⚠ $1[0m"; }
-warm_echo()      { log "[1;33m$1[0m"; }
-note_echo()      { log "[1;35m➤ $1[0m"; }
-error_echo()     { log "[1;31m✖ $1[0m"; }
-err_echo()       { log "[1;31m$1[0m"; }
-debug_echo()     { log "[1;35m🐞 $1[0m"; }
-highlight_echo() { log "[1;36m🔹 $1[0m"; }
-gray_echo()      { log "[0;90m$1[0m"; }
-bold_echo()      { log "[1m$1[0m"; }
-underline_echo() { log "[4m$1[0m"; }
+color_echo()     { log "\033[1;32m$1\033[0m"; }
+info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+warm_echo()      { log "\033[1;33m$1\033[0m"; }
+note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+err_echo()       { log "\033[1;31m$1\033[0m"; }
+debug_echo()     { log "\033[1;35m🐞 $1\033[0m"; }
+highlight_echo() { log "\033[1;36m🔹 $1\033[0m"; }
+gray_echo()      { log "\033[0;90m$1\033[0m"; }
+bold_echo()      { log "\033[1m$1\033[0m"; }
+underline_echo() { log "\033[4m$1\033[0m"; }
 
 # ---------- 内置自述 ----------
 jobs_cor_show_readme_and_wait() {
   clear 2>/dev/null || true
   cat <<'EOFREADME' | tee -a "$LOG_FILE"
 ============================================================
-cor - 颜色转换
+cor - 颜色转换 / 终端色块预览
 ============================================================
 
-这是 cor.command 的内置自述，不读取同级 README.md。
-
 功能：
-  转换 HEX / RGB / RGBA / 0xAARRGGBB，并输出终端色块预览。
+  转换 HEX / RGB / RGBA / 0xAARRGGBB，并在 macOS 终端直接显示色块。
 
-结构：
-  Scripts/cor.command/cor.command
-  Scripts/cor.command/README.md
-
-运行：
-  cor
-  cor [参数...]
+支持输入：
+  #D2D4DE
+  D2D4DE
+  #D2D4DE80
+  D2D4DE80
+  #ABC
+  #ABCF
+  rgb(210,212,222)
+  rgba(210,212,222,0.5)
+  0x80D2D4DE       按 0xAARRGGBB 解析
+  0xD2D4DE         按 0xRRGGBB 解析
 
 说明：
-  - 终端可输入的自定义命令都应独立收进 Scripts。
-  - README.md 只作为源码说明；运行时展示的是脚本内置自述。
+  - macOS Terminal.app / iTerm2 / VS Code 终端默认使用 24-bit True Color 预览。
+  - 透明度无法由终端背景色真实呈现；色块预览按 RGB 原色显示，Alpha 只参与格式转换。
   - 日志路径：/tmp/cor.log
 ============================================================
 EOFREADME
@@ -63,19 +65,21 @@ EOFREADME
   fi
 }
 
-
-# ---------- 命令实现 ----------
-# 🔥 颜色格式转换器：cor 🔥
-# 用法：
-# - cor                         进入交互模式，可连续输入颜色值
-# - cor '#D2D4DE'               转换单个颜色，# 开头建议加引号
-# - cor 'rgba(210,212,222,0.5)' 转换 rgba，括号内容建议加引号
-#
-# 注意：这里不要再用 bash heredoc 包一层脚本。
-# heredoc 会占用 bash 的 stdin，导致交互模式里的 read 读不到键盘输入。
+# ---------- 基础工具 ----------
 jobs_cor_supports_truecolor() {
   emulate -L zsh
-  [[ "${COLORTERM:-}" == *truecolor* || "${COLORTERM:-}" == *24bit* ]]
+
+  # macOS 自带 Terminal.app 常常不设置 COLORTERM，但支持 24-bit ANSI True Color。
+  [[ "${COLORTERM:-}" == *truecolor* ]] && return 0
+  [[ "${COLORTERM:-}" == *24bit* ]] && return 0
+  [[ "${TERM_PROGRAM:-}" == "Apple_Terminal" ]] && return 0
+  [[ "${TERM_PROGRAM:-}" == "iTerm.app" ]] && return 0
+  [[ "${TERM_PROGRAM:-}" == "vscode" ]] && return 0
+  [[ "${TERM_PROGRAM:-}" == "WezTerm" ]] && return 0
+  [[ "${TERM:-}" == *truecolor* ]] && return 0
+  [[ "${TERM:-}" == *24bit* ]] && return 0
+
+  return 1
 }
 
 jobs_cor_title_color() {
@@ -97,6 +101,22 @@ jobs_cor_to_hex() {
 jobs_cor_hex_to_dec() {
   emulate -L zsh
   printf "%d" "$(( 16#$1 ))"
+}
+
+jobs_cor_is_hex() {
+  emulate -L zsh
+  [[ "$1" =~ '^[0-9a-fA-F]+$' ]]
+}
+
+jobs_cor_expand_short_hex() {
+  emulate -L zsh
+
+  local hex="$1" out="" i c
+  for (( i = 1; i <= ${#hex}; i++ )); do
+    c="${hex[i]}"
+    out+="${c}${c}"
+  done
+  print -r -- "$out"
 }
 
 jobs_cor_alpha_float_to_255() {
@@ -127,6 +147,18 @@ jobs_cor_upper_hex() {
 jobs_cor_rel_luma() {
   emulate -L zsh
   awk -v r="$1" -v g="$2" -v b="$3" 'BEGIN { printf("%.0f", 0.2126 * r + 0.7152 * g + 0.0722 * b) }'
+}
+
+jobs_cor_pick_fg_rgb() {
+  emulate -L zsh
+
+  local l
+  l="$(jobs_cor_rel_luma "$1" "$2" "$3")"
+  if (( l > 186 )); then
+    print -r -- "0;0;0"
+  else
+    print -r -- "255;255;255"
+  fi
 }
 
 jobs_cor_pick_fg_code() {
@@ -164,123 +196,218 @@ jobs_cor_rgb_to_ansi256() {
   print -r -- $(( 16 + 36 * rc + 6 * gc + bc ))
 }
 
+jobs_cor_set_globals_from_hex() {
+  emulate -L zsh
+
+  local hex="$1" mode="${2:-RRGGBB_OR_RRGGBBAA}" rr gg bb aa
+  hex="$(jobs_cor_upper_hex "$hex")"
+
+  case "$mode" in
+    AARRGGBB)
+      (( ${#hex} == 8 )) || return 1
+      aa="${hex[1,2]}"
+      rr="${hex[3,4]}"
+      gg="${hex[5,6]}"
+      bb="${hex[7,8]}"
+      ;;
+    RRGGBB)
+      (( ${#hex} == 6 )) || return 1
+      rr="${hex[1,2]}"
+      gg="${hex[3,4]}"
+      bb="${hex[5,6]}"
+      aa="FF"
+      ;;
+    *)
+      case "${#hex}" in
+        3|4)
+          hex="$(jobs_cor_expand_short_hex "$hex")"
+          ;;
+      esac
+
+      case "${#hex}" in
+        6)
+          rr="${hex[1,2]}"
+          gg="${hex[3,4]}"
+          bb="${hex[5,6]}"
+          aa="FF"
+          ;;
+        8)
+          rr="${hex[1,2]}"
+          gg="${hex[3,4]}"
+          bb="${hex[5,6]}"
+          aa="${hex[7,8]}"
+          ;;
+        *)
+          return 1
+          ;;
+      esac
+      ;;
+  esac
+
+  typeset -g JOBS_COR_R="$(jobs_cor_hex_to_dec "$rr")"
+  typeset -g JOBS_COR_G="$(jobs_cor_hex_to_dec "$gg")"
+  typeset -g JOBS_COR_B="$(jobs_cor_hex_to_dec "$bb")"
+  typeset -g JOBS_COR_AA_HEX="$aa"
+  typeset -g JOBS_COR_A_FLOAT="$(jobs_cor_alpha_255_to_float "$(jobs_cor_hex_to_dec "$aa")")"
+  return 0
+}
+
+# ---------- 色块输出 ----------
+jobs_cor_show_block_line() {
+  emulate -L zsh
+
+  local rr="$1" gg="$2" bb="$3" label="$4" fg_rgb fg_code idx
+
+  if jobs_cor_supports_truecolor; then
+    fg_rgb="$(jobs_cor_pick_fg_rgb "$rr" "$gg" "$bb")"
+    printf "\033[48;2;%d;%d;%dm" "$rr" "$gg" "$bb"
+    printf "\033[38;2;%sm" "$fg_rgb"
+  else
+    idx="$(jobs_cor_rgb_to_ansi256 "$rr" "$gg" "$bb")"
+    fg_code="$(jobs_cor_pick_fg_code "$rr" "$gg" "$bb")"
+    printf "\033[48;5;%sm" "$idx"
+    printf "\033[%sm" "$fg_code"
+  fi
+
+  printf "  %-30s  " "$label"
+  printf "\033[0m\n"
+}
+
 jobs_cor_show_block() {
   emulate -L zsh
 
-  local rr="$1" gg="$2" bb="$3" label="$4" fg idx
-  fg="$(jobs_cor_pick_fg_code "$rr" "$gg" "$bb")"
-
+  local rr="$1" gg="$2" bb="$3" hex="$4"
+  printf "\n"
+  jobs_cor_show_block_line "$rr" "$gg" "$bb" "${hex}"
+  jobs_cor_show_block_line "$rr" "$gg" "$bb" "RGB ${rr}, ${gg}, ${bb}"
+  jobs_cor_show_block_line "$rr" "$gg" "$bb" "终端色块预览"
+  printf "\n"
   if jobs_cor_supports_truecolor; then
-    printf "\033[48;2;%d;%d;%dm" "$rr" "$gg" "$bb"
+    printf "前景色预览：\033[38;2;%d;%d;%dm%s\033[0m\n" "$rr" "$gg" "$bb" "${hex} 文字颜色"
   else
+    local idx
     idx="$(jobs_cor_rgb_to_ansi256 "$rr" "$gg" "$bb")"
-    printf "\033[48;5;%sm" "$idx"
+    printf "前景色预览：\033[38;5;%sm%s\033[0m\n" "$idx" "${hex} 文字颜色"
+  fi
+}
+
+# ---------- 解析输入 ----------
+jobs_cor_parse_rgb_parts() {
+  emulate -L zsh
+
+  local body="$1" R G B A A255
+  local -a parts
+  parts=("${(@s:,:)body}")
+
+  R="${parts[1]:-}"
+  G="${parts[2]:-}"
+  B="${parts[3]:-}"
+  A="${parts[4]:-1}"
+
+  [[ -n "$R" && -n "$G" && -n "$B" ]] || return 1
+  (( ${#parts} == 3 || ${#parts} == 4 )) || return 1
+
+  R="${R%%.*}"
+  G="${G%%.*}"
+  B="${B%%.*}"
+
+  if ! [[ "$R" =~ '^[0-9]+$' && "$G" =~ '^[0-9]+$' && "$B" =~ '^[0-9]+$' ]]; then
+    return 1
   fi
 
-  printf "\033[%sm" "$fg"
-  printf "  %-18s  " "$label"
-  printf "\033[0m"
+  if (( R < 0 || R > 255 || G < 0 || G > 255 || B < 0 || B > 255 )); then
+    return 1
+  fi
+
+  if ! [[ "$A" =~ '^([0-9]+([.][0-9]+)?|[.][0-9]+)$' ]]; then
+    return 1
+  fi
+
+  typeset -g JOBS_COR_R="$R"
+  typeset -g JOBS_COR_G="$G"
+  typeset -g JOBS_COR_B="$B"
+  typeset -g JOBS_COR_A_FLOAT="$(jobs_cor_clamp_alpha_float "$A")"
+  A255="$(jobs_cor_alpha_float_to_255 "$JOBS_COR_A_FLOAT")"
+  typeset -g JOBS_COR_AA_HEX="$(jobs_cor_to_hex "$A255")"
+  return 0
 }
 
 jobs_cor_parse_input() {
   emulate -L zsh
 
-  local raw="$1" input hex rr gg bb aa nums R G B A A255
+  local raw="$1" input hex body
   input="$(jobs_cor_sanitize_input "$raw")"
+  [[ -n "$input" ]] || return 1
+
+  # 0xAARRGGBB / 0xRRGGBB
+  if [[ "$input" =~ '^0[xX][0-9a-fA-F]{6}$' ]]; then
+    hex="${input[3,-1]}"
+    jobs_cor_set_globals_from_hex "$hex" "RRGGBB"
+    return $?
+  fi
 
   if [[ "$input" =~ '^0[xX][0-9a-fA-F]{8}$' ]]; then
     hex="${input[3,-1]}"
-    hex="$(jobs_cor_upper_hex "$hex")"
-    aa="${hex[1,2]}"
-    rr="${hex[3,4]}"
-    gg="${hex[5,6]}"
-    bb="${hex[7,8]}"
-
-    typeset -g JOBS_COR_R="$(jobs_cor_hex_to_dec "$rr")"
-    typeset -g JOBS_COR_G="$(jobs_cor_hex_to_dec "$gg")"
-    typeset -g JOBS_COR_B="$(jobs_cor_hex_to_dec "$bb")"
-    typeset -g JOBS_COR_AA_HEX="$aa"
-    typeset -g JOBS_COR_A_FLOAT="$(jobs_cor_alpha_255_to_float "$(jobs_cor_hex_to_dec "$aa")")"
-    return 0
+    jobs_cor_set_globals_from_hex "$hex" "AARRGGBB"
+    return $?
   fi
 
-  if [[ "$input" =~ '^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$' ]]; then
+  # #RGB / #RGBA / #RRGGBB / #RRGGBBAA
+  if [[ "$input" == \#* ]]; then
     hex="${input[2,-1]}"
-    hex="$(jobs_cor_upper_hex "$hex")"
-    rr="${hex[1,2]}"
-    gg="${hex[3,4]}"
-    bb="${hex[5,6]}"
-
-    typeset -g JOBS_COR_R="$(jobs_cor_hex_to_dec "$rr")"
-    typeset -g JOBS_COR_G="$(jobs_cor_hex_to_dec "$gg")"
-    typeset -g JOBS_COR_B="$(jobs_cor_hex_to_dec "$bb")"
-
-    if (( ${#hex} == 8 )); then
-      aa="${hex[7,8]}"
-      typeset -g JOBS_COR_AA_HEX="$aa"
-      typeset -g JOBS_COR_A_FLOAT="$(jobs_cor_alpha_255_to_float "$(jobs_cor_hex_to_dec "$aa")")"
-    else
-      typeset -g JOBS_COR_AA_HEX="FF"
-      typeset -g JOBS_COR_A_FLOAT="1.00"
-    fi
-    return 0
+    jobs_cor_is_hex "$hex" || return 1
+    jobs_cor_set_globals_from_hex "$hex"
+    return $?
   fi
 
-  if [[ "$input" =~ '^rgba?\(' ]]; then
-    nums="$(print -r -- "$input" | sed -E 's/^rgba?\(|\)$//g')"
-    local -a parts
-    parts=("${(@s:,:)nums}")
+  # 裸 HEX：RGB / RGBA / RRGGBB / RRGGBBAA
+  if jobs_cor_is_hex "$input"; then
+    jobs_cor_set_globals_from_hex "$input"
+    return $?
+  fi
 
-    R="${parts[1]:-}"
-    G="${parts[2]:-}"
-    B="${parts[3]:-}"
-    A="${parts[4]:-1}"
+  # rgb(...) / rgba(...)
+  if [[ "$input" =~ '^rgb\(.+\)$' ]]; then
+    body="$(print -r -- "$input" | sed -E 's/^rgb\((.*)\)$/\1/')"
+    jobs_cor_parse_rgb_parts "$body"
+    return $?
+  fi
 
-    [[ -n "$R" && -n "$G" && -n "$B" ]] || return 1
-
-    typeset -g JOBS_COR_R="${R%%.*}"
-    typeset -g JOBS_COR_G="${G%%.*}"
-    typeset -g JOBS_COR_B="${B%%.*}"
-
-    if ! [[ "$JOBS_COR_R" =~ '^[0-9]+$' && "$JOBS_COR_G" =~ '^[0-9]+$' && "$JOBS_COR_B" =~ '^[0-9]+$' ]]; then
-      return 1
-    fi
-
-    if (( JOBS_COR_R < 0 || JOBS_COR_R > 255 || JOBS_COR_G < 0 || JOBS_COR_G > 255 || JOBS_COR_B < 0 || JOBS_COR_B > 255 )); then
-      return 1
-    fi
-
-    if ! [[ "$A" =~ '^([0-9]+([.][0-9]+)?|[.][0-9]+)$' ]]; then
-      return 1
-    fi
-
-    typeset -g JOBS_COR_A_FLOAT="$(jobs_cor_clamp_alpha_float "$A")"
-    A255="$(jobs_cor_alpha_float_to_255 "$JOBS_COR_A_FLOAT")"
-    typeset -g JOBS_COR_AA_HEX="$(jobs_cor_to_hex "$A255")"
-    return 0
+  if [[ "$input" =~ '^rgba\(.+\)$' ]]; then
+    body="$(print -r -- "$input" | sed -E 's/^rgba\((.*)\)$/\1/')"
+    jobs_cor_parse_rgb_parts "$body"
+    return $?
   fi
 
   return 1
 }
 
+# ---------- 输出 ----------
 jobs_cor_format_and_print_all() {
   emulate -L zsh
 
-  local raw="$1" RR GG BB AA
+  local raw="$1" RR GG BB AA HEX6 HEX8
   RR="$(jobs_cor_to_hex "$JOBS_COR_R")"
   GG="$(jobs_cor_to_hex "$JOBS_COR_G")"
   BB="$(jobs_cor_to_hex "$JOBS_COR_B")"
   AA="$JOBS_COR_AA_HEX"
+  HEX6="#${RR}${GG}${BB}"
+  HEX8="#${RR}${GG}${BB}${AA}"
 
   printf "\n\033[1m输入：%s\033[0m\n" "$raw"
   printf "%s\n" "----------------------------------------"
-  printf "HEX（不透明）:  #%s%s%s\n" "$RR" "$GG" "$BB"
-  printf "HEX（含透明） :  #%s%s%s%s\n" "$RR" "$GG" "$BB" "$AA"
+  printf "HEX（不透明）:  %s\n" "$HEX6"
+  printf "HEX（含透明） :  %s\n" "$HEX8"
   printf "RGB           :  rgb(%d, %d, %d)\n" "$JOBS_COR_R" "$JOBS_COR_G" "$JOBS_COR_B"
   printf "RGBA          :  rgba(%d, %d, %d, %.2f)\n" "$JOBS_COR_R" "$JOBS_COR_G" "$JOBS_COR_B" "$JOBS_COR_A_FLOAT"
-  printf "0x 格式       :  0x%s%s%s%s\n" "$AA" "$RR" "$GG" "$BB"
-  jobs_cor_show_block "$JOBS_COR_R" "$JOBS_COR_G" "$JOBS_COR_B" "原色 #${RR}${GG}${BB}"
-  printf "\n\n"
+  printf "0xAARRGGBB    :  0x%s%s%s%s\n" "$AA" "$RR" "$GG" "$BB"
+  if jobs_cor_supports_truecolor; then
+    printf "终端支持      :  24-bit True Color\n"
+  else
+    printf "终端支持      :  ANSI 256 色近似\n"
+  fi
+  jobs_cor_show_block "$JOBS_COR_R" "$JOBS_COR_G" "$JOBS_COR_B" "$HEX6"
+  printf "\n"
 }
 
 jobs_cor_print_title() {
@@ -289,8 +416,8 @@ jobs_cor_print_title() {
   local c reset=$'\033[0m'
   c="$(jobs_cor_title_color)"
   printf "%b================== 颜色格式转换器 ==================%b\n" "$c" "$reset"
-  printf "%b支持：#RRGGBB / #RRGGBBAA / rgb() / rgba() / 0xAARRGGBB%b\n" "$c" "$reset"
-  printf "%b输出：HEX / RGB / RGBA / 0xAARRGGBB，并显示终端色块预览%b\n" "$c" "$reset"
+  printf "%b支持：#RGB / #RRGGBB / #RRGGBBAA / rgb() / rgba() / 0xAARRGGBB%b\n" "$c" "$reset"
+  printf "%b输出：HEX / RGB / RGBA / 0x，并显示终端色块预览%b\n" "$c" "$reset"
   printf "\n"
 }
 
@@ -302,6 +429,7 @@ jobs_cor_convert_once() {
     jobs_cor_format_and_print_all "$user_input"
   else
     print -P "%F{red}❌ 无法识别：$user_input%f"
+    print -r -- "示例：#D2D4DE、D2D4DE、#ABC、rgb(210,212,222)、rgba(210,212,222,0.5)、0x80D2D4DE"
     return 1
   fi
 }
@@ -325,13 +453,7 @@ jobs_cor_interactive_loop() {
         ;;
     esac
 
-    if jobs_cor_parse_input "$user_input"; then
-      jobs_cor_format_and_print_all "$user_input"
-    else
-      print -P "%F{red}❌ 无法识别：$user_input%f"
-      print -r -- "示例：#D2D4DE、#D2D4DE80、rgb(210,212,222)、rgba(210,212,222,0.5)、0x80D2D4DE"
-      printf "\n"
-    fi
+    jobs_cor_convert_once "$user_input"
   done
 }
 
