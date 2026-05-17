@@ -6,15 +6,46 @@
 
 扫描当前机器可用 shell，并通过 fzf 或文本菜单选择默认登录 shell。
 
+该脚本适合 `.command` 双击运行，也可以在终端中执行。启动后的说明展示、依赖检查和核心流程都写在脚本内部。
+
 ## 二、运行
+
+```zsh
+./shell.command
+```
+
+如果已经自行加入 PATH，也可以执行：
 
 ```zsh
 shell
 shell [参数...]
 ```
 
-## 三、结构约定
+## 三、交互规则
 
-运行时打印的自述已经写死在 `shell.command` 内部，不依赖本 README。
+优先读取 `/etc/shells`，同时补充 Homebrew 常见 zsh / bash / fish 路径。执行 `chsh` 时可能要求输入当前用户密码。
 
-本 README 只用于源码浏览和维护说明。
+## 四、结构约定
+
+运行时说明和核心流程已经写在 `shell.command` 内部，不依赖同级 `README.md`。
+
+本 README 只用于源码浏览、维护说明和当前流程说明。
+
+## 五、流程图
+
+```mermaid
+flowchart TD
+    A([启动 shell.command])
+    B[打印脚本内置自述并等待回车]
+    A --> B
+    C[扫描 /etc/shells 和 Homebrew 常见 shell 路径]
+    B --> C
+    D[优先用 fzf 选择目标 shell]
+    C --> D
+    E[fzf 不可用时退回文本菜单]
+    D --> E
+    F[执行 chsh 切换默认登录 shell]
+    E --> F
+    G([结束])
+    F --> G
+```

@@ -1,110 +1,53 @@
-# **MacOS** JobsMacEnv - **iOS Simulator Runtime 检测与补齐工具**
+# simios.command
 ![Jobs倾情奉献](https://picsum.photos/1500/400 "Jobs出品，必属精品")
 [toc]
 
-<p align="left">
-  <a><img src="https://img.shields.io/badge/macOS-command%20script-lightgrey" alt="macOS"/></a>
-  <a><img src="https://img.shields.io/badge/Shell-zsh-critical" alt="zsh"/></a>
-  <a><img src="https://img.shields.io/badge/JobsMacEnv-Scripts-blue" alt="JobsMacEnv"/></a>
-</p>
+## 一、功能
 
+检测完整 Xcode 环境，并下载 / 补齐 iOS Simulator Runtime。
 
+该脚本适合 `.command` 双击运行，也可以在终端中执行。启动后的说明展示、依赖检查和核心流程都写在脚本内部。
 
-## 一、🔥 <font id=前言>前言</font>
+## 二、运行
 
-> 当前总行数：
+```zsh
+./simios.command
+```
 
-* 🔧 **工欲善其事必先利其器**
+如果已经自行加入 PATH，也可以执行：
 
-* 🌋 **站在巨人的肩膀上，才能看得更远**
+```zsh
+simios
+simios [参数...]
+```
 
-* ✝️ **面向信仰编程**
+## 三、交互规则
 
-* 本文是 `simios.command` 的脚本自述文件。
+普通安装 / 更新 / 升级动作采用“回车跳过，输入任意字符后回车执行”。必须修复项会先说明原因，再让你继续。核心下载命令为 `xcodebuild -downloadPlatform iOS -verbose`。
 
-* 检测 Xcode 环境并下载或补齐 iOS Simulator Runtime。
+## 四、结构约定
 
-* 双击 `.command` 脚本运行时，会先显示自述文件并等待用户按回车，避免误操作。
+运行时说明和核心流程已经写在 `simios.command` 内部，不依赖同级 `README.md`。
 
-## 二、🎯 项目白皮书 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
+本 README 只用于源码浏览、维护说明和当前流程说明。
 
-脚本定位：
-
-* 脚本文件：`simios.command`
-* 所属目录：`Scripts/simios.command/`
-* 推荐入口：`simios`
-* 日志策略：可执行脚本默认写入 `/tmp/脚本名.log`，函数模块由调用方统一管理日志。
-
-## 三、🧭 脚本执行流程 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
+## 五、流程图
 
 ```mermaid
-graph TD
-    A([开始]) --> B[显示自述文件并等待确认]
-    B --> C[检测 Xcode / xcode-select / xcrun]
-    C --> D[查询可用 Runtime]
-    D --> E[按需下载和安装]
-    E --> F[输出模拟器运行环境状态]
-    F --> Z([结束])
+flowchart TD
+    A([启动 simios.command])
+    B[打印脚本内置自述并等待回车]
+    A --> B
+    C[检测 macOS / Xcode.app]
+    B --> C
+    D[检测 xcodebuild 与 xcode-select]
+    C --> D
+    E[处理首次启动组件 / license / 磁盘空间 / 网络连通]
+    D --> E
+    F[展示已有 iOS Runtime]
+    E --> F
+    G[由用户决定是否下载 iOS Simulator Runtime]
+    F --> G
+    H([输出最终状态])
+    G --> H
 ```
-
-## 四、🧩 功能清单 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
-
-### 1、显示自述并等待确认
-
-显示自述并等待确认。
-
-### 2、检测 Xcode / xcode-select / xcrun
-
-检测 Xcode / xcode-select / xcrun。
-
-### 3、查询可用 Runtime
-
-查询可用 Runtime。
-
-### 4、按需下载和安装
-
-按需下载和安装。
-
-### 5、输出模拟器运行环境状态
-
-输出模拟器运行环境状态。
-
-## 五、🚀 使用方式 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
-
-### 1、双击执行
-
-在 Finder 中双击：
-
-```shell
-Scripts/simios.command/simios.command
-```
-
-### 2、终端执行
-
-```shell
-"Scripts/simios.command/simios.command"
-```
-
-已完成 JobsMacEnv 安装后，推荐入口：
-
-```shell
-simios
-```
-
-## 六、⚠️ 常见问题 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
-
-### 1、为什么要先显示自述文件？
-
-为了防止双击误触后直接修改环境、安装依赖或执行耗时任务。
-
-### 2、为什么每个脚本都单独放一个同名文件夹？
-
-这样可以把脚本、自述文件和未来扩展资源放在同一处，避免 Scripts 目录长期失控。
-
-## 七、✅ 总结 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
-
-`simios.command` 采用独立目录管理，便于阅读、维护、迁移和长期扩展。
-
-<a id="🔚" href="#前言" style="font-size:17px; color:green; font-weight:bold;">我是有底线的➤点我回到首页</a>
-
-> 说明：脚本运行时展示的自述已内置在 `.command` 脚本中，不读取本 README.md；本文件仅用于仓库/文件夹阅读。

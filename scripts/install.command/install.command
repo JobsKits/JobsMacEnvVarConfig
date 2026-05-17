@@ -1,7 +1,20 @@
 #!/bin/zsh
 
+set -u
 set -o pipefail
 setopt NO_NOMATCH
+
+# ============================================================
+# install.command - macOS 新系统配置（fzf 菜单版）
+# ============================================================
+# 说明：
+# 1. 适合 .command 双击运行，也可终端执行。
+# 2. 启动后先显示内置 README，并等待回车确认。
+# 3. 菜单使用 fzf 多选；如果新系统没有 fzf，会先提示安装 Homebrew / fzf。
+# 4. 每个被选择的部件都会先自检：不存在就安装最新，存在就更新。
+# 5. 真正安装 / 更新前都会强提示：回车执行，任意字符 + 回车跳过。
+# 6. 注意：install 这个命令名与系统 /usr/bin/install 存在冲突风险。
+# ============================================================
 
 # ---------- 基础路径 ----------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
@@ -9,204 +22,989 @@ SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "$0")"
 SCRIPT_BASENAME=$(basename "$0" | sed 's/\.[^.]*$//')
 LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 
-: > "$LOG_FILE"
+# ---------- 全局状态 ----------
+TOTAL_STAGES=0
+CURRENT_STAGE=0
+readonly ALL_MENU_ITEM="✅ 全选安装"
+
+readonly JOBS_SOFTWARE_REPO="https://github.com/JobsKits/JobsSoftware.MacOS.git"
+readonly JOBS_ENV_REPO="https://github.com/JobsKits/JobsMacEnvVarConfig.git"
+readonly JOBS_WORKSPACE="${HOME}/Desktop/JobsKits"
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
-color_echo()     { log "[1;32m$1[0m"; }
-info_echo()      { log "[1;34mℹ $1[0m"; }
-success_echo()   { log "[1;32m✔ $1[0m"; }
-warn_echo()      { log "[1;33m⚠ $1[0m"; }
-warm_echo()      { log "[1;33m$1[0m"; }
-note_echo()      { log "[1;35m➤ $1[0m"; }
-error_echo()     { log "[1;31m✖ $1[0m"; }
-err_echo()       { log "[1;31m$1[0m"; }
-debug_echo()     { log "[1;35m🐞 $1[0m"; }
-highlight_echo() { log "[1;36m🔹 $1[0m"; }
-gray_echo()      { log "[0;90m$1[0m"; }
-bold_echo()      { log "[1m$1[0m"; }
-underline_echo() { log "[4m$1[0m"; }
+color_echo()     { log "\033[1;32m$1\033[0m"; }
+info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+warm_echo()      { log "\033[1;33m$1\033[0m"; }
+note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+err_echo()       { log "\033[1;31m$1\033[0m"; }
+debug_echo()     { log "\033[1;35m🐞 $1\033[0m"; }
+highlight_echo() { log "\033[1;36m🔹 $1\033[0m"; }
+gray_echo()      { log "\033[0;90m$1\033[0m"; }
+bold_echo()      { log "\033[1m$1\033[0m"; }
+underline_echo() { log "\033[4m$1\033[0m"; }
+
+# ---------- 通用基础函数 ----------
+print_divider() {
+  gray_echo "------------------------------------------------------------------------"
+}
+
+pause_for_enter() {
+  local prompt="${1:-👉 请按回车继续，或按 Ctrl+C 取消...}"
+  if [[ -t 0 && "${JOBS_MAC_ENV_SKIP_README:-}" != "1" ]]; then
+    echo ""
+    local answer=""
+    read "answer?${prompt}"
+  fi
+}
+
+confirm_execute() {
+  local title="$1"
+  local action_word="${2:-执行}"
+
+  echo ""
+  warn_echo "强提示：${title}"
+  warm_echo "回车=${action_word}；输入任意字符后回车=跳过"
+
+  if [[ ! -t 0 ]]; then
+    warn_echo "当前不是交互式终端，已跳过：${title}"
+    return 1
+  fi
+
+  local answer=""
+  read "answer?> "
+
+  if [[ -z "${answer}" ]]; then
+    return 0
+  fi
+
+  warn_echo "已跳过：${title}"
+  return 1
+}
+
+progress_step() {
+  local step_name="$1"
+  CURRENT_STAGE=$((CURRENT_STAGE + 1))
+  echo ""
+
+  if (( TOTAL_STAGES > 0 )); then
+    highlight_echo "当前系统配置进度：${CURRENT_STAGE}/${TOTAL_STAGES} 👉 ${step_name}"
+  else
+    highlight_echo "当前系统配置 👉 ${step_name}"
+  fi
+
+  print_divider
+}
+
+run_cmd() {
+  local desc="$1"
+  shift
+
+  note_echo "${desc}"
+  debug_echo "执行命令：$*"
+
+  "$@"
+  local exit_code=$?
+
+  if [[ $exit_code -eq 0 ]]; then
+    success_echo "${desc}：完成"
+  else
+    error_echo "${desc}：失败（exit code: ${exit_code}）"
+  fi
+
+  return $exit_code
+}
+
+run_sh() {
+  local desc="$1"
+  local cmd="$2"
+
+  note_echo "${desc}"
+  debug_echo "执行命令：${cmd}"
+
+  /bin/zsh -c "${cmd}"
+  local exit_code=$?
+
+  if [[ $exit_code -eq 0 ]]; then
+    success_echo "${desc}：完成"
+  else
+    error_echo "${desc}：失败（exit code: ${exit_code}）"
+  fi
+
+  return $exit_code
+}
+
+require_command() {
+  local cmd="$1"
+  command -v "${cmd}" >/dev/null 2>&1
+}
+
+get_cpu_arch() {
+  [[ "$(uname -m)" == "arm64" ]] && echo "arm64" || echo "x86_64"
+}
+
+check_url_access() {
+  local url="$1"
+  curl -I -L -s --connect-timeout 8 --max-time 15 "${url}" >/dev/null 2>&1
+}
+
+append_once() {
+  local line="$1"
+  local file="${2:-$HOME/.zshrc}"
+
+  mkdir -p "$(dirname "$file")"
+  touch "$file"
+
+  if grep -Fqx "$line" "$file"; then
+    return 0
+  fi
+
+  echo "" >> "$file"
+  echo "$line" >> "$file"
+}
+
+append_comment_once() {
+  local comment="$1"
+  local file="$2"
+
+  mkdir -p "$(dirname "$file")"
+  touch "$file"
+
+  if grep -Fqx "$comment" "$file"; then
+    return 0
+  fi
+
+  echo "" >> "$file"
+  echo "$comment" >> "$file"
+}
+
+find_brew_bin() {
+  if command -v brew >/dev/null 2>&1; then
+    command -v brew
+    return 0
+  fi
+
+  local candidate
+  for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [[ -x "${candidate}" ]]; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+find_fzf_bin() {
+  if command -v fzf >/dev/null 2>&1; then
+    command -v fzf
+    return 0
+  fi
+
+  local candidate
+  for candidate in \
+    /opt/homebrew/bin/fzf \
+    /usr/local/bin/fzf \
+    /opt/homebrew/opt/fzf/bin/fzf \
+    /usr/local/opt/fzf/bin/fzf; do
+    if [[ -x "${candidate}" ]]; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+ensure_raw_github_access_or_exit() {
+  info_echo "开始检查 raw.githubusercontent.com 网络连通性..."
+
+  if check_url_access "https://raw.githubusercontent.com"; then
+    success_echo "raw.githubusercontent.com 网络访问正常"
+    return 0
+  fi
+
+  error_echo "当前无法访问 raw.githubusercontent.com。Homebrew / Oh My Zsh 安装大概率会失败。"
+  warm_echo "请先处理网络问题，再重新运行脚本。"
+  pause_for_enter "👉 网络未就绪。请按回车结束脚本..."
+  exit 1
+}
+
+ensure_github_access_or_exit() {
+  info_echo "开始检查 GitHub 网络连通性..."
+
+  if check_url_access "https://github.com"; then
+    success_echo "GitHub 网络访问正常"
+    return 0
+  fi
+
+  error_echo "当前无法访问 GitHub。Jobs 仓库拉取会失败。"
+  warm_echo "请先处理网络问题，再重新运行脚本。"
+  pause_for_enter "👉 GitHub 不可访问。请按回车结束脚本..."
+  exit 1
+}
+
+setup_brew_shellenv() {
+  local brew_bin="$1"
+  local shellenv_line="eval \"\$(${brew_bin} shellenv)\""
+
+  if [[ ! -x "${brew_bin}" ]]; then
+    error_echo "Homebrew 可执行文件不存在或不可执行：${brew_bin}"
+    return 1
+  fi
+
+  local target_file
+  for target_file in "${HOME}/.zprofile" "${HOME}/.zshrc"; do
+    append_comment_once "# Homebrew shellenv" "${target_file}"
+    append_once "${shellenv_line}" "${target_file}"
+    success_echo "已确认 Homebrew 环境变量配置：${target_file}"
+  done
+
+  eval "$(${brew_bin} shellenv)"
+  hash -r 2>/dev/null || true
+}
+
+setup_fzf_shellenv() {
+  if ! require_command brew; then
+    return 0
+  fi
+
+  local fzf_base
+  fzf_base="$(brew --prefix fzf 2>/dev/null)"
+
+  if [[ -n "${fzf_base}" && -d "${fzf_base}" ]]; then
+    append_comment_once "# fzf" "${HOME}/.zshrc"
+    append_once '[ -f "$(brew --prefix)/opt/fzf/shell/key-bindings.zsh" ] && source "$(brew --prefix)/opt/fzf/shell/key-bindings.zsh"' "${HOME}/.zshrc"
+    append_once '[ -f "$(brew --prefix)/opt/fzf/shell/completion.zsh" ] && source "$(brew --prefix)/opt/fzf/shell/completion.zsh"' "${HOME}/.zshrc"
+    success_echo "已确认 fzf shell 配置：${HOME}/.zshrc"
+  fi
+}
+
+ensure_jenv_init() {
+  append_comment_once "# jenv" "${HOME}/.zshrc"
+  append_once 'export PATH="$HOME/.jenv/bin:$PATH"' "${HOME}/.zshrc"
+  append_once 'eval "$(jenv init -)"' "${HOME}/.zshrc"
+  success_echo "已确认 jenv 初始化配置：${HOME}/.zshrc"
+}
+
+ensure_rbenv_init() {
+  append_comment_once "# rbenv" "${HOME}/.zshrc"
+  append_once 'eval "$(rbenv init - zsh)"' "${HOME}/.zshrc"
+  success_echo "已确认 rbenv 初始化配置：${HOME}/.zshrc"
+}
+
+post_openjdk_hint() {
+  warm_echo "openjdk 安装 / 更新完成后，如需让系统 java 指向 Homebrew openjdk，可按需执行："
+  warm_echo '  sudo ln -sfn "$(brew --prefix)/opt/openjdk/libexec/openjdk.jdk" /Library/Java/JavaVirtualMachines/openjdk.jdk'
+  warm_echo "如果使用 jenv 管理 Java，推荐执行："
+  warm_echo '  jenv add "$(brew --prefix)/opt/openjdk/libexec/openjdk.jdk/Contents/Home"'
+}
 
 # ---------- 内置自述 ----------
 jobs_install_show_readme_and_wait() {
   clear 2>/dev/null || true
+
   cat <<'EOFREADME' | tee -a "$LOG_FILE"
 ============================================================
-install - 新系统环境配置
+install.command - macOS 新系统配置（fzf 菜单版）
 ============================================================
 
 这是 install.command 的内置自述，不读取同级 README.md。
 
-功能：
-  安装和初始化常用开发环境依赖。注意：该命令名与系统 /usr/bin/install 有冲突风险。
+核心原则：
+  1. 不再一股脑安装。
+  2. 启动后使用 fzf 输出多选菜单。
+  3. 菜单额外提供“✅ 全选安装”。
+  4. 每个部件都会先自检：
+     - 不存在：安装最新版
+     - 已存在：更新到最新版 / 刷新配置
+  5. 每个安装 / 更新动作执行前都会强提示：
+     - 直接回车：执行安装 / 更新
+     - 输入任意字符后回车：跳过
 
-结构：
-  Scripts/install.command/install.command
-  Scripts/install.command/README.md
+将支持选择的部件（菜单从上到下按此顺序显示）：
+  - ✅ 全选安装
+  - Xcode Command Line Tools
+  - Xcode iOS 平台组件
+  - Oh My Zsh
+  - Homebrew
+  - brew cask：hammerspoon、flutter、trex、vlc
+  - brew formula：git-lfs、gh、nushell、rbenv、ruby、node、jenv、openjdk、openjdk@17、fvm、pnpm、python、python3、fastlane、mysql、hugo、yt-dlp、ffmpeg、go-task、uv、fzf、lazygit
+  - Rosetta 2
+  - npm 全局包：quicktype
+  - gem 包：cocoapods
+  - Git LFS 初始化与大文件参数
+  - JobsKits 仓库：JobsSoftware.MacOS、JobsMacEnvVarConfig
+  - 手动下载页：VS Code、Android Studio、Python
 
-运行：
-  install
-  install [参数...]
+启动菜单前置依赖：
+  - 菜单依赖 fzf。
+  - 如果 Homebrew / fzf 不存在，脚本会先提示你安装。
+  - 这是为了让后续功能选择能够正常显示，不代表进入了全量安装。
 
 说明：
-  - 终端可输入的自定义命令都应独立收进 Scripts。
-  - README.md 只作为源码说明；运行时展示的是脚本内置自述。
+  - 该命令名与系统 /usr/bin/install 有冲突风险。
   - 日志路径：/tmp/install.log
+  - 部分步骤依赖 GitHub / raw.githubusercontent.com。
+  - 部分 sudo 步骤可能要求输入系统密码。
+  - 本脚本不会递归执行 JobsMacEnvVarConfig/install.command，避免自调用死循环。
 ============================================================
 EOFREADME
 
-  if [[ -t 0 && "${JOBS_MAC_ENV_SKIP_README:-}" != "1" ]]; then
-    log ""
-    warm_echo "按回车继续执行 install..."
-    local _answer=""
-    IFS= read -r _answer
+  pause_for_enter "👉 请确认没有误操作。按回车进入菜单准备流程，或按 Ctrl+C 取消..."
+}
+
+# ---------- 菜单前置依赖：Homebrew / fzf ----------
+install_homebrew_without_menu() {
+  ensure_raw_github_access_or_exit
+
+  if ! confirm_execute "菜单依赖 Homebrew，当前未检测到 Homebrew，是否安装 Homebrew？" "安装"; then
+    error_echo "没有 Homebrew 无法自动安装 fzf，也无法进入 fzf 菜单。"
+    pause_for_enter "👉 请按回车退出..."
+    exit 1
+  fi
+
+  run_sh \
+    "安装 Homebrew" \
+    '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+
+  local brew_bin=""
+  if brew_bin="$(find_brew_bin)"; then
+    setup_brew_shellenv "${brew_bin}"
+  else
+    error_echo "Homebrew 安装后仍未检测到 brew 命令，无法继续。"
+    pause_for_enter "👉 请按回车退出..."
+    exit 1
   fi
 }
 
+ensure_brew_for_menu() {
+  local brew_bin=""
 
-# ---------- 命令实现 ----------
-# 🔥 新系统环境配置 🔥
-install() {
-  set -euo pipefail
+  if brew_bin="$(find_brew_bin)"; then
+    setup_brew_shellenv "${brew_bin}"
+    return 0
+  fi
 
-  # -------- pretty output --------
-  _i() { print -P "%F{cyan}ℹ️  %f$*"; }
-  _ok(){ print -P "%F{green}✅ %f$*"; }
-  _w() { print -P "%F{yellow}⚠️  %f$*"; }
-  _e() { print -P "%F{red}❌ %f$*"; }
-
-  # -------- helpers --------
-  _has() { command -v "$1" >/dev/null 2>&1; }
-
-  _append_once() {
-    local line="$1"
-    local file="${2:-$HOME/.zshrc}"
-    mkdir -p "$(dirname "$file")"
-    touch "$file"
-    if grep -Fqx "$line" "$file"; then
-      return 0
-    fi
-    print "" >> "$file"
-    print "$line" >> "$file"
-  }
-
-  _ensure_homebrew() {
-    if _has brew; then
-      _ok "Homebrew 已存在：$(brew --version | head -n 1)"
-      return 0
-    fi
-
-    _i "开始安装 Homebrew..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    _ok "Homebrew 安装完成"
-
-    # 让当前 shell 立刻可用（Apple Silicon: /opt/homebrew, Intel: /usr/local）
-    if [[ -x /opt/homebrew/bin/brew ]]; then
-      eval "$(/opt/homebrew/bin/brew shellenv)"
-      _append_once 'eval "$(/opt/homebrew/bin/brew shellenv)"' "$HOME/.zshrc"
-    elif [[ -x /usr/local/bin/brew ]]; then
-      eval "$(/usr/local/bin/brew shellenv)"
-      _append_once 'eval "$(/usr/local/bin/brew shellenv)"' "$HOME/.zshrc"
-    fi
-  }
-
-  _brew_install_if_needed() {
-    local formula="$1"
-    if brew list --formula "$formula" >/dev/null 2>&1; then
-      _ok "已安装：$formula"
-    else
-      _i "安装：$formula"
-      brew install "$formula"
-      _ok "安装完成：$formula"
-    fi
-  }
-
-  _ensure_jenv_init() {
-    # jenv 官方推荐：export PATH + eval init  (brew 安装后仍需要 init) :contentReference[oaicite:1]{index=1}
-    _append_once 'export PATH="$HOME/.jenv/bin:$PATH"' "$HOME/.zshrc"
-    _append_once 'eval "$(jenv init -)"' "$HOME/.zshrc"
-  }
-
-  _ensure_fvm() {
-    if _has fvm; then
-      _ok "FVM 已存在：$(fvm --version 2>/dev/null || echo "installed")"
-      return 0
-    fi
-
-    _i "安装 FVM（Homebrew tap -> install）"
-    # 常见方式：brew tap leoafarias/fvm && brew install fvm :contentReference[oaicite:2]{index=2}
-    brew tap leoafarias/fvm
-    brew install fvm
-    _ok "FVM 安装完成"
-  }
-
-  _post_openjdk_hint() {
-    _w "openjdk 安装完成后，若你想让系统 java 指向它："
-    _w "  - 你可以用 jenv 管理 JAVA_HOME（推荐）"
-    _w "  - 示例：jenv add \"$(brew --prefix)/opt/openjdk/libexec/openjdk.jdk/Contents/Home\""
-  }
-  
-  _ensure_xcode_cli_tools() {
-    # 判断 CLT 是否已安装：xcode-select -p 返回路径即为已装
-    if xcode-select -p >/dev/null 2>&1; then
-      _ok "Xcode Command Line Tools 已存在：$(xcode-select -p)"
-      return 0
-    fi
-
-    _i "开始安装 Xcode Command Line Tools..."
-    xcode-select --install || true
-    _w "若弹窗已出现，请完成安装；安装完成后可再次执行 install() 继续。"
-  }
-
-  _ensure_ohmyzsh() {
-    # 常见安装位置：~/.oh-my-zsh
-    if [[ -d "$HOME/.oh-my-zsh" ]]; then
-      _ok "Oh My Zsh 已存在：$HOME/.oh-my-zsh"
-      return 0
-    fi
-
-    _i "开始安装 Oh My Zsh..."
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-    _ok "Oh My Zsh 安装完成"
-  }
-
-  # -------- main flow --------
-  _ensure_ohmyzsh
-  _ensure_xcode_cli_tools
-  _ensure_homebrew
-  _i "更新 Homebrew..."
-  brew update
-
-  xcode-select --install
-  softwareupdate --install-rosetta --agree-to-license
-
-  # Flutter 环境（用 fvm 管理 Flutter 版本更稳）
-  _ensure_fvm
-
-  # Java / Ruby 工具链
-  _brew_install_if_needed jenv      # :contentReference[oaicite:3]{index=3}
-  _ensure_jenv_init
-
-  _brew_install_if_needed rbenv     # :contentReference[oaicite:4]{index=4}
-  _brew_install_if_needed openjdk   # :contentReference[oaicite:5]{index=5}
-  _post_openjdk_hint
-
-  _ok "基础工具安装完成。建议新开一个终端窗口，让 .zshrc 的初始化生效。"
-
-  _i "关于 renv：这是 R 的项目依赖管理包（不是 brew 公式）。你可以在 R 里执行："
-  _i '  install.packages("renv")'
-  
-  # 下载Xcode模拟器配件
-  rm -rf ~/Library/Caches/com.apple.dt.Xcode
-  rm -rf ~/Library/Developer/CoreSimulator/Caches
-
-  xcodebuild -downloadPlatform iOS -verbose
+  install_homebrew_without_menu
 }
 
-# ---------- 主流程统一收口 ----------
+ensure_fzf_for_menu() {
+  local fzf_bin=""
+
+  if fzf_bin="$(find_fzf_bin)"; then
+    success_echo "fzf 已存在：${fzf_bin}"
+    return 0
+  fi
+
+  if ! require_command brew; then
+    error_echo "brew 不存在，无法安装 fzf。"
+    pause_for_enter "👉 请按回车退出..."
+    exit 1
+  fi
+
+  if ! confirm_execute "菜单依赖 fzf，当前未检测到 fzf，是否安装 fzf？" "安装"; then
+    error_echo "没有 fzf 无法显示选择菜单。"
+    pause_for_enter "👉 请按回车退出..."
+    exit 1
+  fi
+
+  run_cmd "安装 fzf" brew install fzf
+  setup_fzf_shellenv
+
+  if fzf_bin="$(find_fzf_bin)"; then
+    success_echo "fzf 安装完成：${fzf_bin}"
+    return 0
+  fi
+
+  error_echo "fzf 安装后仍未检测到可执行文件，无法继续。"
+  pause_for_enter "👉 请按回车退出..."
+  exit 1
+}
+
+prepare_menu_runtime() {
+  highlight_echo "准备 fzf 菜单运行环境"
+  print_divider
+
+  ensure_brew_for_menu
+  ensure_fzf_for_menu
+}
+
+# ---------- Homebrew 自检 ----------
+require_brew_or_skip() {
+  local brew_bin=""
+
+  if brew_bin="$(find_brew_bin)"; then
+    setup_brew_shellenv "${brew_bin}"
+    return 0
+  fi
+
+  warn_echo "brew 不存在，当前部件无法继续。请先选择 Homebrew。"
+  return 1
+}
+
+brew_formula_installed() {
+  local pkg="$1"
+  brew list --formula --versions "${pkg}" >/dev/null 2>&1
+}
+
+brew_cask_installed() {
+  local pkg="$1"
+  brew list --cask --versions "${pkg}" >/dev/null 2>&1
+}
+
+# ---------- 部件：Xcode Command Line Tools ----------
+component_clt() {
+  progress_step "Xcode Command Line Tools"
+
+  if xcode-select -p >/dev/null 2>&1; then
+    success_echo "Xcode Command Line Tools 已存在：$(xcode-select -p)"
+
+    if confirm_execute "CLT 已存在，是否执行 Xcode License 接受，并通过 softwareupdate 安装可用更新？" "更新"; then
+      if require_command xcodebuild; then
+        run_cmd "接受 Xcode License" sudo xcodebuild -license accept
+      else
+        warn_echo "未检测到 xcodebuild，跳过 Xcode License 接受步骤"
+      fi
+
+      warn_echo "softwareupdate --install --all 可能安装系统可用更新，请确认你已经理解。"
+      run_cmd "安装 macOS 可用软件更新" sudo softwareupdate --install --all
+    fi
+
+    return 0
+  fi
+
+  if confirm_execute "未检测到 Xcode Command Line Tools，是否安装？" "安装"; then
+    run_cmd "安装 Xcode Command Line Tools" xcode-select --install
+    warn_echo "如果系统弹出图形安装窗口，请完成安装后再次执行本脚本。"
+  fi
+}
+
+# ---------- 部件：Xcode iOS 平台组件 ----------
+component_xcode_ios_platform() {
+  progress_step "Xcode iOS 平台组件"
+
+  if ! require_command xcodebuild; then
+    warn_echo "未检测到 xcodebuild，无法下载 iOS 平台组件。请先安装 Xcode / Command Line Tools。"
+    return 0
+  fi
+
+  local action_word="安装"
+  local desc="下载 Xcode iOS 平台组件"
+
+  if xcodebuild -showsdks 2>/dev/null | grep -E "iphoneos|iphonesimulator" >/dev/null 2>&1; then
+    action_word="更新"
+    desc="检测到 iOS SDK，是否重新下载 / 更新 Xcode iOS 平台组件？"
+  else
+    desc="未检测到 iOS SDK，是否下载 Xcode iOS 平台组件？"
+  fi
+
+  if confirm_execute "${desc}" "${action_word}"; then
+    run_sh "删除 Xcode 缓存" 'rm -rf ~/Library/Caches/com.apple.dt.Xcode'
+    run_sh "删除 CoreSimulator 缓存" 'rm -rf ~/Library/Developer/CoreSimulator/Caches'
+    run_cmd "下载 / 更新 iOS 模拟器平台" xcodebuild -downloadPlatform iOS -verbose
+  fi
+}
+
+# ---------- 部件：Oh My Zsh ----------
+component_oh_my_zsh() {
+  progress_step "Oh My Zsh"
+
+  ensure_raw_github_access_or_exit
+
+  if [[ -d "${HOME}/.oh-my-zsh" ]]; then
+    success_echo "Oh My Zsh 已存在：${HOME}/.oh-my-zsh"
+
+    if confirm_execute "Oh My Zsh 已存在，是否更新？" "更新"; then
+      if [[ -f "${HOME}/.oh-my-zsh/tools/upgrade.sh" ]]; then
+        run_sh "更新 Oh My Zsh" "ZSH='${HOME}/.oh-my-zsh' '${HOME}/.oh-my-zsh/tools/upgrade.sh'"
+      else
+        warn_echo "未找到 Oh My Zsh upgrade.sh，跳过更新"
+      fi
+    fi
+
+    return 0
+  fi
+
+  if confirm_execute "未检测到 Oh My Zsh，是否安装？" "安装"; then
+    run_sh \
+      "安装 Oh My Zsh" \
+      'RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"'
+    warn_echo "Oh My Zsh 官方安装流程可能有交互输出，这是正常现象。"
+  fi
+}
+
+# ---------- 部件：Homebrew ----------
+component_homebrew() {
+  progress_step "Homebrew"
+
+  local brew_bin=""
+
+  if brew_bin="$(find_brew_bin)"; then
+    setup_brew_shellenv "${brew_bin}"
+    success_echo "Homebrew 已存在：${brew_bin}"
+
+    if confirm_execute "Homebrew 已存在，是否执行 update / upgrade / cleanup / doctor？" "更新"; then
+      run_cmd "brew update（更新软件列表）" brew update
+      run_cmd "brew upgrade（升级已安装软件）" brew upgrade
+      run_cmd "brew cleanup（清理旧版本缓存）" brew cleanup
+      run_cmd "brew doctor（检查 Homebrew 健康状态）" brew doctor
+      run_cmd "brew -v（输出 Homebrew 版本）" brew -v
+    fi
+
+    return 0
+  fi
+
+  if confirm_execute "未检测到 Homebrew，是否安装？" "安装"; then
+    install_homebrew_without_menu
+  fi
+}
+
+# ---------- 部件：Rosetta 2 ----------
+component_rosetta() {
+  progress_step "Rosetta 2"
+
+  if [[ "$(uname -m)" != "arm64" ]]; then
+    info_echo "当前不是 Apple Silicon，跳过 Rosetta 2"
+    return 0
+  fi
+
+  if /usr/sbin/pkgutil --pkg-info com.apple.pkg.RosettaUpdateAuto >/dev/null 2>&1; then
+    success_echo "Rosetta 2 已存在。Rosetta 属于系统组件，通常随系统更新维护，不单独执行更新。"
+    return 0
+  fi
+
+  if confirm_execute "未检测到 Rosetta 2，是否安装？" "安装"; then
+    run_cmd "安装 Rosetta 2" /usr/sbin/softwareupdate --install-rosetta --agree-to-license
+  fi
+}
+
+# ---------- 部件：brew formula ----------
+component_brew_formula() {
+  local display_name="$1"
+  local install_arg="$2"
+  local check_name="$3"
+  local tap_name="${4:-}"
+  local post_func="${5:-}"
+
+  progress_step "brew formula：${display_name}"
+
+  if ! require_brew_or_skip; then
+    return 0
+  fi
+
+  local installed=0
+  local action_word="安装"
+  local desc="未检测到 brew formula：${display_name}，是否安装最新版？"
+
+  if brew_formula_installed "${check_name}"; then
+    installed=1
+    action_word="更新"
+    desc="brew formula 已存在：${display_name}，是否更新到最新版？"
+  fi
+
+  if ! confirm_execute "${desc}" "${action_word}"; then
+    return 0
+  fi
+
+  if [[ -n "${tap_name}" ]]; then
+    run_cmd "确认 Homebrew Tap：${tap_name}" brew tap "${tap_name}"
+  fi
+
+  if (( installed )); then
+    run_cmd "更新 brew formula：${display_name}" brew upgrade "${install_arg}"
+  else
+    run_cmd "安装 brew formula：${display_name}" brew install "${install_arg}"
+  fi
+
+  if [[ -n "${post_func}" ]]; then
+    "${post_func}"
+  fi
+}
+
+component_formula_git_lfs() { component_brew_formula "git-lfs" "git-lfs" "git-lfs" "" ""; }
+component_formula_gh() { component_brew_formula "gh" "gh" "gh" "" ""; }
+component_formula_nushell() { component_brew_formula "nushell" "nushell" "nushell" "" ""; }
+component_formula_rbenv() { component_brew_formula "rbenv" "rbenv" "rbenv" "" "ensure_rbenv_init"; }
+component_formula_ruby() { component_brew_formula "ruby" "ruby" "ruby" "" ""; }
+component_formula_node() { component_brew_formula "node" "node" "node" "" ""; }
+component_formula_jenv() { component_brew_formula "jenv" "jenv" "jenv" "" "ensure_jenv_init"; }
+component_formula_openjdk() { component_brew_formula "openjdk" "openjdk" "openjdk" "" "post_openjdk_hint"; }
+component_formula_openjdk17() { component_brew_formula "openjdk@17" "openjdk@17" "openjdk@17" "" "post_openjdk_hint"; }
+component_formula_fvm() { component_brew_formula "fvm" "fvm" "fvm" "leoafarias/fvm" ""; }
+component_formula_pnpm() { component_brew_formula "pnpm" "pnpm" "pnpm" "" ""; }
+component_formula_python() { component_brew_formula "python" "python" "python" "" ""; }
+component_formula_python3() { component_brew_formula "python3" "python3" "python3" "" ""; }
+component_formula_fastlane() { component_brew_formula "fastlane" "fastlane" "fastlane" "" ""; }
+component_formula_mysql() { component_brew_formula "mysql" "mysql" "mysql" "" ""; }
+component_formula_hugo() { component_brew_formula "hugo" "hugo" "hugo" "" ""; }
+component_formula_yt_dlp() { component_brew_formula "yt-dlp" "yt-dlp" "yt-dlp" "" ""; }
+component_formula_ffmpeg() { component_brew_formula "ffmpeg" "ffmpeg" "ffmpeg" "" ""; }
+component_formula_go_task() { component_brew_formula "go-task" "go-task/tap/go-task" "go-task" "go-task/tap" ""; }
+component_formula_uv() { component_brew_formula "uv" "uv" "uv" "" ""; }
+component_formula_fzf() { component_brew_formula "fzf" "fzf" "fzf" "" "setup_fzf_shellenv"; }
+component_formula_lazygit() { component_brew_formula "lazygit" "lazygit" "lazygit" "" ""; }
+
+# ---------- 部件：brew cask ----------
+component_brew_cask() {
+  local display_name="$1"
+  local cask_name="$2"
+
+  progress_step "brew cask：${display_name}"
+
+  if ! require_brew_or_skip; then
+    return 0
+  fi
+
+  local installed=0
+  local action_word="安装"
+  local desc="未检测到 brew cask：${display_name}，是否安装最新版？"
+
+  if brew_cask_installed "${cask_name}"; then
+    installed=1
+    action_word="更新"
+    desc="brew cask 已存在：${display_name}，是否更新到最新版？"
+  fi
+
+  if ! confirm_execute "${desc}" "${action_word}"; then
+    return 0
+  fi
+
+  if (( installed )); then
+    run_cmd "更新 brew cask：${display_name}" brew upgrade --cask "${cask_name}"
+  else
+    run_cmd "安装 brew cask：${display_name}" brew install --cask "${cask_name}"
+  fi
+}
+
+component_cask_hammerspoon() { component_brew_cask "hammerspoon" "hammerspoon"; }
+component_cask_flutter() { component_brew_cask "flutter" "flutter"; }
+component_cask_trex() { component_brew_cask "trex" "trex"; }
+component_cask_vlc() { component_brew_cask "vlc" "vlc"; }
+
+# ---------- 部件：npm quicktype ----------
+component_npm_quicktype() {
+  progress_step "npm 全局包：quicktype"
+
+  if ! require_command npm; then
+    warn_echo "npm 不存在，无法安装 quicktype。请先选择 brew formula：node。"
+    return 0
+  fi
+
+  local installed=0
+  local action_word="安装"
+  local desc="未检测到 npm 全局包 quicktype，是否安装？"
+
+  if npm list -g quicktype --depth=0 >/dev/null 2>&1; then
+    installed=1
+    action_word="更新"
+    desc="npm 全局包 quicktype 已存在，是否更新？"
+  fi
+
+  if ! confirm_execute "${desc}" "${action_word}"; then
+    return 0
+  fi
+
+  if (( installed )); then
+    run_cmd "更新 npm 全局包 quicktype" sudo npm update -g quicktype
+  else
+    run_cmd "安装 npm 全局包 quicktype" sudo npm install -g quicktype
+  fi
+}
+
+# ---------- 部件：gem cocoapods ----------
+component_gem_cocoapods() {
+  progress_step "gem 包：cocoapods"
+
+  if ! require_command gem; then
+    warn_echo "gem 不存在，无法安装 cocoapods。请先确认 Ruby 环境。"
+    return 0
+  fi
+
+  local installed=0
+  local action_word="安装"
+  local desc="未检测到 gem 包 cocoapods，是否安装？"
+
+  if gem list -i cocoapods >/dev/null 2>&1; then
+    installed=1
+    action_word="更新"
+    desc="gem 包 cocoapods 已存在，是否更新？"
+  fi
+
+  if ! confirm_execute "${desc}" "${action_word}"; then
+    return 0
+  fi
+
+  if (( installed )); then
+    run_cmd "更新 gem 包 cocoapods" sudo gem update cocoapods
+  else
+    run_cmd "安装 gem 包 cocoapods" sudo gem install cocoapods
+  fi
+}
+
+# ---------- 部件：Git LFS 初始化 ----------
+component_git_lfs_init() {
+  progress_step "Git LFS 初始化"
+
+  if ! require_command git; then
+    warn_echo "git 不存在，无法初始化 Git LFS。请先安装 Xcode Command Line Tools 或 git。"
+    return 0
+  fi
+
+  if ! git lfs version >/dev/null 2>&1; then
+    warn_echo "git-lfs 不存在，无法初始化。请先选择 brew formula：git-lfs。"
+    return 0
+  fi
+
+  if confirm_execute "是否初始化 / 刷新 Git LFS 与大文件传输参数？" "执行"; then
+    run_cmd "初始化 Git LFS" git lfs install
+    run_cmd "配置 Git core.compression=0" git config --global core.compression 0
+    run_cmd "配置 Git http.postBuffer=524288000" git config --global http.postBuffer 524288000
+  fi
+}
+
+# ---------- 部件：JobsKits 仓库 ----------
+clone_or_update_repo() {
+  local repo_name="$1"
+  local repo_url="$2"
+  local target_dir="$3"
+
+  if [[ -d "${target_dir}/.git" ]]; then
+    success_echo "仓库已存在：${target_dir}"
+
+    if confirm_execute "${repo_name} 已存在，是否执行 git pull 更新？" "更新"; then
+      run_sh "更新仓库：${repo_name}" "cd '${target_dir}' && git pull --ff-only"
+    fi
+
+    return 0
+  fi
+
+  if confirm_execute "未检测到仓库 ${repo_name}，是否克隆到 ${target_dir}？" "安装"; then
+    run_sh "创建 JobsKits 工作目录" "mkdir -p '${JOBS_WORKSPACE}'"
+    run_sh "克隆仓库：${repo_name}" "git clone '${repo_url}' '${target_dir}'"
+  fi
+}
+
+component_jobs_repos() {
+  progress_step "JobsKits 仓库"
+
+  ensure_github_access_or_exit
+
+  if ! require_command git; then
+    warn_echo "git 不存在，跳过 JobsKits 仓库拉取。请先安装 Xcode Command Line Tools 或 git。"
+    return 0
+  fi
+
+  local software_dir="${JOBS_WORKSPACE}/JobsSoftware.MacOS"
+  local env_dir="${JOBS_WORKSPACE}/JobsMacEnvVarConfig"
+
+  clone_or_update_repo "JobsSoftware.MacOS" "${JOBS_SOFTWARE_REPO}" "${software_dir}"
+  clone_or_update_repo "JobsMacEnvVarConfig" "${JOBS_ENV_REPO}" "${env_dir}"
+
+  local install_script="${env_dir}/install.command"
+  if [[ -f "${install_script}" ]]; then
+    if confirm_execute "是否为 JobsMacEnvVarConfig/install.command 添加可执行权限？" "执行"; then
+      run_cmd "添加可执行权限：JobsMacEnvVarConfig/install.command" chmod +x "${install_script}"
+    fi
+    warn_echo "不会执行 ${install_script}，避免 install.command 递归调用自身。"
+  fi
+}
+
+# ---------- 部件：手动下载页面 ----------
+open_download_page() {
+  local name="$1"
+  local url="$2"
+
+  if ! require_command open; then
+    warn_echo "open 命令不存在，无法打开：${name}"
+    return 0
+  fi
+
+  if confirm_execute "是否打开 ${name} 下载页？" "打开"; then
+    run_cmd "打开 ${name} 下载页" open "${url}"
+  fi
+}
+
+component_manual_download_pages() {
+  progress_step "手动下载页面"
+
+  open_download_page "Visual Studio Code" "https://code.visualstudio.com/"
+  open_download_page "Android Studio" "https://developer.android.com/studio?hl=zh-cn"
+  open_download_page "Python" "https://www.python.org/downloads/"
+}
+
+# ---------- 菜单 ----------
+get_menu_items() {
+  MENU_ITEMS=(
+    "${ALL_MENU_ITEM}"
+    "Xcode Command Line Tools"
+    "Xcode iOS 平台组件"
+    "Oh My Zsh"
+    "Homebrew"
+    "brew cask：hammerspoon"
+    "brew cask：flutter"
+    "brew cask：trex"
+    "brew cask：vlc"
+    "brew formula：git-lfs"
+    "brew formula：gh"
+    "brew formula：nushell"
+    "brew formula：rbenv"
+    "brew formula：ruby"
+    "brew formula：node"
+    "brew formula：jenv"
+    "brew formula：openjdk"
+    "brew formula：openjdk@17"
+    "brew formula：fvm"
+    "brew formula：pnpm"
+    "brew formula：python"
+    "brew formula：python3"
+    "brew formula：fastlane"
+    "brew formula：mysql"
+    "brew formula：hugo"
+    "brew formula：yt-dlp"
+    "brew formula：ffmpeg"
+    "brew formula：go-task"
+    "brew formula：uv"
+    "brew formula：fzf"
+    "brew formula：lazygit"
+    "Rosetta 2"
+    "npm 全局包：quicktype"
+    "gem 包：cocoapods"
+    "Git LFS 初始化"
+    "JobsKits 仓库"
+    "手动下载页面"
+  )
+}
+
+choose_menu_items() {
+  local fzf_bin=""
+  fzf_bin="$(find_fzf_bin)" || return 1
+
+  get_menu_items
+
+  local selections=""
+  selections="$(printf '%s\n' "${MENU_ITEMS[@]}" | "${fzf_bin}" \
+    --multi \
+    --no-sort \
+    --layout=reverse-list \
+    --height=90% \
+    --border \
+    --prompt='选择要安装 / 更新的功能 > ' \
+    --header='Tab 多选，Enter 确认；选择「✅ 全选安装」会依次处理所有部件；每个部件仍需回车确认。')"
+
+  if [[ -z "${selections}" ]]; then
+    warn_echo "未选择任何功能，脚本结束。"
+    return 1
+  fi
+
+  SELECTED_ITEMS=("${(@f)selections}")
+
+  local item
+  local has_all=0
+  for item in "${SELECTED_ITEMS[@]}"; do
+    if [[ "${item}" == "${ALL_MENU_ITEM}" ]]; then
+      has_all=1
+      break
+    fi
+  done
+
+  RUN_ITEMS=()
+  if (( has_all )); then
+    for item in "${MENU_ITEMS[@]}"; do
+      [[ "${item}" == "${ALL_MENU_ITEM}" ]] && continue
+      RUN_ITEMS+=("${item}")
+    done
+  else
+    RUN_ITEMS=("${SELECTED_ITEMS[@]}")
+  fi
+
+  return 0
+}
+
+run_selected_item() {
+  local item="$1"
+
+  case "${item}" in
+    "Xcode Command Line Tools") component_clt ;;
+    "Xcode iOS 平台组件") component_xcode_ios_platform ;;
+    "Oh My Zsh") component_oh_my_zsh ;;
+    "Homebrew") component_homebrew ;;
+    "Rosetta 2") component_rosetta ;;
+    "brew formula：git-lfs") component_formula_git_lfs ;;
+    "brew formula：gh") component_formula_gh ;;
+    "brew formula：nushell") component_formula_nushell ;;
+    "brew formula：rbenv") component_formula_rbenv ;;
+    "brew formula：ruby") component_formula_ruby ;;
+    "brew formula：node") component_formula_node ;;
+    "brew formula：jenv") component_formula_jenv ;;
+    "brew formula：openjdk") component_formula_openjdk ;;
+    "brew formula：openjdk@17") component_formula_openjdk17 ;;
+    "brew formula：fvm") component_formula_fvm ;;
+    "brew formula：pnpm") component_formula_pnpm ;;
+    "brew formula：python") component_formula_python ;;
+    "brew formula：python3") component_formula_python3 ;;
+    "brew formula：fastlane") component_formula_fastlane ;;
+    "brew formula：mysql") component_formula_mysql ;;
+    "brew formula：hugo") component_formula_hugo ;;
+    "brew formula：yt-dlp") component_formula_yt_dlp ;;
+    "brew formula：ffmpeg") component_formula_ffmpeg ;;
+    "brew formula：go-task") component_formula_go_task ;;
+    "brew formula：uv") component_formula_uv ;;
+    "brew formula：fzf") component_formula_fzf ;;
+    "brew formula：lazygit") component_formula_lazygit ;;
+    "brew cask：hammerspoon") component_cask_hammerspoon ;;
+    "brew cask：flutter") component_cask_flutter ;;
+    "brew cask：trex") component_cask_trex ;;
+    "brew cask：vlc") component_cask_vlc ;;
+    "npm 全局包：quicktype") component_npm_quicktype ;;
+    "gem 包：cocoapods") component_gem_cocoapods ;;
+    "Git LFS 初始化") component_git_lfs_init ;;
+    "JobsKits 仓库") component_jobs_repos ;;
+    "手动下载页面") component_manual_download_pages ;;
+    *) warn_echo "未知菜单项，已跳过：${item}" ;;
+  esac
+}
+
+# ---------- 收尾 ----------
+finish_summary() {
+  echo ""
+  print_divider
+  success_echo "macOS 新系统配置流程执行结束"
+  info_echo "日志文件位置：${LOG_FILE}"
+  warm_echo "请手动检查终端日志，确认失败项并按需补装。"
+  warm_echo "重点留意：CLT / Xcode / Oh My Zsh / Homebrew / GitHub 网络 / sudo 密码相关步骤。"
+  print_divider
+}
+
+# ---------- 主流程 ----------
+install() {
+  prepare_menu_runtime
+
+  if ! choose_menu_items; then
+    return 0
+  fi
+
+  TOTAL_STAGES=${#RUN_ITEMS[@]}
+  CURRENT_STAGE=0
+
+  local item
+  for item in "${RUN_ITEMS[@]}"; do
+    run_selected_item "${item}"
+  done
+
+  finish_summary
+}
+
 jobs_install_main() {
+  : > "${LOG_FILE}"
+
   jobs_install_show_readme_and_wait
   install "$@"
+
+  pause_for_enter "👉 全部流程已执行完成。请按回车退出..."
 }
 
 if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
