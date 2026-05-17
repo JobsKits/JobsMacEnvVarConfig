@@ -245,6 +245,21 @@ iOS 模拟器	simios	检测 Xcode 环境并下载 / 补齐 iOS Simulator Runtime
 颜色转换	cor	颜色格式转换器，支持 HEX / RGB / RGBA / 0xAARRGGBB	script	cor.command
 URL 解码	decode	交互式 URL Decode，并自动复制到剪贴板	script	decode.command
 时间戳	ts	Unix 时间戳转换，支持秒 / 毫秒 / 微秒 / 纳秒	script	ts.command
+格式转换	to	FFmpeg 通用媒体转码入口，可手动输入目标格式	script	to.command
+转 MP4	mp4	调用 to.command 转为 MP4 / H.264 / AAC，适合 WebM 转通用视频	to_format	mp4
+转 MOV	mov	调用 to.command 转为 MOV / H.264 / AAC，适合 macOS 工作流	to_format	mov
+转 WebM	webm	调用 to.command 转为 WebM / VP9 / Opus	to_format	webm
+转 MKV	mkv	调用 to.command 转为 MKV，优先无损封装	to_format	mkv
+转 AVI	avi	调用 to.command 转为 AVI，兼容老设备或旧软件	to_format	avi
+转 M4V	m4v	调用 to.command 转为 M4V / H.264 / AAC	to_format	m4v
+转 MP3	mp3	调用 to.command 提取或转换为 MP3 音频	to_format	mp3
+转 M4A	m4a	调用 to.command 提取或转换为 M4A / AAC 音频	to_format	m4a
+转 AAC	aac	调用 to.command 提取或转换为 AAC 音频	to_format	aac
+转 WAV	wav	调用 to.command 提取或转换为 WAV 无损音频	to_format	wav
+转 FLAC	flac	调用 to.command 提取或转换为 FLAC 无损音频	to_format	flac
+转 OGG	ogg	调用 to.command 提取或转换为 OGG / Vorbis 音频	to_format	ogg
+转 OPUS	opus	调用 to.command 提取或转换为 Opus 音频	to_format	opus
+转 GIF	to gif	调用 to.command 转为 GIF；不抢占原 gif 录制命令	to_format	gif
 媒体下载	download	调用 yt-dlp，自动使用默认浏览器 cookies 下载媒体	script	download.command
 环境安装	install	新系统开发环境配置 / 依赖安装入口	script	install.command
 环境更新	update	JobsMacEnv 更新菜单，批量更新开发工具链	script	update.command
@@ -353,6 +368,25 @@ run_script_feature() {
   "$script_file"
 }
 
+run_to_format_feature() {
+  local target_ext="$1"
+  local script_file=""
+
+  if [[ -z "$target_ext" ]]; then
+    error_echo "缺少目标格式。"
+    return 1
+  fi
+
+  if ! script_file="$(resolve_script_file "to.command")"; then
+    error_echo "未找到格式转换脚本：to.command"
+    error_echo "请重新执行 JobsMacEnv 安装脚本。"
+    return 1
+  fi
+
+  note_echo "执行格式转换：to ${target_ext}"
+  "$script_file" "$target_ext"
+}
+
 run_function_feature() {
   local function_name="$1"
 
@@ -376,6 +410,9 @@ run_feature() {
   case "$run_type" in
     script)
       run_script_feature "$target_name"
+      ;;
+    to_format)
+      run_to_format_feature "$target_name"
       ;;
     function)
       run_function_feature "$target_name"

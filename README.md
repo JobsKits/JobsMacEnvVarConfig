@@ -1016,3 +1016,9 @@ source ~/.zshrc
 - 运行时展示的自述必须写在脚本内部，不读取同级 `README.md`。
 - `list` 是菜单入口，菜单中不显示 `list` 自己，其它自定义命令都应显示。
 - `zsh/custom` 只保留加载器和交互行为；具体实现仍放在 Scripts 模块或 Scripts 私有库。
+
+## 2026-05-17 新增说明：FFmpeg 通用媒体格式转换
+
+新增 `Scripts/to.command/to.command`，用于统一处理 `to mp4 文件`、`mp4 文件`、`mov 文件`、`webm 文件`、`mp3 文件` 等媒体格式转换。真实脚本只维护一份，格式短命令通过入口包装复用，避免为每种格式复制独立脚本。
+
+`list` 的 [**fzf**](https://github.com/junegunn/fzf) 菜单已拆分展示这些格式入口：`to`、`mp4`、`mov`、`webm`、`mkv`、`avi`、`m4v`、`mp3`、`m4a`、`aac`、`wav`、`flac`、`ogg`、`opus`、`to gif`。选择 `mp4` 时等价于执行 `to mp4`，随后继续拖入或输入源文件路径。

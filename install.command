@@ -500,6 +500,7 @@ verify_scripts_modules() {
     decode.command
     ts.command
     download.command
+    to.command
     install.command
     update.command
     shell.command
@@ -686,6 +687,7 @@ show_intro_and_wait() {
 说明：
   list 是总入口，用 fzf 展示菜单。
   clean / cor / decode / ts / download / install / update / shell 等均已独立成 command。
+  to / mp4 / mov / webm / mp3 等复用 to.command，用于 FFmpeg 媒体格式转换。
 
 ------------------------------------------------------------
 三、交互规则
@@ -925,6 +927,21 @@ main() {
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" decode.command decode
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" ts.command ts
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" download.command download
+
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command to
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command mp4
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command mov
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command webm
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command mkv
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command avi
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command m4v
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command mp3
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command m4a
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command aac
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command wav
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command flac
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command ogg
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command opus
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" install.command install
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" update.command update
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" shell.command shell

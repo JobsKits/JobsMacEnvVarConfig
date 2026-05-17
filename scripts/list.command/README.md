@@ -36,6 +36,21 @@ iOS 模拟器：simios
 颜色转换：cor
 URL 解码：decode
 时间戳：ts
+格式转换：to
+转 MP4：mp4
+转 MOV：mov
+转 WebM：webm
+转 MKV：mkv
+转 AVI：avi
+转 M4V：m4v
+转 MP3：mp3
+转 M4A：m4a
+转 AAC：aac
+转 WAV：wav
+转 FLAC：flac
+转 OGG：ogg
+转 OPUS：opus
+转 GIF：to gif
 媒体下载：download
 环境安装：install
 环境更新：update
@@ -99,3 +114,16 @@ flowchart TD
     B --> C[JobsMacEnv 功能菜单]
     C --> D[执行选中功能]
 ```
+
+
+## 附：媒体转换入口
+
+`list` 菜单已拆分展示媒体转换快捷入口：`to`、`mp4`、`mov`、`webm`、`mkv`、`avi`、`m4v`、`mp3`、`m4a`、`aac`、`wav`、`flac`、`ogg`、`opus`、`to gif`。
+
+这些菜单项全部复用 `to.command`，没有复制业务逻辑。选择 `mp4` 时等价于执行：
+
+```zsh
+to mp4
+```
+
+进入后继续拖入或输入源文件路径，再按提示输入输出文件名。`gif` 仍保留为录制入口，GIF 转换在菜单中显示为 `to gif`。

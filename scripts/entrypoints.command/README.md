@@ -31,6 +31,20 @@ cor
 decode
 ts
 download
+to
+mp4
+mov
+webm
+mkv
+avi
+m4v
+mp3
+m4a
+aac
+wav
+flac
+ogg
+opus
 install
 update
 shell
@@ -55,6 +69,8 @@ config
 ## 四、交互规则
 
 该文件主要被 shell 配置 source 加载，不是普通一次性执行脚本。它只负责注册入口函数，不承载真实业务实现。
+`mp4` / `mov` / `webm` / `mp3` 等媒体格式短命令不单独维护脚本，统一复用 `Scripts/to.command/to.command`。`gif` 已作为录制入口保留；需要转换 GIF 时使用 `to gif 文件`。
+
 
 ## 五、结构约定
 

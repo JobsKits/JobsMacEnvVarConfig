@@ -116,6 +116,22 @@ decode() { _jobs_run_scripts_command decode "$@"; }
 ts() { _jobs_run_scripts_command ts "$@"; }
 # download：调用 yt-dlp，自动使用默认浏览器 cookies 下载媒体。
 download() { _jobs_run_scripts_command download "$@"; }
+# to：FFmpeg 通用媒体格式转换入口。
+to() { _jobs_run_scripts_command to "$@"; }
+# mp4 / mov / webm 等：统一复用 to.command，不复制真实业务脚本。
+mp4()  { _jobs_run_scripts_command to mp4 "$@"; }
+mov()  { _jobs_run_scripts_command to mov "$@"; }
+webm() { _jobs_run_scripts_command to webm "$@"; }
+mkv()  { _jobs_run_scripts_command to mkv "$@"; }
+avi()  { _jobs_run_scripts_command to avi "$@"; }
+m4v()  { _jobs_run_scripts_command to m4v "$@"; }
+mp3()  { _jobs_run_scripts_command to mp3 "$@"; }
+m4a()  { _jobs_run_scripts_command to m4a "$@"; }
+aac()  { _jobs_run_scripts_command to aac "$@"; }
+wav()  { _jobs_run_scripts_command to wav "$@"; }
+flac() { _jobs_run_scripts_command to flac "$@"; }
+ogg()  { _jobs_run_scripts_command to ogg "$@"; }
+opus() { _jobs_run_scripts_command to opus "$@"; }
 # install：安装和初始化常用开发环境依赖。注意：该命令名与系统 /usr/bin/install 有冲突风险。
 install() { _jobs_run_scripts_command install "$@"; }
 # update：通过菜单批量更新 Homebrew、Flutter、Node、Python、Ruby、CocoaPods 等工具链。
