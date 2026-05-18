@@ -4,6 +4,11 @@
 
 [toc]
 
+## 🔥 <font id=前言>前言</font>
+
+- 采用 Shell 脚本的原因：Shell 来自 [**macOS**](https://www.apple.com/macos/) 原生系统底层，虽然写法相对繁琐冗杂，但执行效率高，并且不需要额外介入 [**Ruby**](https://www.ruby-lang.org)、[**Python**](https://www.python.org) 等第三方运行环境，因此具备更好的移植性。
+
+
 ## 一、功能
 
 - 安装和初始化常用 [**macOS**](https://www.apple.com/macos/) 开发环境依赖。
@@ -85,6 +90,7 @@
     lazygit
     onlyoffice
     dufs
+    git-filter-repo
   )
   ```
 
@@ -151,11 +157,11 @@
 - [**Node.js**](https://nodejs.org)
 - [**jenv**](https://www.jenv.be)
 - [**OpenJDK**](https://openjdk.org)
-* `openjdk@17`
+- `openjdk@17`
 - [**fvm**](https://fvm.app)
 - [**pnpm**](https://pnpm.io)
 - [**Python**](https://www.python.org)
-* `python3`
+- `python3`
 - [**fastlane**](https://fastlane.tools)
 - [**MySQL**](https://www.mysql.com)
 - [**Hugo**](https://gohugo.io)
@@ -167,6 +173,8 @@
 - [**lazygit**](https://github.com/jesseduffield/lazygit)
 - [**ONLYOFFICE**](https://www.onlyoffice.com)
 - [**dufs**](https://github.com/sigoden/dufs)
+- [**git-filter-repo**](https://formulae.brew.sh/formula/git-filter-repo)
+  用于重写 / 清理 [**Git**](https://git-scm.com) 仓库历史，例如移除误提交的大文件或敏感内容。
 
 ## 六、特殊处理
 
@@ -256,6 +264,7 @@
   brew formula：lazygit
   brew formula：onlyoffice
   brew formula：dufs
+  brew formula：git-filter-repo
   Rosetta 2
   npm 全局包：quicktype
   npm 全局包：OpenCLI
@@ -569,3 +578,5 @@
       I -->|可用| J[输出 opencli --version]
       I -->|不可用| K[提示重新打开终端或检查 npm global bin]
   ```
+
+<a id="🔚" href="#前言" style="font-size:17px; color:green; font-weight:bold;">我是有底线的➤点我回到首页</a>

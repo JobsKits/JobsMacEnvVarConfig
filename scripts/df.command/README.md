@@ -8,6 +8,8 @@
 
 ## 🔥 <font id=前言>前言</font> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
+- 采用 Shell 脚本的原因：Shell 来自 [**macOS**](https://www.apple.com/macos/) 原生系统底层，虽然写法相对繁琐冗杂，但执行效率高，并且不需要额外介入 [**Ruby**](https://www.ruby-lang.org)、[**Python**](https://www.python.org) 等第三方运行环境，因此具备更好的移植性。
+
 `df.command` 是 JobsMacEnv 的局域网目录共享入口。
 
 它会把一个本地目录交给 [**dufs**](https://github.com/sigoden/dufs) 提供文件服务，再自动写入 [**Caddy**](https://caddyserver.com/) 的 `Caddyfile`，让同一局域网里的其它电脑 / 手机可以直接用浏览器访问。默认使用 Caddy 的 `80` 端口，所以浏览器地址不用带端口。

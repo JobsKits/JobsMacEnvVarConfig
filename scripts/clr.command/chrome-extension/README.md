@@ -1,5 +1,9 @@
 # Jobs Clear Chrome Downloads
 
+![Jobs倾情奉献](https://picsum.photos/1500/400 "Jobs出品，必属精品")
+
+[toc]
+
 这是 `clr` 命令配套的本地 Chrome 扩展。
 
 用途：调用 Chrome `downloads` API 清除浏览器下载历史，不删除本地真实文件。

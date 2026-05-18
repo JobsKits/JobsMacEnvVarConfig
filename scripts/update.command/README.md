@@ -8,6 +8,8 @@
 
 ## 🔥 <font id=前言>前言</font> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
+- 采用 Shell 脚本的原因：Shell 来自 [**macOS**](https://www.apple.com/macos/) 原生系统底层，虽然写法相对繁琐冗杂，但执行效率高，并且不需要额外介入 [**Ruby**](https://www.ruby-lang.org)、[**Python**](https://www.python.org) 等第三方运行环境，因此具备更好的移植性。
+
 `update.command` 用于升级和维护 `install.command` 已安装 / 初始化过的 [**macOS**](https://www.apple.com/macos/) 开发环境。
 
 核心原则：
@@ -152,6 +154,7 @@ readonly -a BREW_FORMULAE=(
   lazygit
   onlyoffice
   dufs
+  git-filter-repo
 )
 ```
 
@@ -181,6 +184,7 @@ readonly -a BREW_FORMULAE=(
 | [**lazygit**](https://github.com/jesseduffield/lazygit) | Git 终端 UI |
 | [**onlyoffice**](https://www.onlyoffice.com/) | Office 文档套件 |
 | [**dufs**](https://github.com/sigoden/dufs) | 文件服务器工具 |
+| [**git-filter-repo**](https://formulae.brew.sh/formula/git-filter-repo) | Git 仓库历史重写 / 清理工具 |
 
 维护规则：
 

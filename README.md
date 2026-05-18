@@ -6,9 +6,9 @@
 
 ## 🔥 <font id=前言>前言</font>
 
-* 这是一个面向 **MacOS** 的个人开发环境配置同步项目。
+- 这是一个面向 **MacOS** 的个人开发环境配置同步项目。
 
-* 它把零散堆在 `~/.zshrc`、`~/.bash_profile` 里的环境变量、PATH、别名和个人命令拆分成模块，并通过 `install.command` 同步到用户目录 `~/.JobsMacEnv`。
+- 它把零散堆在 `~/.zshrc`、`~/.bash_profile` 里的环境变量、PATH、别名和个人命令拆分成模块，并通过 `install.command` 同步到用户目录 `~/.JobsMacEnv`。
 
 ## 一、适合解决什么问题 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 

@@ -59,7 +59,9 @@ clr - 清空 Chrome 下载记录
   - 默认改用一个极小的本地 Chrome 扩展，通过 Chrome 官方 downloads API
     清除下载历史。
   - 本地扩展 manifest 使用合法固定 key，扩展 ID 稳定，避免每次靠扫描 Chrome Profile 猜 ID。
-  - 同时兼容你已经加载过的旧版扩展 ID；识别失败时可以用 --extension-id 手动写入一次。
+  - 同时兼容你已经加载过的旧版扩展 ID；但不会再盲信已保存的旧 ID。
+  - 每次会先校验 Chrome 当前配置里扩展是否仍处于启用状态。
+  - 旧 ID、已删除 ID、已禁用 ID 会被自动忽略，避免 ERR_BLOCKED_BY_CLIENT 被误判为清理成功。
   - 第一次需要把本地扩展加载到 Chrome；以后执行 clr 就可以直接触发清理。
 
 重要边界：
@@ -74,13 +76,14 @@ clr - 清空 Chrome 下载记录
   clr --install-extension
   clr --open-only
   clr --yes
-  clr --extension-id bceffimgdjebjemfhcfkombngddhmdee
+  clr --extension-id Chrome扩展卡片里的32位ID
 
 说明：
   - 默认执行前会停一下确认：直接回车执行清理，输入任意字符后回车取消。
   - 第一次如果提示未安装扩展，执行 clr --install-extension，按提示加载一次。
   - 如果 Chrome 已经显示扩展装好了，但 clr 仍识别不到，可以执行：
     clr --extension-id 扩展卡片里显示的32位ID
+  - 如果 Chrome 页面显示 ERR_BLOCKED_BY_CLIENT，通常代表旧 ID 已被禁用、移除或被 Chrome 屏蔽；重新执行 clr --install-extension 后按提示重新加载扩展。
   - 日志路径：/tmp/clr.log
 ============================================================
 EOFREADME
@@ -241,7 +244,7 @@ jobs_clr_write_extension_files() {
 {
   "manifest_version": 3,
   "name": "Jobs Clear Chrome Downloads",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3S09xpt4B73vCWFVhd2azGUia+BbB1KEVgC609S+mYzFSTNF1jlRGgw2eqnwLd/4WL5FxeDHKLjQS+lnjXvYTWohRDEyEJlHeq6VBFX0V+YLfFMsHFQu3sFeqkcMi5LteL7bscylwFUHhMUVd8yeNFQykAhRH4WV50VCymYzo7nWL83KMkkGqprFCMkDBZe8cVmjNEFuNlIjbPExd2UIk2YNI+egbwkeBbZIMa2JZ9gK7bfMeG6n5X8FnYgqiaGafd1xZFcSwKdEAY7jwSIpKW86t284MBiznmK9x8tIAzDmlDa/ynWN2sPBkeKyEsANpL3LuDkDtYSHG3lK0uzvtQIDAQAB",
   "description": "Clear Chrome download history without deleting local files.",
   "permissions": ["downloads"],
@@ -427,6 +430,8 @@ jobs_clr_install_extension_flow() {
     return 1
   }
 
+  rm -f "$CLR_EXTENSION_ID_FILE" 2>/dev/null || true
+
   print_divider
   note_echo "本地 Chrome 扩展已生成："
   log "$CLR_EXTENSION_DIR"
@@ -440,7 +445,8 @@ jobs_clr_install_extension_flow() {
   log "3. 点击「加载已解压的扩展程序」。"
   log "4. 选择这个目录：${CLR_EXTENSION_DIR}"
   log "5. 如果之前加载过旧版且仍不生效，先移除旧的 Jobs Clear Chrome Downloads，再重新加载本目录。"
-  log "6. 加载完成后，重新执行：clr"
+  log "6. 预期新版扩展 ID：${CLR_EXTENSION_ID}"
+  log "7. 加载完成后，重新执行：clr"
 
   open -R "$CLR_EXTENSION_DIR" >/dev/null 2>&1 || true
   jobs_clr_open_chrome_url_new_tab "chrome://extensions/" >/dev/null 2>&1 || open -a "Google Chrome" "chrome://extensions/" >/dev/null 2>&1 || true
@@ -464,18 +470,103 @@ jobs_clr_save_extension_id() {
   return 0
 }
 
+jobs_clr_lookup_extension_id_in_chrome() {
+  local candidate="$1"
+  local chrome_root="${HOME}/Library/Application Support/Google/Chrome"
+
+  [[ -n "$candidate" ]] || return 1
+  [[ -d "$chrome_root" ]] || return 1
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    return 1
+  fi
+
+  python3 - "$chrome_root" "$candidate" <<'EOFPY' 2>/dev/null
+import json
+import os
+import sys
+
+root = sys.argv[1]
+candidate = sys.argv[2]
+rows = []
+
+try:
+    profile_names = os.listdir(root)
+except Exception:
+    profile_names = []
+
+for profile in profile_names:
+    profile_dir = os.path.join(root, profile)
+    if not os.path.isdir(profile_dir):
+        continue
+
+    for fname in ('Preferences', 'Secure Preferences'):
+        pref = os.path.join(profile_dir, fname)
+        if not os.path.isfile(pref):
+            continue
+
+        try:
+            with open(pref, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except Exception:
+            continue
+
+        item = data.get('extensions', {}).get('settings', {}).get(candidate)
+        if not isinstance(item, dict):
+            continue
+
+        manifest = item.get('manifest') or {}
+        name = str(manifest.get('name') or '')
+        raw_path = str(item.get('path') or '')
+        state = item.get('state', 1)
+        status = 'enabled' if state == 1 or state is None else f'disabled:{state}'
+        rows.append((status, profile, fname, name, raw_path))
+
+if not rows:
+    sys.exit(1)
+
+rows.sort(key=lambda row: (0 if row[0] == 'enabled' else 1, row[1], row[2]))
+print('\t'.join(rows[0]))
+sys.exit(0 if rows[0][0] == 'enabled' else 2)
+EOFPY
+}
+
 jobs_clr_read_saved_extension_id() {
   [[ -f "$CLR_EXTENSION_ID_FILE" ]] || return 1
 
   local candidate=""
   candidate="$(tr -d '[:space:]' < "$CLR_EXTENSION_ID_FILE" 2>/dev/null || true)"
-  if jobs_clr_is_valid_extension_id "$candidate"; then
+  if ! jobs_clr_is_valid_extension_id "$candidate"; then
+    warn_echo "已保存的扩展 ID 不合法，忽略：${candidate}"
+    rm -f "$CLR_EXTENSION_ID_FILE" 2>/dev/null || true
+    return 1
+  fi
+
+  local lookup=""
+  lookup="$(jobs_clr_lookup_extension_id_in_chrome "$candidate" || true)"
+  if [[ -z "$lookup" ]]; then
+    warn_echo "已保存的 clr Chrome 扩展 ID 已失效，Chrome 当前配置里找不到：${candidate}"
+    warm_echo "将自动忽略这个旧 ID，并重新检测已启用的扩展。"
+    rm -f "$CLR_EXTENSION_ID_FILE" 2>/dev/null || true
+    return 1
+  fi
+
+  local ext_status=""
+  local profile=""
+  local source_file=""
+  ext_status="$(print -r -- "$lookup" | awk -F'\t' '{ print $1 }')"
+  profile="$(print -r -- "$lookup" | awk -F'\t' '{ print $2 }')"
+  source_file="$(print -r -- "$lookup" | awk -F'\t' '{ print $3 }')"
+
+  if [[ "$ext_status" == "enabled" ]]; then
     CLR_DETECTED_EXTENSION_ID="$candidate"
-    info_echo "使用已保存的 clr Chrome 扩展 ID：${CLR_DETECTED_EXTENSION_ID}"
+    info_echo "使用已保存且已启用的 clr Chrome 扩展 ID：${CLR_DETECTED_EXTENSION_ID}（Profile=${profile}，来源=${source_file}）"
     return 0
   fi
 
-  warn_echo "已保存的扩展 ID 不合法，忽略：${candidate}"
+  warn_echo "已保存的 clr Chrome 扩展 ID 当前不是启用状态：${candidate}，状态=${ext_status}"
+  warm_echo "这通常会导致 Chrome 打开 ${candidate}/clear.html 时显示 ERR_BLOCKED_BY_CLIENT。"
+  rm -f "$CLR_EXTENSION_ID_FILE" 2>/dev/null || true
   return 1
 }
 
@@ -612,14 +703,9 @@ EOFPY
     return 1
   fi
 
-  # v6 开始写入合法固定 key；如果 Chrome 尚未把 Preferences 落盘，先尝试固定 ID，避免重复打开安装页。
-  if [[ -n "$CLR_EXTENSION_ID" ]]; then
-    CLR_DETECTED_EXTENSION_ID="$CLR_EXTENSION_ID"
-    warn_echo "未能从 Chrome Preferences 确认扩展 ID；将尝试使用 v6 固定 ID：${CLR_DETECTED_EXTENSION_ID}"
-    warm_echo "如果随后打开的是 Chrome 错误页，说明需要删除旧扩展后重新执行：clr --install-extension"
-    return 0
-  fi
-
+  warn_echo "未在 Chrome 当前配置中检测到已启用的 clr 本地扩展。"
+  warm_echo "不会再盲目打开固定扩展 ID，避免出现 ERR_BLOCKED_BY_CLIENT 却被脚本误判为成功。"
+  warm_echo "请执行：clr --install-extension，并确认 Chrome 扩展页里的 Jobs Clear Chrome Downloads 已启用。"
   return 1
 }
 jobs_clr_extension_installed() {

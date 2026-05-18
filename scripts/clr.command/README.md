@@ -1,5 +1,14 @@
 # clr.command
 
+![Jobs倾情奉献](https://picsum.photos/1500/400 "Jobs出品，必属精品")
+
+[toc]
+
+## 🔥 <font id=前言>前言</font>
+
+- 采用 Shell 脚本的原因：Shell 来自 [**macOS**](https://www.apple.com/macos/) 原生系统底层，虽然写法相对繁琐冗杂，但执行效率高，并且不需要额外介入 [**Ruby**](https://www.ruby-lang.org)、[**Python**](https://www.python.org) 等第三方运行环境，因此具备更好的移植性。
+
+
 ## 功能
 
 清空 Google Chrome 浏览器下载历史，不删除已经下载到本地的真实文件。
@@ -16,21 +25,51 @@ Chrome 没有给普通 macOS 命令行提供稳定的「清空下载历史」接
 
 这一版改为可靠方案：使用一个极小的本地 Chrome 扩展，通过 Chrome `downloads` API 清除下载历史。
 
-## v6 修正
+## v7 修正
 
-- manifest.json 使用合法固定 `key`，固定扩展 ID 为：`fglcbiaddbchgemaegkjejejikhilpon`。
-- 同时兼容已经加载过的旧版扩展 ID，会从 Chrome `Preferences` / `Secure Preferences` 自动识别。
+- 不再盲信 `~/.JobsMacEnv/ChromeExtensions/jobs-clear-downloads/extension_id.txt` 里保存的旧扩展 ID。
+- 每次运行会先检查 Chrome `Preferences` / `Secure Preferences`，确认扩展仍然存在并处于启用状态。
+- 已删除、已禁用、已被 Chrome 屏蔽的旧 ID 会被自动忽略，避免浏览器出现 `ERR_BLOCKED_BY_CLIENT`，但脚本仍误判为“已触发清理”。
+- manifest.json 继续使用合法固定 `key`，预期新版扩展 ID 为：`fglcbiaddbchgemaegkjejejikhilpon`。
 - 如果 Chrome 扩展页已经显示装好了，但 `clr` 仍识别不到，可手动保存一次扩展 ID。
 
 ```zsh
 clr --extension-id 扩展卡片里显示的32位ID
 ```
 
-例如你当前截图里的 ID 可执行：
+不要继续硬写旧截图里的 `bceffimgdjebjemfhcfkombngddhmdee`；除非 Chrome 扩展页明确显示这个 ID 仍然存在且已启用。
+
+
+
+## v8 修正
+
+- 修复 `zsh` 下 `jobs_clr_read_saved_extension_id: read-only variable: status`。
+- 原因是 `status` 是 `zsh` 的只读特殊变量，脚本里不能再 `local status=...`。
+- 已改为 `ext_status`，保留扩展 ID 校验逻辑不变。
+
+## 看到 ERR_BLOCKED_BY_CLIENT 怎么办
+
+这不是下载历史清理成功，而是 Chrome 拦截了扩展内部页面。常见原因：
+
+- `clr` 还在使用旧的扩展 ID，但这个扩展已经被你移除。
+- 旧扩展被 Chrome 禁用。
+- 本地扩展目录的 manifest 更新后，Chrome 里的旧扩展 ID 已经失效。
+
+处理方式：
 
 ```zsh
-clr --extension-id bceffimgdjebjemfhcfkombngddhmdee
+rm -f ~/.JobsMacEnv/ChromeExtensions/jobs-clear-downloads/extension_id.txt
+clr --install-extension
 ```
+
+然后到 `chrome://extensions/`：
+
+1. 开启「开发者模式」。
+2. 移除旧的 `Jobs Clear Chrome Downloads`。
+3. 重新「加载已解压的扩展程序」。
+4. 选择 `~/.JobsMacEnv/ChromeExtensions/jobs-clear-downloads`。
+5. 确认扩展开关处于启用状态。
+6. 重新执行 `clr`。
 
 ## 第一次使用
 
@@ -57,7 +96,7 @@ clr
 ```zsh
 clr
 clr --install-extension
-clr --extension-id bceffimgdjebjemfhcfkombngddhmdee
+clr --extension-id 扩展卡片里显示的32位ID
 clr --open-only
 clr --open
 clr --yes
@@ -85,3 +124,5 @@ clr --yes
 ```text
 /tmp/clr.log
 ```
+
+<a id="🔚" href="#前言" style="font-size:17px; color:green; font-weight:bold;">我是有底线的➤点我回到首页</a>
