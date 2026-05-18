@@ -33,6 +33,7 @@ list [参数...]
 iOS 模拟器：simios
 本地 Pod 自检：pods
 终端清理：clean
+解除隔离：dq
 颜色转换：cor
 URL 解码：decode
 时间戳：ts

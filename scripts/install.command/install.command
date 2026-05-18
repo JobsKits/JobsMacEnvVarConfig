@@ -33,6 +33,43 @@ readonly JOBS_SOFTWARE_REPO="https://github.com/JobsKits/JobsSoftware.MacOS.git"
 readonly JOBS_ENV_REPO="https://github.com/JobsKits/JobsMacEnvVarConfig.git"
 readonly JOBS_WORKSPACE="${HOME}/Desktop/JobsKits"
 
+# ---------- Homebrew 第三方配置 ----------
+# 只维护第三方名称即可。
+# 例如：需要安装 brew install git-lfs，就写 git-lfs。
+# 例如：需要安装 brew install --cask vlc，就写 vlc。
+readonly -a BREW_CASKS=(
+  hammerspoon
+  flutter
+  trex
+  vlc
+)
+
+readonly -a BREW_FORMULAE=(
+  git-lfs
+  gh
+  nushell
+  rbenv
+  ruby
+  node
+  jenv
+  openjdk
+  openjdk@17
+  fvm
+  pnpm
+  python
+  python3
+  fastlane
+  mysql
+  hugo
+  yt-dlp
+  ffmpeg
+  go-task
+  uv
+  fzf
+  lazygit
+  onlyoffice
+)
+
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
 color_echo()     { log "\033[1;32m$1\033[0m"; }
@@ -329,7 +366,8 @@ post_openjdk_hint() {
 jobs_install_show_readme_and_wait() {
   clear 2>/dev/null || true
 
-  cat <<'EOFREADME' | tee -a "$LOG_FILE"
+  {
+    cat <<'EOFREADME'
 ============================================================
 install.command - macOS 新系统配置（fzf 菜单版）
 ============================================================
@@ -352,14 +390,40 @@ install.command - macOS 新系统配置（fzf 菜单版）
      - 直接回车：执行安装 / 更新
      - 输入任意字符后回车：跳过
 
+Homebrew 第三方配置：
+  - brew cask 只需要维护脚本顶部 BREW_CASKS 数组里的第三方名称。
+  - brew formula 只需要维护脚本顶部 BREW_FORMULAE 数组里的第三方名称。
+  - 菜单项会自动根据这两个数组生成。
+  - 执行时会自动拼出 brew install / brew install --cask 命令。
+  - 少数需要 tap / 后置初始化的 formula，会由脚本内部自动处理，不需要写在数组里。
+
+当前 BREW_CASKS：
+EOFREADME
+
+    local pkg
+    for pkg in "${BREW_CASKS[@]}"; do
+      echo "  - ${pkg}"
+    done
+
+    cat <<'EOFREADME'
+
+当前 BREW_FORMULAE：
+EOFREADME
+
+    for pkg in "${BREW_FORMULAE[@]}"; do
+      echo "  - ${pkg}"
+    done
+
+    cat <<'EOFREADME'
+
 将支持选择的部件（菜单从上到下按此顺序显示）：
   - ✅ 全选安装
   - Xcode Command Line Tools
   - Xcode iOS 平台组件
   - Oh My Zsh
   - Homebrew
-  - brew cask：hammerspoon、flutter、trex、vlc
-  - brew formula：git-lfs、gh、nushell、rbenv、ruby、node、jenv、openjdk、openjdk@17、fvm、pnpm、python、python3、fastlane、mysql、hugo、yt-dlp、ffmpeg、go-task、uv、fzf、lazygit
+  - brew cask：由 BREW_CASKS 自动生成
+  - brew formula：由 BREW_FORMULAE 自动生成
   - Rosetta 2
   - npm 全局包：quicktype
   - gem 包：cocoapods
@@ -380,6 +444,7 @@ install.command - macOS 新系统配置（fzf 菜单版）
   - 本脚本不会递归执行 JobsMacEnvVarConfig/install.command，避免自调用死循环。
 ============================================================
 EOFREADME
+  } | tee -a "$LOG_FILE"
 
   pause_for_enter "👉 请确认没有误操作。按回车进入菜单准备流程，或按 Ctrl+C 取消..."
 }
@@ -610,27 +675,59 @@ component_rosetta() {
 }
 
 # ---------- 部件：brew formula ----------
-component_brew_formula() {
-  local display_name="$1"
-  local install_arg="$2"
-  local check_name="$3"
-  local tap_name="${4:-}"
-  local post_func="${5:-}"
+brew_formula_install_arg() {
+  local formula_name="$1"
 
-  progress_step "brew formula：${display_name}"
+  case "${formula_name}" in
+    go-task) echo "go-task/tap/go-task" ;;
+    *) echo "${formula_name}" ;;
+  esac
+}
+
+brew_formula_tap_name() {
+  local formula_name="$1"
+
+  case "${formula_name}" in
+    fvm) echo "leoafarias/fvm" ;;
+    go-task) echo "go-task/tap" ;;
+    *) echo "" ;;
+  esac
+}
+
+brew_formula_after_install() {
+  local formula_name="$1"
+
+  case "${formula_name}" in
+    rbenv) ensure_rbenv_init ;;
+    jenv) ensure_jenv_init ;;
+    openjdk|openjdk@17) post_openjdk_hint ;;
+    fzf) setup_fzf_shellenv ;;
+    *) return 0 ;;
+  esac
+}
+
+component_brew_formula() {
+  local formula_name="$1"
+  local install_arg=""
+  local tap_name=""
+
+  install_arg="$(brew_formula_install_arg "${formula_name}")"
+  tap_name="$(brew_formula_tap_name "${formula_name}")"
+
+  progress_step "brew formula：${formula_name}"
 
   if ! require_brew_or_skip; then
     return 0
   fi
 
   local installed=0
-  local desc="未检测到 brew formula：${display_name}，是否安装最新版？"
+  local desc="未检测到 brew formula：${formula_name}，是否安装最新版？"
 
-  if brew_formula_installed "${check_name}"; then
+  if brew_formula_installed "${formula_name}"; then
     installed=1
 
     if ! confirm_existing_third_party_upgrade_once; then
-      warn_echo "已按统一选择跳过升级 brew formula：${display_name}"
+      warn_echo "已按统一选择跳过升级 brew formula：${formula_name}"
       return 0
     fi
   else
@@ -644,58 +741,32 @@ component_brew_formula() {
   fi
 
   if (( installed )); then
-    run_cmd "更新 brew formula：${display_name}" brew upgrade "${install_arg}"
+    run_cmd "更新 brew formula：${formula_name}" brew upgrade "${install_arg}"
   else
-    run_cmd "安装 brew formula：${display_name}" brew install "${install_arg}"
+    run_cmd "安装 brew formula：${formula_name}" brew install "${install_arg}"
   fi
 
-  if [[ -n "${post_func}" ]]; then
-    "${post_func}"
-  fi
+  brew_formula_after_install "${formula_name}"
 }
-
-component_formula_git_lfs() { component_brew_formula "git-lfs" "git-lfs" "git-lfs" "" ""; }
-component_formula_gh() { component_brew_formula "gh" "gh" "gh" "" ""; }
-component_formula_nushell() { component_brew_formula "nushell" "nushell" "nushell" "" ""; }
-component_formula_rbenv() { component_brew_formula "rbenv" "rbenv" "rbenv" "" "ensure_rbenv_init"; }
-component_formula_ruby() { component_brew_formula "ruby" "ruby" "ruby" "" ""; }
-component_formula_node() { component_brew_formula "node" "node" "node" "" ""; }
-component_formula_jenv() { component_brew_formula "jenv" "jenv" "jenv" "" "ensure_jenv_init"; }
-component_formula_openjdk() { component_brew_formula "openjdk" "openjdk" "openjdk" "" "post_openjdk_hint"; }
-component_formula_openjdk17() { component_brew_formula "openjdk@17" "openjdk@17" "openjdk@17" "" "post_openjdk_hint"; }
-component_formula_fvm() { component_brew_formula "fvm" "fvm" "fvm" "leoafarias/fvm" ""; }
-component_formula_pnpm() { component_brew_formula "pnpm" "pnpm" "pnpm" "" ""; }
-component_formula_python() { component_brew_formula "python" "python" "python" "" ""; }
-component_formula_python3() { component_brew_formula "python3" "python3" "python3" "" ""; }
-component_formula_fastlane() { component_brew_formula "fastlane" "fastlane" "fastlane" "" ""; }
-component_formula_mysql() { component_brew_formula "mysql" "mysql" "mysql" "" ""; }
-component_formula_hugo() { component_brew_formula "hugo" "hugo" "hugo" "" ""; }
-component_formula_yt_dlp() { component_brew_formula "yt-dlp" "yt-dlp" "yt-dlp" "" ""; }
-component_formula_ffmpeg() { component_brew_formula "ffmpeg" "ffmpeg" "ffmpeg" "" ""; }
-component_formula_go_task() { component_brew_formula "go-task" "go-task/tap/go-task" "go-task" "go-task/tap" ""; }
-component_formula_uv() { component_brew_formula "uv" "uv" "uv" "" ""; }
-component_formula_fzf() { component_brew_formula "fzf" "fzf" "fzf" "" "setup_fzf_shellenv"; }
-component_formula_lazygit() { component_brew_formula "lazygit" "lazygit" "lazygit" "" ""; }
 
 # ---------- 部件：brew cask ----------
 component_brew_cask() {
-  local display_name="$1"
-  local cask_name="$2"
+  local cask_name="$1"
 
-  progress_step "brew cask：${display_name}"
+  progress_step "brew cask：${cask_name}"
 
   if ! require_brew_or_skip; then
     return 0
   fi
 
   local installed=0
-  local desc="未检测到 brew cask：${display_name}，是否安装最新版？"
+  local desc="未检测到 brew cask：${cask_name}，是否安装最新版？"
 
   if brew_cask_installed "${cask_name}"; then
     installed=1
 
     if ! confirm_existing_third_party_upgrade_once; then
-      warn_echo "已按统一选择跳过升级 brew cask：${display_name}"
+      warn_echo "已按统一选择跳过升级 brew cask：${cask_name}"
       return 0
     fi
   else
@@ -705,16 +776,11 @@ component_brew_cask() {
   fi
 
   if (( installed )); then
-    run_cmd "更新 brew cask：${display_name}" brew upgrade --cask "${cask_name}"
+    run_cmd "更新 brew cask：${cask_name}" brew upgrade --cask "${cask_name}"
   else
-    run_cmd "安装 brew cask：${display_name}" brew install --cask "${cask_name}"
+    run_cmd "安装 brew cask：${cask_name}" brew install --cask "${cask_name}"
   fi
 }
-
-component_cask_hammerspoon() { component_brew_cask "hammerspoon" "hammerspoon"; }
-component_cask_flutter() { component_brew_cask "flutter" "flutter"; }
-component_cask_trex() { component_brew_cask "trex" "trex"; }
-component_cask_vlc() { component_brew_cask "vlc" "vlc"; }
 
 # ---------- 部件：npm quicktype ----------
 component_npm_quicktype() {
@@ -879,32 +945,18 @@ get_menu_items() {
     "Xcode iOS 平台组件"
     "Oh My Zsh"
     "Homebrew"
-    "brew cask：hammerspoon"
-    "brew cask：flutter"
-    "brew cask：trex"
-    "brew cask：vlc"
-    "brew formula：git-lfs"
-    "brew formula：gh"
-    "brew formula：nushell"
-    "brew formula：rbenv"
-    "brew formula：ruby"
-    "brew formula：node"
-    "brew formula：jenv"
-    "brew formula：openjdk"
-    "brew formula：openjdk@17"
-    "brew formula：fvm"
-    "brew formula：pnpm"
-    "brew formula：python"
-    "brew formula：python3"
-    "brew formula：fastlane"
-    "brew formula：mysql"
-    "brew formula：hugo"
-    "brew formula：yt-dlp"
-    "brew formula：ffmpeg"
-    "brew formula：go-task"
-    "brew formula：uv"
-    "brew formula：fzf"
-    "brew formula：lazygit"
+  )
+
+  local pkg
+  for pkg in "${BREW_CASKS[@]}"; do
+    MENU_ITEMS+=("brew cask：${pkg}")
+  done
+
+  for pkg in "${BREW_FORMULAE[@]}"; do
+    MENU_ITEMS+=("brew formula：${pkg}")
+  done
+
+  MENU_ITEMS+=(
     "Rosetta 2"
     "npm 全局包：quicktype"
     "gem 包：cocoapods"
@@ -968,32 +1020,8 @@ run_selected_item() {
     "Oh My Zsh") component_oh_my_zsh ;;
     "Homebrew") component_homebrew ;;
     "Rosetta 2") component_rosetta ;;
-    "brew formula：git-lfs") component_formula_git_lfs ;;
-    "brew formula：gh") component_formula_gh ;;
-    "brew formula：nushell") component_formula_nushell ;;
-    "brew formula：rbenv") component_formula_rbenv ;;
-    "brew formula：ruby") component_formula_ruby ;;
-    "brew formula：node") component_formula_node ;;
-    "brew formula：jenv") component_formula_jenv ;;
-    "brew formula：openjdk") component_formula_openjdk ;;
-    "brew formula：openjdk@17") component_formula_openjdk17 ;;
-    "brew formula：fvm") component_formula_fvm ;;
-    "brew formula：pnpm") component_formula_pnpm ;;
-    "brew formula：python") component_formula_python ;;
-    "brew formula：python3") component_formula_python3 ;;
-    "brew formula：fastlane") component_formula_fastlane ;;
-    "brew formula：mysql") component_formula_mysql ;;
-    "brew formula：hugo") component_formula_hugo ;;
-    "brew formula：yt-dlp") component_formula_yt_dlp ;;
-    "brew formula：ffmpeg") component_formula_ffmpeg ;;
-    "brew formula：go-task") component_formula_go_task ;;
-    "brew formula：uv") component_formula_uv ;;
-    "brew formula：fzf") component_formula_fzf ;;
-    "brew formula：lazygit") component_formula_lazygit ;;
-    "brew cask：hammerspoon") component_cask_hammerspoon ;;
-    "brew cask：flutter") component_cask_flutter ;;
-    "brew cask：trex") component_cask_trex ;;
-    "brew cask：vlc") component_cask_vlc ;;
+    "brew cask："*) component_brew_cask "${item#brew cask：}" ;;
+    "brew formula："*) component_brew_formula "${item#brew formula：}" ;;
     "npm 全局包：quicktype") component_npm_quicktype ;;
     "gem 包：cocoapods") component_gem_cocoapods ;;
     "Git LFS 初始化") component_git_lfs_init ;;

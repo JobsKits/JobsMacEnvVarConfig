@@ -496,6 +496,7 @@ verify_scripts_modules() {
     simios.command
     pods.command
     clean.command
+    dq.command
     cor.command
     decode.command
     ts.command
@@ -923,6 +924,14 @@ main() {
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" simios.command simios
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" pods.command pods
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" clean.command clean
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" dq.command dq
+
+  local old_long_entry="$target_bin_dir/dequarantine"
+  if [[ -f "$old_long_entry" ]] && grep -Eq 'jobs_dq_|jobs_dequarantine_|解除 macOS quarantine|com\.apple\.quarantine' "$old_long_entry" 2>/dev/null; then
+    rm -f "$old_long_entry"
+    note_echo "已移除旧长命令入口：$old_long_entry"
+  fi
+
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" cor.command cor
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" decode.command decode
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" ts.command ts

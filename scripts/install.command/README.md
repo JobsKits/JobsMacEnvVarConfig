@@ -23,11 +23,88 @@ install.command
 install.command [参数...]
 ```
 
-## 三、菜单顺序
+## 三、Homebrew 第三方配置
+
+脚本顶部已经集中放置 Homebrew 第三方配置区：
+
+```zsh
+readonly -a BREW_CASKS=(
+  hammerspoon
+  flutter
+  trex
+  vlc
+)
+
+readonly -a BREW_FORMULAE=(
+  git-lfs
+  gh
+  nushell
+  rbenv
+  ruby
+  node
+  jenv
+  openjdk
+  openjdk@17
+  fvm
+  pnpm
+  python
+  python3
+  fastlane
+  mysql
+  hugo
+  yt-dlp
+  ffmpeg
+  go-task
+  uv
+  fzf
+  lazygit
+)
+```
+
+维护规则：
+
+```text
+brew cask：只在 BREW_CASKS 里写第三方名称
+brew formula：只在 BREW_FORMULAE 里写第三方名称
+```
+
+不要在数组里写完整命令，例如不要写：
+
+```zsh
+brew install git-lfs
+brew install --cask vlc
+```
+
+直接写名字即可：
+
+```zsh
+git-lfs
+vlc
+```
+
+菜单项会根据这两个数组自动生成，执行时会自动拼出：
+
+```zsh
+brew install xxx
+brew install --cask xxx
+```
+
+少数有特殊处理的 formula 已经在脚本内部适配：
+
+```text
+fvm：自动 brew tap leoafarias/fvm
+go-task：自动 brew tap go-task/tap，并使用 go-task/tap/go-task 安装
+rbenv：安装 / 更新后自动写入 rbenv 初始化配置
+jenv：安装 / 更新后自动写入 jenv 初始化配置
+openjdk / openjdk@17：安装 / 更新后输出 Java 配置提示
+fzf：安装 / 更新后自动写入 fzf shell 配置
+```
+
+## 四、菜单顺序
 
 fzf 菜单固定为按显示顺序从上到下排列。
 
-当前菜单顺序如下：
+当前菜单结构如下：
 
 ```text
 ✅ 全选安装
@@ -35,32 +112,8 @@ Xcode Command Line Tools
 Xcode iOS 平台组件
 Oh My Zsh
 Homebrew
-brew cask：hammerspoon
-brew cask：flutter
-brew cask：trex
-brew cask：vlc
-brew formula：git-lfs
-brew formula：gh
-brew formula：nushell
-brew formula：rbenv
-brew formula：ruby
-brew formula：node
-brew formula：jenv
-brew formula：openjdk
-brew formula：openjdk@17
-brew formula：fvm
-brew formula：pnpm
-brew formula：python
-brew formula：python3
-brew formula：fastlane
-brew formula：mysql
-brew formula：hugo
-brew formula：yt-dlp
-brew formula：ffmpeg
-brew formula：go-task
-brew formula：uv
-brew formula：fzf
-brew formula：lazygit
+brew cask：由 BREW_CASKS 自动生成
+brew formula：由 BREW_FORMULAE 自动生成
 Rosetta 2
 npm 全局包：quicktype
 gem 包：cocoapods
@@ -69,7 +122,7 @@ JobsKits 仓库
 手动下载页面
 ```
 
-## 四、brew 相关顺序
+## 五、brew 相关顺序
 
 brew 相关部分固定为：
 
@@ -81,7 +134,7 @@ brew formula：...
 
 也就是先处理 Homebrew，再紧接着显示依托 Homebrew 安装的 cask 与 formula 依赖。
 
-## 五、交互规则
+## 六、交互规则
 
 启动菜单前会自检 Homebrew 与 fzf。缺少 fzf 时，会先通过 Homebrew 安装 fzf，保证菜单可以正常显示。
 
@@ -110,13 +163,13 @@ gem 包
 输入任意字符后回车：跳过
 ```
 
-## 六、结构约定
+## 七、结构约定
 
 运行时打印的自述已经写死在 `install.command` 内部，不依赖同级 `README.md`。
 
 本 README 只用于源码浏览、维护说明和当前流程说明。
 
-## 七、流程图
+## 八、流程图
 
 ```mermaid
 flowchart TD
@@ -166,8 +219,8 @@ brew 相关部件在菜单中的处理顺序如下：
 
 ```mermaid
 flowchart TD
-    A[Homebrew] --> B[brew cask 依赖]
-    B --> C[brew formula 依赖]
+    A[Homebrew] --> B[BREW_CASKS 自动生成]
+    B --> C[BREW_FORMULAE 自动生成]
 ```
 
 第三方依赖已存在时的统一升级确认：

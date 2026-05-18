@@ -27,6 +27,7 @@ gif
 simios
 pods
 clean
+dq
 cor
 decode
 ts

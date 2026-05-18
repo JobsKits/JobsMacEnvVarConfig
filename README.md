@@ -57,6 +57,9 @@
 │   ├── flat.command/
 │   │   ├── flat.command  # URL 编码去乱码 / 解码工具
 │   │   └── README.md
+│   ├── dq.command/
+│   │   ├── dq.command             # 解除 macOS quarantine 隔离属性
+│   │   └── README.md
 │   └── *.command/                  # 其余模块均按“脚本全名文件夹 + 脚本 + README”管理
 └── zsh/
     ├── bootstrap.zsh               # 启动层：交互式环境、Oh My Zsh、Homebrew
@@ -85,6 +88,7 @@
 │   ├── list.command/list.command
 │   ├── m5c.command/m5c.command
 │   ├── flat.command/flat.command
+│   ├── dq.command/dq.command
 │   └── *.command/*.command
 └── zsh/
 ```
@@ -940,6 +944,7 @@ gif 终端 / 全屏录制入口 -> Scripts/gif.command/gif.command / ~/.local/bi
 simios iOS 模拟器补齐入口 -> Scripts/simios.command/simios.command / ~/.local/bin/simios
 m5c MD5 文件比较入口 -> Scripts/m5c.command/m5c.command / ~/.local/bin/m5c
 flat URL 编码去乱码入口 -> Scripts/flat.command/flat.command / ~/.local/bin/flat
+dq 解除 macOS quarantine 隔离属性入口 -> Scripts/dq.command/dq.command / ~/.local/bin/dq
 终端默认行为         -> zsh/custom/shell_behavior.zsh
 路径拖入解析         -> zsh/custom/path_drag_resolver.zsh
 系统入口             -> ~/.zshrc 只保留加载入口
