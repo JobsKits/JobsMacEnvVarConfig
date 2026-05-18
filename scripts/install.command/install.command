@@ -42,6 +42,8 @@ readonly -a BREW_CASKS=(
   flutter
   trex
   vlc
+  codex-app # 图形化界面
+  codex # 终端使用
 )
 
 readonly -a BREW_FORMULAE=(
