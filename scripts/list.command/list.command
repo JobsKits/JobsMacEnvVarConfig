@@ -242,7 +242,7 @@ build_menu_items() {
 iOS 模拟器	simios	检测 Xcode 环境并下载 / 补齐 iOS Simulator Runtime	script	simios.command
 本地 Pod 自检	pods	检查本地 CocoaPods Pod 编译与 podspec lint 结果	script	pods.command
 终端清理	clean	清空终端历史、zsh_sessions，并执行 brew cleanup	script	clean.command
-解除隔离	dq	递归解除当前目录或指定路径的 macOS quarantine 隔离属性	script	dq.command
+目录共享	df	dufs + Caddy 临时开放本地目录给局域网浏览器访问	script	df.command
 颜色转换	cor	颜色格式转换器，支持 HEX / RGB / RGBA / 0xAARRGGBB	script	cor.command
 URL 解码	decode	交互式 URL Decode，并自动复制到剪贴板	script	decode.command
 时间戳	ts	Unix 时间戳转换，支持秒 / 毫秒 / 微秒 / 纳秒	script	ts.command

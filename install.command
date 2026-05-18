@@ -496,7 +496,7 @@ verify_scripts_modules() {
     simios.command
     pods.command
     clean.command
-    dq.command
+    df.command
     cor.command
     decode.command
     ts.command
@@ -603,7 +603,7 @@ remove_obsolete_bin_entry() {
 
   [[ -e "$target_path" ]] || return 0
 
-  if [[ -f "$target_path" ]] && grep -Eq 'flutter\.command|jobs_flutter_show_readme|JOBS_MAC_ENV' "$target_path" 2>/dev/null; then
+  if [[ -f "$target_path" ]] && grep -Eq 'flutter\.command|jobs_flutter_show_readme|JOBS_MAC_ENV|jobs_dq_|dq\.command|com\.apple\.quarantine' "$target_path" 2>/dev/null; then
     rm -f "$target_path"
     note_echo "已移除旧的独立命令入口：$target_path"
     return 0
@@ -924,7 +924,8 @@ main() {
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" simios.command simios
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" pods.command pods
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" clean.command clean
-  install_bin_entry "$target_scripts_dir" "$target_bin_dir" dq.command dq
+  remove_obsolete_bin_entry "$target_bin_dir" dq
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" df.command df
 
   local old_long_entry="$target_bin_dir/dequarantine"
   if [[ -f "$old_long_entry" ]] && grep -Eq 'jobs_dq_|jobs_dequarantine_|解除 macOS quarantine|com\.apple\.quarantine' "$old_long_entry" 2>/dev/null; then

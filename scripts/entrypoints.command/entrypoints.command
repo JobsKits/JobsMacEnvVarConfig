@@ -108,8 +108,8 @@ simios() { _jobs_run_scripts_command simios "$@"; }
 pods() { _jobs_run_scripts_command pods "$@"; }
 # clean：清空 zsh 历史、zsh_sessions 残留，并在检测到 Homebrew 时顺手执行 brew cleanup。
 clean() { _jobs_run_scripts_command clean "$@"; }
-# dq：递归解除当前目录或指定路径的 macOS quarantine 隔离属性。
-dq() { _jobs_run_scripts_command dq "$@"; }
+# df：dufs + Caddy 临时开放本地目录给局域网浏览器访问。注意：系统磁盘 df 请用 /bin/df。
+df() { _jobs_run_scripts_command df "$@"; }
 # cor：转换 HEX / RGB / RGBA / 0xAARRGGBB，并输出终端色块预览。
 cor() { _jobs_run_scripts_command cor "$@"; }
 # decode：交互式 URL Decode，并自动复制结果到剪贴板。

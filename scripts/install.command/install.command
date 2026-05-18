@@ -68,6 +68,7 @@ readonly -a BREW_FORMULAE=(
   fzf
   lazygit
   onlyoffice
+  dufs
 )
 
 # ---------- 彩色日志 ----------
