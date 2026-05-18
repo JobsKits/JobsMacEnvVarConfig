@@ -8,17 +8,19 @@
 
 ## 🔥 <font id=前言>前言</font> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
-`update.command` 用于升级和维护 `install.command` 已安装 / 初始化过的 MacOS 开发环境。
+`update.command` 用于升级和维护 `install.command` 已安装 / 初始化过的 [**macOS**](https://www.apple.com/macos/) 开发环境。
 
 核心原则：
 
 ```text
-install.command 安装的，都应该在 update.command 里面体现，并提供升级 / 刷新入口。
+install.command 安装 / 初始化过的内容，update.command 必须体现，并提供升级 / 刷新入口。
 ```
 
 该脚本适合 `.command` 双击运行，也可以在终端中执行。启动后会先显示脚本内置自述，再按照更新顺序逐项询问。
 
 ## 一、运行方式 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
+
+进入 `update.command` 所在目录后执行：
 
 ```zsh
 ./update.command
@@ -40,49 +42,56 @@ update.command [参数...]
 输入任意字符后回车：跳过当前项
 ```
 
-单个更新项失败不会阻断后续更新项。
+单个更新项失败不会阻断后续更新项，只会写入日志并继续后续流程。
 
 工具不存在时，`update.command` 默认只提示，不静默安装。需要补装请回到 `install.command`。
+
+脚本内置自述可通过环境变量跳过：
+
+```zsh
+JOBS_MAC_ENV_SKIP_README=1 ./update.command
+```
 
 ## 三、与 `install.command` 的对应关系 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
 当前 `update.command` 已对齐 `install.command` 的这些安装 / 初始化项，并且按 `update.command` 实际询问顺序排列：
 
-- [Xcode **C**ommand **L**ine **T**ools](https://developer.apple.com/xcode/resources/) / [`softwareupdate`](https://support.apple.com/guide/terminal/install-system-software-updates-apdc2ebf20d5/mac)
-  - 对应更新：检查 CLT、接受 Xcode License、执行 `softwareupdate --install --all`
+- [**Xcode Command Line Tools**](https://developer.apple.com/xcode/resources/) / [`softwareupdate`](https://support.apple.com/guide/terminal/install-system-software-updates-apdc2ebf20d5/mac)
+  - 对应更新：检查 CLT、接受 [**Xcode**](https://developer.apple.com/xcode/) License、执行 `softwareupdate --install --all`
 - [**Xcode**](https://developer.apple.com/xcode/) iOS 平台组件
   - 对应更新：清理 Xcode / CoreSimulator 缓存，执行 `xcodebuild -downloadPlatform iOS -verbose`
 - [**Oh My Zsh**](https://ohmyz.sh/)
   - 对应更新：执行 `~/.oh-my-zsh/tools/upgrade.sh`
 - [**Homebrew**](https://brew.sh/)
-  - 对应更新：执行 `brew update`、`brew upgrade`、`brew upgrade --cask`、`brew cleanup`、`brew doctor`
-  - `brew cask`：`BREW_CASKS` 自动生成
-  - `brew formula`：`BREW_FORMULAE` 自动生成
+  - 对应更新：执行 `brew update`、`brew upgrade`、`brew upgrade --cask`、`brew cleanup`、`brew doctor`、`brew -v`
+  - `brew cask`：由 `BREW_CASKS` 自动生成逐项升级入口
+  - `brew formula`：由 `BREW_FORMULAE` 自动生成逐项升级入口
 - [**Rosetta 2**](https://support.apple.com/en-us/102527)
-  - 对应更新：检查安装状态；Rosetta 2 通常跟随 MacOS 系统更新维护
+  - 对应更新：检查安装状态；Rosetta 2 通常跟随 [**macOS**](https://www.apple.com/macos/) 系统更新维护
 - [**FVM**](https://fvm.app/) / [**Flutter**](https://flutter.dev/)
-  - 对应更新：升级 FVM、执行 `flutter upgrade`、执行 `flutter doctor -v`
+  - 对应更新：升级 FVM，优先执行外部 `flutter upgrade` / `flutter doctor -v`，否则回退到 `fvm flutter doctor -v`
 - [**Node.js**](https://nodejs.org/) / [**Corepack**](https://nodejs.org/api/corepack.html) / [**npm**](https://www.npmjs.com/) / [**pnpm**](https://pnpm.io/)
-  - 对应更新：维护 Node LTS、启用 `corepack`、升级 `npm`
+  - 对应更新：兼容 [**nvm**](https://github.com/nvm-sh/nvm) LTS 维护，启用 `corepack`，升级 `npm`
 - `npm` 全局包：[**quicktype**](https://quicktype.io/)
-  - 对应更新：执行 `npm update -g quicktype`
+  - 对应更新：检测已安装后执行 `sudo npm update -g quicktype`
 - `npm` 全局包：[**OpenCLI**](https://www.npmjs.com/package/@jackwener/opencli)
-  - 对应更新：确认 Node.js 版本，执行 `npm install -g @jackwener/opencli@latest`
+  - 对应更新：确认 [**Node.js**](https://nodejs.org/) 版本不低于 21，检测已安装后执行 `sudo npm install -g @jackwener/opencli@latest`，并提示 `opencli doctor`
 - [**Ruby**](https://www.ruby-lang.org/) / [**RubyGems**](https://rubygems.org/) / [**rbenv**](https://github.com/rbenv/rbenv)
-  - 对应更新：刷新 `rbenv` 初始化配置，执行 `gem update --system`、`gem update`
+  - 对应更新：刷新 `rbenv` 初始化配置，执行 `rbenv rehash`、`gem update --system`、`gem update`
 - `gem` 包：[**CocoaPods**](https://cocoapods.org/)
-  - 对应更新：执行 `gem update cocoapods`、`pod repo update`
+  - 对应更新：检测已安装后执行 `sudo gem update cocoapods`、`pod repo update`
 - [**Python**](https://www.python.org/) / [**pip**](https://pip.pypa.io/) / [**uv**](https://docs.astral.sh/uv/)
-  - 对应更新：执行 `pyenv update`、`pipx upgrade-all`、`python3 -m pip install --upgrade pip`
+  - 对应更新：按可用环境执行 `pyenv update`、`pyenv rehash`、`pipx upgrade-all`、`python3 -m pip install --upgrade pip`
 - [**Dart**](https://dart.dev/) `pub` 缓存
   - 对应更新：执行 `dart pub global list`、`dart pub cache repair`
 - [**Git LFS**](https://git-lfs.com/) 初始化
-  - 对应更新：执行 `git lfs install`，刷新大文件相关 Git 参数
+  - 对应更新：执行 `git lfs install`，刷新 `core.compression`、`http.postBuffer` 等大文件相关 [**Git**](https://git-scm.com/) 参数
 - [**JobsKits**](https://github.com/JobsKits) 仓库
   - 对应更新：`JobsSoftware.MacOS`、`JobsMacEnvVarConfig` 执行 `git pull --ff-only`
+  - 对应保护：只确认 `JobsMacEnvVarConfig/install.command` 可执行权限，不执行它，避免递归调用安装入口
 - 手动下载 / 更新页面
   - [**Visual Studio Code**](https://code.visualstudio.com/)
-  - [**Android Studio**](https://developer.android.com/studio)
+  - [**Android Studio**](https://developer.android.com/studio?hl=zh-cn)
   - [**Python Downloads**](https://www.python.org/downloads/)
 
 ## 四、Homebrew 第三方配置 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
@@ -91,22 +100,36 @@ update.command [参数...]
 
 ### 4.1、`brew cask`
 
+当前 `BREW_CASKS`：
+
 ```zsh
 readonly -a BREW_CASKS=(
   hammerspoon
   flutter
   trex
   vlc
+  codex-app
+  codex
 )
 ```
 
+| cask | 说明 |
+| --- | --- |
+| [**hammerspoon**](https://www.hammerspoon.org/) | 自动化与快捷键工具 |
+| [**flutter**](https://flutter.dev/) | Flutter SDK / 桌面开发工具链 |
+| [**trex**](https://formulae.brew.sh/cask/trex) | OCR / 取词相关工具 |
+| [**vlc**](https://www.videolan.org/vlc/) | 视频播放器 |
+| [**codex-app**](https://formulae.brew.sh/cask/codex-app) | Codex 图形化应用入口 |
+| [**codex**](https://formulae.brew.sh/cask/codex) | Codex 相关图形化入口 |
+
 ### 4.2、`brew formula`
+
+当前 `BREW_FORMULAE`：
 
 ```zsh
 readonly -a BREW_FORMULAE=(
   git-lfs
   gh
-  codex
   nushell
   rbenv
   ruby
@@ -132,26 +155,53 @@ readonly -a BREW_FORMULAE=(
 )
 ```
 
+| formula | 说明 |
+| --- | --- |
+| [**git-lfs**](https://git-lfs.com/) | Git 大文件支持 |
+| [**gh**](https://cli.github.com/) | GitHub CLI |
+| [**nushell**](https://www.nushell.sh/) | 结构化 Shell |
+| [**rbenv**](https://github.com/rbenv/rbenv) | Ruby 版本管理 |
+| [**ruby**](https://www.ruby-lang.org/) | Ruby 运行环境 |
+| [**node**](https://nodejs.org/) | Node.js 运行环境 |
+| [**jenv**](https://www.jenv.be/) | Java 版本管理 |
+| [**openjdk**](https://openjdk.org/) | Java 开发工具包 |
+| [**openjdk@17**](https://openjdk.org/projects/jdk/17/) | Java 17 开发工具包 |
+| [**fvm**](https://fvm.app/) | Flutter 版本管理 |
+| [**pnpm**](https://pnpm.io/) | Node.js 包管理器 |
+| [**python**](https://www.python.org/) | Python 运行环境 |
+| [**python3**](https://www.python.org/) | Python 3 运行环境 |
+| [**fastlane**](https://fastlane.tools/) | 移动端自动化发布工具 |
+| [**mysql**](https://www.mysql.com/) | MySQL 数据库 |
+| [**hugo**](https://gohugo.io/) | 静态站点生成器 |
+| [**yt-dlp**](https://github.com/yt-dlp/yt-dlp) | 视频下载工具 |
+| [**ffmpeg**](https://ffmpeg.org/) | 音视频处理工具 |
+| [**go-task**](https://taskfile.dev/) | 任务运行器 |
+| [**uv**](https://docs.astral.sh/uv/) | Python 包与项目管理工具 |
+| [**fzf**](https://github.com/junegunn/fzf) | 命令行模糊查找工具 |
+| [**lazygit**](https://github.com/jesseduffield/lazygit) | Git 终端 UI |
+| [**onlyoffice**](https://www.onlyoffice.com/) | Office 文档套件 |
+| [**dufs**](https://github.com/sigoden/dufs) | 文件服务器工具 |
+
 维护规则：
 
 ```text
-install.command 增加 brew cask / formula 后，update.command 的同名数组必须同步增加。
+install.command 增加 brew cask / formula 后，update.command 的同名数组必须同步增加；对应 README.md 也必须同步更新。
 ```
 
 少数特殊 `formula` 的更新后置动作已经适配：
 
-- `fvm`：自动确认 `leoafarias/fvm` tap
-- `go-task`：自动确认 `go-task/tap`，并使用 `go-task/tap/go-task` 升级
-- `rbenv`：升级后刷新 `rbenv` 初始化配置
-- `jenv`：升级后刷新 `jenv` 初始化配置
-- `openjdk` / `openjdk@17`：升级后输出 Java 配置提示
-- `fzf`：升级后刷新 `fzf` shell 配置
+- [**fvm**](https://fvm.app/)：自动确认 `leoafarias/fvm` tap
+- [**go-task**](https://taskfile.dev/)：自动确认 `go-task/tap`，并使用 `go-task/tap/go-task` 升级
+- [**rbenv**](https://github.com/rbenv/rbenv)：升级后刷新 `rbenv` 初始化配置
+- [**jenv**](https://www.jenv.be/)：升级后刷新 `jenv` 初始化配置
+- [**openjdk**](https://openjdk.org/) / [**openjdk@17**](https://openjdk.org/projects/jdk/17/)：升级后输出 Java 配置提示
+- [**fzf**](https://github.com/junegunn/fzf)：升级后刷新 `fzf` shell 配置
 
 ## 五、更新顺序总览 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
 `update.command` 当前按以下顺序逐项询问：
 
-1. Xcode **C**ommand **L**ine **T**ools / `softwareupdate`
+1. [**Xcode Command Line Tools**](https://developer.apple.com/xcode/resources/) / `softwareupdate`
 2. [**Xcode**](https://developer.apple.com/xcode/) iOS 平台组件
 3. [**Oh My Zsh**](https://ohmyz.sh/)
 4. [**Homebrew**](https://brew.sh/)
@@ -180,6 +230,7 @@ sudo xcodebuild -license accept
 xcodebuild -downloadPlatform iOS -verbose
 brew upgrade / brew upgrade --cask
 gem update / npm install -g npm@latest
+dart pub cache repair
 ```
 
 脚本会在执行每个大项前单独询问。
@@ -197,6 +248,15 @@ gem update / npm install -g npm@latest
 运行时说明和核心流程已经写在 `update.command` 内部，不依赖同级 `README.md`。
 
 本 README 用于源码浏览、维护说明和当前流程说明。
+
+`update.command` 当前通过 `jobs_update_main` 统一收口：
+
+```zsh
+jobs_update_show_readme_and_wait
+update "$@"
+```
+
+如果脚本被其他脚本 `source`，可以通过 `JOBS_MAC_ENV_SOURCE_MODE=1` 避免自动执行主流程。
 
 ## 九、流程图 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
@@ -226,6 +286,8 @@ flowchart TD
     C[install.command: BREW_FORMULAE] --> D[update.command: BREW_FORMULAE]
     B --> E[brew upgrade --cask]
     D --> F[brew upgrade]
+    E --> G[README.md 同步记录]
+    F --> G
 ```
 
 <a id="🔚" href="#前言" style="font-size:17px; color:green; font-weight:bold;">我是有底线的➤点我回到首页</a>

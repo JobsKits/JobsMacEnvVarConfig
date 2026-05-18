@@ -34,12 +34,13 @@ readonly -a BREW_CASKS=(
   flutter
   trex
   vlc
+  codex-app
+  codex
 )
 
 readonly -a BREW_FORMULAE=(
   git-lfs
   gh
-  codex
   nushell
   rbenv
   ruby
