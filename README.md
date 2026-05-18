@@ -252,6 +252,7 @@ export JOBS_ALIAS_DRAG_AUTO_RESOLVE=true
 | list | fzf 功能菜单总入口，展示可执行能力并分发到具体脚本 |
 | m5c | MD5 文件一致性比较工具，支持输入或拖入两个文件路径 |
 | flat | URL 编码去乱码 / 解码工具，支持普通 URL Decode 和 `--plus` 表单编码模式 |
+| clr | 清空 Google Chrome 下载记录，不删除真实下载文件 |
 
 ## 七、常用能力 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
@@ -431,7 +432,46 @@ clean
 - `clear` 只清当前可视区域，不清滚动缓冲；`clean` 使用 ANSI scrollback 清理序列和 iTerm2 ClearScrollback 扩展，目标效果对齐 Command+K。
 - 这里没有调用 `clear` 命令，因此不是普通 clear 的效果。
 
-#### 3.4 `zz <路径>`：跳转到真实目录
+#### 3.4 `clr`：清空 Chrome 下载记录
+
+来源文件：
+
+```text
+Scripts/clr.command/clr.command
+```
+
+用法：
+
+```zsh
+clr
+```
+
+行为：
+
+- 清空 Google Chrome 下载记录，效果对齐 `chrome://downloads/` 右上角「全部清除」。
+- 不删除 `~/Downloads` 或其它目录里的真实文件。
+- 不退出 Google Chrome。
+- 不备份 Chrome `History` 数据库。
+- 默认会打开 `chrome://downloads/`，然后通过自动化点击右上角「全部清除」。
+
+可选参数：
+
+```zsh
+clr --open-only
+clr --yes
+clr --js-only
+clr --ui-only
+```
+
+注意：
+
+- 默认会停一下确认：直接按回车清理；输入任意字符后回车取消。
+- `--open-only` 只打开 Chrome 下载记录页，不做清理。
+- `--yes` 适合自动化调用，会跳过回车确认。
+- `--js-only` 只尝试 Chrome JavaScript 点击。
+- `--ui-only` 只尝试 macOS 辅助功能 UI 点击。
+
+#### 3.5 `zz <路径>`：跳转到真实目录
 
 来源文件：
 
@@ -945,6 +985,7 @@ simios iOS 模拟器补齐入口 -> Scripts/simios.command/simios.command / ~/.l
 m5c MD5 文件比较入口 -> Scripts/m5c.command/m5c.command / ~/.local/bin/m5c
 flat URL 编码去乱码入口 -> Scripts/flat.command/flat.command / ~/.local/bin/flat
 df 局域网目录共享入口 -> Scripts/df.command/df.command / ~/.local/bin/df
+clr Chrome 下载记录清理入口 -> Scripts/clr.command/clr.command / ~/.local/bin/clr
 终端默认行为         -> zsh/custom/shell_behavior.zsh
 路径拖入解析         -> zsh/custom/path_drag_resolver.zsh
 系统入口             -> ~/.zshrc 只保留加载入口
@@ -1027,3 +1068,23 @@ source ~/.zshrc
 新增 `Scripts/to.command/to.command`，用于统一处理 `to mp4 文件`、`mp4 文件`、`mov 文件`、`webm 文件`、`mp3 文件` 等媒体格式转换。真实脚本只维护一份，格式短命令通过入口包装复用，避免为每种格式复制独立脚本。
 
 `list` 的 [**fzf**](https://github.com/junegunn/fzf) 菜单已拆分展示这些格式入口：`to`、`mp4`、`mov`、`webm`、`mkv`、`avi`、`m4v`、`mp3`、`m4a`、`aac`、`wav`、`flac`、`ogg`、`opus`、`to gif`。选择 `mp4` 时等价于执行 `to mp4`，随后继续拖入或输入源文件路径。
+
+---
+
+## clr：清空 Chrome 下载历史
+
+新增命令：
+
+```zsh
+clr
+```
+
+用途：清空 Google Chrome 浏览器下载历史，不删除本地真实文件。
+
+第一次使用需要加载一次本地 Chrome 扩展：
+
+```zsh
+clr --install-extension
+```
+
+原因：Chrome 没有给普通 macOS 命令行提供稳定的清空下载历史接口；本工具通过本地 Chrome 扩展调用 Chrome downloads API 完成清理。

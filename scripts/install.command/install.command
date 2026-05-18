@@ -202,6 +202,43 @@ require_command() {
   command -v "${cmd}" >/dev/null 2>&1
 }
 
+get_node_major_version() {
+  if ! require_command node; then
+    echo "0"
+    return 0
+  fi
+
+  local version=""
+  version="$(node --version 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
+  [[ -n "${version}" ]] && echo "${version}" || echo "0"
+}
+
+ensure_node_for_opencli() {
+  local major=""
+  major="$(get_node_major_version)"
+
+  if (( major >= 21 )); then
+    success_echo "Node.js 版本满足 OpenCLI 要求：$(node --version)"
+    return 0
+  fi
+
+  warn_echo "OpenCLI 需要 Node.js >= 21，当前版本：$(node --version 2>/dev/null || echo '未安装')"
+
+  if require_command brew; then
+    run_cmd "通过 Homebrew 安装 / 升级 node" brew upgrade node || run_cmd "通过 Homebrew 安装 node" brew install node
+    hash -r 2>/dev/null || true
+    major="$(get_node_major_version)"
+  fi
+
+  if (( major >= 21 )); then
+    success_echo "Node.js 已满足 OpenCLI 要求：$(node --version)"
+    return 0
+  fi
+
+  error_echo "Node.js 仍低于 21，跳过 OpenCLI 安装。请先升级 Node.js 后重试。"
+  return 1
+}
+
 get_cpu_arch() {
   [[ "$(uname -m)" == "arm64" ]] && echo "arm64" || echo "x86_64"
 }
@@ -427,6 +464,7 @@ EOFREADME
   - brew formula：由 BREW_FORMULAE 自动生成
   - Rosetta 2
   - npm 全局包：quicktype
+  - npm 全局包：OpenCLI
   - gem 包：cocoapods
   - Git LFS 初始化与大文件参数
   - JobsKits 仓库：JobsSoftware.MacOS、JobsMacEnvVarConfig
@@ -815,6 +853,49 @@ component_npm_quicktype() {
   fi
 }
 
+# ---------- 部件：npm OpenCLI ----------
+component_npm_opencli() {
+  progress_step "npm 全局包：OpenCLI"
+
+  if ! require_command npm; then
+    warn_echo "npm 不存在，无法安装 OpenCLI。请先选择 brew formula：node。"
+    return 0
+  fi
+
+  if ! ensure_node_for_opencli; then
+    return 0
+  fi
+
+  local installed=0
+  local desc="未检测到 npm 全局包 OpenCLI，是否安装？"
+
+  if npm list -g @jackwener/opencli --depth=0 >/dev/null 2>&1; then
+    installed=1
+
+    if ! confirm_existing_third_party_upgrade_once; then
+      warn_echo "已按统一选择跳过升级 npm 全局包：OpenCLI"
+      return 0
+    fi
+  else
+    if ! confirm_execute "${desc}" "安装"; then
+      return 0
+    fi
+  fi
+
+  if (( installed )); then
+    run_cmd "更新 npm 全局包 OpenCLI" sudo npm install -g @jackwener/opencli@latest
+  else
+    run_cmd "安装 npm 全局包 OpenCLI" sudo npm install -g @jackwener/opencli@latest
+  fi
+
+  if require_command opencli; then
+    run_cmd "输出 OpenCLI 版本" opencli --version
+    warm_echo "OpenCLI 浏览器自动化还需要手动安装 Browser Bridge 扩展，安装后可执行：opencli doctor"
+  else
+    warn_echo "npm 安装完成后当前 PATH 仍找不到 opencli，建议重新打开终端或检查 npm global bin。"
+  fi
+}
+
 # ---------- 部件：gem cocoapods ----------
 component_gem_cocoapods() {
   progress_step "gem 包：cocoapods"
@@ -960,6 +1041,7 @@ get_menu_items() {
   MENU_ITEMS+=(
     "Rosetta 2"
     "npm 全局包：quicktype"
+    "npm 全局包：OpenCLI"
     "gem 包：cocoapods"
     "Git LFS 初始化"
     "JobsKits 仓库"
@@ -1024,6 +1106,7 @@ run_selected_item() {
     "brew cask："*) component_brew_cask "${item#brew cask：}" ;;
     "brew formula："*) component_brew_formula "${item#brew formula：}" ;;
     "npm 全局包：quicktype") component_npm_quicktype ;;
+    "npm 全局包：OpenCLI") component_npm_opencli ;;
     "gem 包：cocoapods") component_gem_cocoapods ;;
     "Git LFS 初始化") component_git_lfs_init ;;
     "JobsKits 仓库") component_jobs_repos ;;

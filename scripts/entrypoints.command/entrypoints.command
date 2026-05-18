@@ -108,6 +108,8 @@ simios() { _jobs_run_scripts_command simios "$@"; }
 pods() { _jobs_run_scripts_command pods "$@"; }
 # clean：清空 zsh 历史、zsh_sessions 残留，并在检测到 Homebrew 时顺手执行 brew cleanup。
 clean() { _jobs_run_scripts_command clean "$@"; }
+# clr：清空 Google Chrome 下载记录，不删除真实下载文件。
+clr() { _jobs_run_scripts_command clr "$@"; }
 # df：dufs + Caddy 临时开放本地目录给局域网浏览器访问。注意：系统磁盘 df 请用 /bin/df。
 df() { _jobs_run_scripts_command df "$@"; }
 # cor：转换 HEX / RGB / RGBA / 0xAARRGGBB，并输出终端色块预览。

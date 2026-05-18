@@ -496,6 +496,7 @@ verify_scripts_modules() {
     simios.command
     pods.command
     clean.command
+    clr.command
     df.command
     cor.command
     decode.command
@@ -924,6 +925,8 @@ main() {
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" simios.command simios
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" pods.command pods
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" clean.command clean
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" clr.command clr
+  remove_obsolete_bin_entry "$target_bin_dir" dlclear
   remove_obsolete_bin_entry "$target_bin_dir" dq
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" df.command df
 
