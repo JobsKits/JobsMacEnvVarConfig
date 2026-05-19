@@ -68,6 +68,7 @@
     ├── user_mounts.zsh             # 自定义模块挂载入口
     └── custom/
         ├── shell_behavior.zsh      # 交互式终端行为：默认 cd 桌面、clean 清屏清历史
+        ├── git_behavior.zsh        # Git 中文路径 / emoji 路径终端显示修正
         ├── path_drag_resolver.zsh  # macOS 拖入路径解析
         └── local.zsh               # Scripts 模块加载器
 ```
@@ -301,11 +302,12 @@ zsh/user_mounts.zsh
 
 ```zsh
 shell_behavior.zsh
+git_behavior.zsh
 path_drag_resolver.zsh
 local.zsh
 ```
 
-也就是说，`shell_behavior.zsh` 放终端默认行为，`path_drag_resolver.zsh` 放路径拖入解析，`local.zsh` 只加载 `Scripts/<脚本全名>/<脚本全名>` 模块，并兼容旧版平铺结构 `Scripts/*.command`。
+也就是说，`shell_behavior.zsh` 放终端默认行为，`git_behavior.zsh` 放 Git 中文路径 / emoji 路径显示修正，`path_drag_resolver.zsh` 放路径拖入解析，`local.zsh` 只加载 `Scripts/<脚本全名>/<脚本全名>` 模块，并兼容旧版平铺结构 `Scripts/*.command`。
 
 
 
@@ -700,6 +702,27 @@ if [[ -o interactive ]] && [[ -d "$HOME/Desktop" ]]; then
 fi
 ```
 
+#### 3.10.1 `git_behavior.zsh`：Git 中文路径 / emoji 路径显示修正
+
+来源文件：
+
+```text
+zsh/custom/git_behavior.zsh
+```
+
+当前默认行为：
+
+- 只在交互式 zsh 生效，不写入全局 Git 配置，也不修改仓库 `.git/config`。
+- 终端里直接输入 `git` 时，会自动临时追加 `-c core.quotepath=false`，让 `git status`、`git diff --name-only`、`git ls-files` 等命令正常显示中文路径和 emoji 路径。
+- 字符集优先保持用户当前语言；只有 `LC_CTYPE` 缺少 UTF-8 语义时，才补成 `UTF-8`。
+
+临时关闭方式：
+
+```zsh
+export JOBS_GIT_QUOTEPATH_FIX=false
+source ~/.zshrc
+```
+
 #### 3.11 `trs`：macOS 原生翻译入口 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
 来源文件：
@@ -987,6 +1010,7 @@ flat URL 编码去乱码入口 -> Scripts/flat.command/flat.command / ~/.local/b
 df 局域网目录共享入口 -> Scripts/df.command/df.command / ~/.local/bin/df
 clr Chrome 下载记录清理入口 -> Scripts/clr.command/clr.command / ~/.local/bin/clr
 终端默认行为         -> zsh/custom/shell_behavior.zsh
+Git 路径显示修正     -> zsh/custom/git_behavior.zsh
 路径拖入解析         -> zsh/custom/path_drag_resolver.zsh
 系统入口             -> ~/.zshrc 只保留加载入口
 实际运行目录         -> ~/.JobsMacEnv
