@@ -78,6 +78,8 @@ JOBS_MAC_ENV_SKIP_README=1 ./update.command
   - 对应更新：检测已安装后执行 `sudo npm update -g quicktype`
 - `npm` 全局包：[**OpenCLI**](https://www.npmjs.com/package/@jackwener/opencli)
   - 对应更新：确认 [**Node.js**](https://nodejs.org/) 版本不低于 21，检测已安装后执行 `sudo npm install -g @jackwener/opencli@latest`，并提示 `opencli doctor`
+- `npm` 全局包：[**CodeGraph**](https://github.com/colbymchenry/codegraph)
+  - 对应更新：检测已安装后执行 `npm install -g @colbymchenry/codegraph@latest`，输出版本，并执行 `codegraph install --yes` 刷新 Agent 配置
 - [**Ruby**](https://www.ruby-lang.org/) / [**RubyGems**](https://rubygems.org/) / [**rbenv**](https://github.com/rbenv/rbenv)
   - 对应更新：刷新 `rbenv` 初始化配置，执行 `rbenv rehash`、`gem update --system`、`gem update`
 - `gem` 包：[**CocoaPods**](https://cocoapods.org/)
@@ -216,13 +218,30 @@ install.command 增加 brew cask / formula 后，update.command 的同名数组�
 9. [**Node.js**](https://nodejs.org/) / `corepack` / `npm`
 10. `npm` 全局包：[**quicktype**](https://quicktype.io/)
 11. `npm` 全局包：[**OpenCLI**](https://www.npmjs.com/package/@jackwener/opencli)
-12. [**Ruby**](https://www.ruby-lang.org/) / [**RubyGems**](https://rubygems.org/)
-13. [**CocoaPods**](https://cocoapods.org/)
-14. [**Python**](https://www.python.org/) / `pip`
-15. [**Dart**](https://dart.dev/) `pub` 缓存
-16. [**Git LFS**](https://git-lfs.com/) 初始化刷新
-17. [**JobsKits**](https://github.com/JobsKits) 仓库
-18. 手动下载 / 更新页面
+12. `npm` 全局包：[**CodeGraph**](https://github.com/colbymchenry/codegraph)
+13. [**Ruby**](https://www.ruby-lang.org/) / [**RubyGems**](https://rubygems.org/)
+14. [**CocoaPods**](https://cocoapods.org/)
+15. [**Python**](https://www.python.org/) / `pip`
+16. [**Dart**](https://dart.dev/) `pub` 缓存
+17. [**Git LFS**](https://git-lfs.com/) 初始化刷新
+18. [**JobsKits**](https://github.com/JobsKits) 仓库
+19. 手动下载 / 更新页面
+
+### 5.1、CodeGraph 升级说明
+
+[**CodeGraph**](https://github.com/colbymchenry/codegraph) 通过 `npm` 安装时，升级方式采用覆盖安装到最新版本：
+
+```zsh
+npm install -g @colbymchenry/codegraph@latest
+codegraph --version
+codegraph install --yes
+```
+
+其中 `codegraph install --yes` 用于刷新 Claude Code / Cursor / Codex CLI / opencode / Hermes Agent 等 Agent 的 MCP 配置和说明文件；项目内 `.codegraph/codegraph.db` 不会在全局升级时强制重建，需要进入具体项目后按需执行：
+
+```zsh
+codegraph index --force
+```
 
 ## 六、风险说明 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
@@ -234,6 +253,8 @@ sudo xcodebuild -license accept
 xcodebuild -downloadPlatform iOS -verbose
 brew upgrade / brew upgrade --cask
 gem update / npm install -g npm@latest
+npm install -g @colbymchenry/codegraph@latest
+codegraph install --yes
 dart pub cache repair
 ```
 

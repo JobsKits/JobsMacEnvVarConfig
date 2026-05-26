@@ -268,6 +268,7 @@
   Rosetta 2
   npm 全局包：quicktype
   npm 全局包：OpenCLI
+  npm 全局包：CodeGraph
   gem 包：cocoapods
   Git LFS 初始化
   JobsKits 仓库
@@ -367,6 +368,32 @@
 
   ```zsh
   opencli doctor
+  ```
+
+
+- [**CodeGraph**](https://github.com/colbymchenry/codegraph)
+  npm 包名为：
+
+  ```text
+  @colbymchenry/codegraph
+  ```
+
+  不存在时执行安装，已存在且选择统一升级时也执行同一条命令刷新到最新全局版本：
+
+  ```zsh
+  npm i -g @colbymchenry/codegraph
+  ```
+
+  安装后会尝试输出版本：
+
+  ```zsh
+  codegraph --version
+  ```
+
+  说明：这里只负责安装 CodeGraph 全局命令；进入具体项目后，如需生成项目索引，再执行：
+
+  ```zsh
+  codegraph init -i
   ```
 
 ## 十一、gem 包
@@ -577,6 +604,22 @@
       H --> I{opencli 命令是否可用}
       I -->|可用| J[输出 opencli --version]
       I -->|不可用| K[提示重新打开终端或检查 npm global bin]
+  ```
+
+- [**CodeGraph**](https://github.com/colbymchenry/codegraph) 安装流程：
+
+  ```mermaid
+  flowchart TD
+      A[npm 全局包：CodeGraph] --> B{npm 是否存在}
+      B -->|不存在| C[提示先安装 node]
+      B -->|存在| D{全局包是否已存在}
+      D -->|不存在| E[确认后执行 npm i -g @colbymchenry/codegraph]
+      D -->|已存在| F{是否已统一确认升级}
+      F -->|统一升级| E
+      F -->|统一跳过| G[跳过 CodeGraph]
+      E --> H{codegraph 命令是否可用}
+      H -->|可用| I[输出 codegraph --version]
+      H -->|不可用| J[提示重新打开终端或检查 npm global bin]
   ```
 
 <a id="🔚" href="#前言" style="font-size:17px; color:green; font-weight:bold;">我是有底线的➤点我回到首页</a>

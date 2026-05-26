@@ -376,13 +376,14 @@ update.command - macOS 开发环境升级维护
   9. Node / corepack / npm 基础维护
  10. npm 全局包：quicktype
  11. npm 全局包：OpenCLI
- 12. Ruby / RubyGems
- 13. gem 包：cocoapods
- 14. Python / pip
- 15. Dart pub 缓存
- 16. Git LFS 初始化与大文件参数
- 17. JobsKits 仓库：JobsSoftware.MacOS、JobsMacEnvVarConfig
- 18. 手动下载页：VS Code、Android Studio、Python
+ 12. npm 全局包：CodeGraph
+ 13. Ruby / RubyGems
+ 14. gem 包：cocoapods
+ 15. Python / pip
+ 16. Dart pub 缓存
+ 17. Git LFS 初始化与大文件参数
+ 18. JobsKits 仓库：JobsSoftware.MacOS、JobsMacEnvVarConfig
+ 19. 手动下载页：VS Code、Android Studio、Python
 
 交互规则：
   - 直接回车：执行当前升级 / 刷新项
@@ -671,6 +672,37 @@ jobs_update_npm_opencli() {
   fi
 }
 
+
+jobs_update_npm_codegraph() {
+  if ! jobs_update_has npm; then
+    warn_echo "npm 不存在，无法更新 CodeGraph。请先运行 install.command 安装 node。"
+    return 0
+  fi
+
+  if npm list -g @colbymchenry/codegraph --depth=0 >/dev/null 2>&1; then
+    success_echo "检测到 npm 全局包 CodeGraph，开始升级到 npm latest。"
+  elif jobs_update_has codegraph; then
+    warn_echo "检测到 codegraph 命令，但未检测到 npm 全局包 @colbymchenry/codegraph。"
+    warm_echo "将尝试用 npm 接管并升级 CodeGraph；如果你想保留非 npm 安装方式，可跳过本项。"
+  else
+    warn_echo "未检测到 npm 全局包 CodeGraph，跳过升级。请运行 install.command 补装。"
+    return 0
+  fi
+
+  if ! jobs_update_run_cmd "更新 npm 全局包 CodeGraph" npm install -g @colbymchenry/codegraph@latest; then
+    warn_echo "CodeGraph npm 升级失败。若日志里是 EACCES 权限问题，请优先修复 npm 全局目录权限，或手动执行：sudo npm install -g @colbymchenry/codegraph@latest"
+    return 0
+  fi
+
+  if jobs_update_has codegraph; then
+    jobs_update_run_cmd "输出 CodeGraph 版本" codegraph --version || true
+    jobs_update_run_cmd "刷新 CodeGraph Agent 配置" codegraph install --yes || true
+    warm_echo "提示：已存在项目的 .codegraph/codegraph.db 不会在这里强制重建；进入具体项目后可按需执行 codegraph index --force。"
+  else
+    warn_echo "CodeGraph 已尝试升级，但当前 PATH 仍找不到 codegraph。建议重新打开终端或检查 npm global bin。"
+  fi
+}
+
 jobs_update_ruby_base() {
   if jobs_update_has rbenv; then
     ensure_rbenv_init
@@ -856,6 +888,11 @@ update() {
 
   if jobs_update_prompt_run "是否更新 npm 全局包 OpenCLI？" "对应 install.command：npm 全局包 OpenCLI。"; then
     jobs_update_run_step "npm OpenCLI 更新" jobs_update_npm_opencli
+    (( ran_count++ ))
+  fi
+
+  if jobs_update_prompt_run "是否更新 npm 全局包 CodeGraph？" "对应 install.command：npm 全局包 CodeGraph；执行 npm install -g @colbymchenry/codegraph@latest，并刷新 Agent 配置。"; then
+    jobs_update_run_step "npm CodeGraph 更新" jobs_update_npm_codegraph
     (( ran_count++ ))
   fi
 

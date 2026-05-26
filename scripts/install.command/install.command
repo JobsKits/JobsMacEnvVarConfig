@@ -468,6 +468,7 @@ EOFREADME
   - Rosetta 2
   - npm 全局包：quicktype
   - npm 全局包：OpenCLI
+  - npm 全局包：CodeGraph
   - gem 包：cocoapods
   - Git LFS 初始化与大文件参数
   - JobsKits 仓库：JobsSoftware.MacOS、JobsMacEnvVarConfig
@@ -899,6 +900,46 @@ component_npm_opencli() {
   fi
 }
 
+
+# ---------- 部件：npm CodeGraph ----------
+component_npm_codegraph() {
+  progress_step "npm 全局包：CodeGraph"
+
+  if ! require_command npm; then
+    warn_echo "npm 不存在，无法安装 CodeGraph。请先选择 brew formula：node。"
+    return 0
+  fi
+
+  local installed=0
+  local desc="未检测到 npm 全局包 CodeGraph，是否安装？"
+
+  if npm list -g @colbymchenry/codegraph --depth=0 >/dev/null 2>&1; then
+    installed=1
+
+    if ! confirm_existing_third_party_upgrade_once; then
+      warn_echo "已按统一选择跳过升级 npm 全局包：CodeGraph"
+      return 0
+    fi
+  else
+    if ! confirm_execute "${desc}" "安装"; then
+      return 0
+    fi
+  fi
+
+  if (( installed )); then
+    run_cmd "更新 npm 全局包 CodeGraph" npm i -g @colbymchenry/codegraph
+  else
+    run_cmd "安装 npm 全局包 CodeGraph" npm i -g @colbymchenry/codegraph
+  fi
+
+  if require_command codegraph; then
+    run_cmd "输出 CodeGraph 版本" codegraph --version
+    warm_echo "CodeGraph 全局命令已安装。进入具体项目后，可按需执行：codegraph init -i"
+  else
+    warn_echo "npm 安装完成后当前 PATH 仍找不到 codegraph，建议重新打开终端或检查 npm global bin。"
+  fi
+}
+
 # ---------- 部件：gem cocoapods ----------
 component_gem_cocoapods() {
   progress_step "gem 包：cocoapods"
@@ -1045,6 +1086,7 @@ get_menu_items() {
     "Rosetta 2"
     "npm 全局包：quicktype"
     "npm 全局包：OpenCLI"
+    "npm 全局包：CodeGraph"
     "gem 包：cocoapods"
     "Git LFS 初始化"
     "JobsKits 仓库"
@@ -1110,6 +1152,7 @@ run_selected_item() {
     "brew formula："*) component_brew_formula "${item#brew formula：}" ;;
     "npm 全局包：quicktype") component_npm_quicktype ;;
     "npm 全局包：OpenCLI") component_npm_opencli ;;
+    "npm 全局包：CodeGraph") component_npm_codegraph ;;
     "gem 包：cocoapods") component_gem_cocoapods ;;
     "Git LFS 初始化") component_git_lfs_init ;;
     "JobsKits 仓库") component_jobs_repos ;;
