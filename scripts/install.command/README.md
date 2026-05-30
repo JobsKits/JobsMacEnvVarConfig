@@ -63,6 +63,7 @@
     vlc
     codex-app # 图形化界面
     codex # 终端使用
+    github-store
   )
 
   readonly -a BREW_FORMULAE=(
@@ -123,6 +124,8 @@
   brew install --cask xxx
   ```
 
+- 少数需要 `tap` 或安装后置处理的 cask / formula，由脚本内部函数自动处理，不要在数组里写完整命令。
+
 ## 四、当前 brew cask
 
 - [**Hammerspoon**](https://www.hammerspoon.org/)
@@ -145,6 +148,15 @@
 
   ```zsh
   brew install --cask codex
+  ```
+
+- [**GitHub Store**](https://github.com/OpenHub-Store/GitHub-Store)
+  开源的 GitHub Releases 应用商店，对应：
+
+  ```zsh
+  brew tap OpenHub-Store/tap
+  brew install --cask github-store
+  xattr -dr com.apple.quarantine /Applications/GitHub-Store.app
   ```
 
 ## 五、当前 brew formula
@@ -177,6 +189,19 @@
   用于重写 / 清理 [**Git**](https://git-scm.com) 仓库历史，例如移除误提交的大文件或敏感内容。
 
 ## 六、特殊处理
+
+- [**GitHub Store**](https://github.com/OpenHub-Store/GitHub-Store)
+  安装 / 更新前会自动执行：
+
+  ```zsh
+  brew tap OpenHub-Store/tap
+  ```
+
+  安装 / 更新后会自动执行一次去隔离：
+
+  ```zsh
+  xattr -dr com.apple.quarantine /Applications/GitHub-Store.app
+  ```
 
 - [**fvm**](https://fvm.app)
   安装 / 更新前会自动执行：
@@ -240,6 +265,7 @@
   brew cask：vlc
   brew cask：codex-app
   brew cask：codex
+  brew cask：github-store
   brew formula：git-lfs
   brew formula：gh
   brew formula：nushell

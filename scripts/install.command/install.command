@@ -44,6 +44,7 @@ readonly -a BREW_CASKS=(
   vlc
   codex-app # 图形化界面
   codex # 终端使用
+  github-store
 )
 
 readonly -a BREW_FORMULAE=(
@@ -436,7 +437,7 @@ Homebrew 第三方配置：
   - brew formula 只需要维护脚本顶部 BREW_FORMULAE 数组里的第三方名称。
   - 菜单项会自动根据这两个数组生成。
   - 执行时会自动拼出 brew install / brew install --cask 命令。
-  - 少数需要 tap / 后置初始化的 formula，会由脚本内部自动处理，不需要写在数组里。
+  - 少数需要 tap / 后置初始化的 cask / formula，会由脚本内部自动处理，不需要写在数组里。
 
 当前 BREW_CASKS：
 EOFREADME
@@ -793,8 +794,37 @@ component_brew_formula() {
 }
 
 # ---------- 部件：brew cask ----------
+brew_cask_tap_name() {
+  local cask_name="$1"
+
+  case "${cask_name}" in
+    github-store) echo "OpenHub-Store/tap" ;;
+    *) echo "" ;;
+  esac
+}
+
+brew_cask_after_install() {
+  local cask_name="$1"
+
+  case "${cask_name}" in
+    github-store)
+      local app_path="/Applications/GitHub-Store.app"
+
+      if [[ -d "${app_path}" ]]; then
+        run_cmd "移除 GitHub-Store Gatekeeper 隔离属性" xattr -dr com.apple.quarantine "${app_path}"
+      else
+        warn_echo "未找到 ${app_path}，跳过 GitHub-Store 去隔离。若使用了自定义 --appdir，请手动执行 xattr。"
+      fi
+      ;;
+    *) return 0 ;;
+  esac
+}
+
 component_brew_cask() {
   local cask_name="$1"
+  local tap_name=""
+
+  tap_name="$(brew_cask_tap_name "${cask_name}")"
 
   progress_step "brew cask：${cask_name}"
 
@@ -818,10 +848,24 @@ component_brew_cask() {
     fi
   fi
 
+  if [[ -n "${tap_name}" ]]; then
+    run_cmd "确认 Homebrew Tap：${tap_name}" brew tap "${tap_name}"
+  fi
+
+  local brew_exit_code=0
+
   if (( installed )); then
     run_cmd "更新 brew cask：${cask_name}" brew upgrade --cask "${cask_name}"
+    brew_exit_code=$?
   else
     run_cmd "安装 brew cask：${cask_name}" brew install --cask "${cask_name}"
+    brew_exit_code=$?
+  fi
+
+  if [[ ${brew_exit_code} -eq 0 ]]; then
+    brew_cask_after_install "${cask_name}"
+  else
+    warn_echo "brew cask：${cask_name} 安装 / 更新失败，跳过后置处理。"
   fi
 }
 

@@ -68,6 +68,7 @@ JOBS_MAC_ENV_SKIP_README=1 ./update.command
   - 对应更新：执行 `brew update`、`brew upgrade`、`brew upgrade --cask`、`brew cleanup`、`brew doctor`、`brew -v`
   - `brew cask`：由 `BREW_CASKS` 自动生成逐项升级入口
   - `brew formula`：由 `BREW_FORMULAE` 自动生成逐项升级入口
+  - `github-store`：升级前确认 `OpenHub-Store/tap`，升级后对 `/Applications/GitHub-Store.app` 执行 `xattr -dr com.apple.quarantine`
 - [**Rosetta 2**](https://support.apple.com/en-us/102527)
   - 对应更新：检查安装状态；Rosetta 2 通常跟随 [**macOS**](https://www.apple.com/macos/) 系统更新维护
 - [**FVM**](https://fvm.app/) / [**Flutter**](https://flutter.dev/)
@@ -114,6 +115,7 @@ readonly -a BREW_CASKS=(
   vlc
   codex-app
   codex
+  github-store
 )
 ```
 
@@ -125,6 +127,7 @@ readonly -a BREW_CASKS=(
 | [**vlc**](https://www.videolan.org/vlc/) | 视频播放器 |
 | [**codex-app**](https://formulae.brew.sh/cask/codex-app) | Codex 图形化应用入口 |
 | [**codex**](https://formulae.brew.sh/cask/codex) | Codex 相关图形化入口 |
+| `github-store` | GitHub-Store 图形化应用入口；来自 `OpenHub-Store/tap` |
 
 ### 4.2、`brew formula`
 
@@ -194,6 +197,10 @@ readonly -a BREW_FORMULAE=(
 install.command 增加 brew cask / formula 后，update.command 的同名数组必须同步增加；对应 README.md 也必须同步更新。
 ```
 
+少数特殊 `cask` 的 tap 与更新后置动作已经适配：
+
+- `github-store`：升级前执行 `brew tap OpenHub-Store/tap` 确认 tap；检测已安装后执行 `brew upgrade --cask github-store`；升级后执行 `xattr -dr com.apple.quarantine /Applications/GitHub-Store.app`
+
 少数特殊 `formula` 的更新后置动作已经适配：
 
 - [**fvm**](https://fvm.app/)：自动确认 `leoafarias/fvm` tap
@@ -252,6 +259,7 @@ sudo softwareupdate --install --all
 sudo xcodebuild -license accept
 xcodebuild -downloadPlatform iOS -verbose
 brew upgrade / brew upgrade --cask
+xattr -dr com.apple.quarantine /Applications/GitHub-Store.app
 gem update / npm install -g npm@latest
 npm install -g @colbymchenry/codegraph@latest
 codegraph install --yes

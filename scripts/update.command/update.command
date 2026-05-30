@@ -36,6 +36,7 @@ readonly -a BREW_CASKS=(
   vlc
   codex-app
   codex
+  github-store
 )
 
 readonly -a BREW_FORMULAE=(
@@ -531,6 +532,46 @@ brew_formula_after_update() {
   esac
 }
 
+brew_cask_tap_name() {
+  local cask_name="$1"
+
+  case "$cask_name" in
+    github-store) echo "OpenHub-Store/tap" ;;
+    *) echo "" ;;
+  esac
+}
+
+brew_cask_install_hint() {
+  local cask_name="$1"
+
+  case "$cask_name" in
+    github-store)
+      warm_echo "补装命令：brew tap OpenHub-Store/tap"
+      warm_echo "补装命令：brew install --cask github-store"
+      ;;
+    *) return 0 ;;
+  esac
+}
+
+jobs_update_github_store_after_update() {
+  local app_path="/Applications/GitHub-Store.app"
+
+  if [[ -d "$app_path" ]]; then
+    jobs_update_run_cmd "解除 GitHub-Store.app quarantine 标记" xattr -dr com.apple.quarantine "$app_path" || true
+  else
+    warn_echo "未找到 ${app_path}，跳过 quarantine 标记清理。"
+  fi
+}
+
+brew_cask_after_update() {
+  local cask_name="$1"
+
+  case "$cask_name" in
+    github-store) jobs_update_github_store_after_update ;;
+    *) return 0 ;;
+  esac
+}
+
 jobs_update_brew_formula_one() {
   local formula_name="$1"
   local install_arg=""
@@ -567,17 +608,25 @@ jobs_update_brew_formulae() {
 
 jobs_update_brew_cask_one() {
   local cask_name="$1"
+  local tap_name=""
 
   if ! require_brew_or_skip; then
     return 0
   fi
 
+  tap_name="$(brew_cask_tap_name "$cask_name")"
+  if [[ -n "$tap_name" ]]; then
+    jobs_update_run_cmd "确认 Homebrew Tap：${tap_name}" brew tap "$tap_name" || true
+  fi
+
   if ! brew list --cask --versions "$cask_name" >/dev/null 2>&1; then
     warn_echo "未安装 brew cask：${cask_name}，跳过升级。请运行 install.command 补装。"
+    brew_cask_install_hint "$cask_name"
     return 0
   fi
 
   jobs_update_run_cmd "升级 brew cask：${cask_name}" brew upgrade --cask "$cask_name" || true
+  brew_cask_after_update "$cask_name"
 }
 
 jobs_update_brew_casks() {
@@ -856,7 +905,7 @@ update() {
     (( ran_count++ ))
   fi
 
-  if jobs_update_prompt_run "是否逐项升级 install.command 中的 brew cask？" "覆盖 BREW_CASKS：hammerspoon / flutter / trex / vlc。"; then
+  if jobs_update_prompt_run "是否逐项升级 install.command 中的 brew cask？" "覆盖 BREW_CASKS 内所有 cask；github-store 会确认 OpenHub-Store/tap 并解除 quarantine 标记。"; then
     jobs_update_run_step "brew cask 批量升级" jobs_update_brew_casks
     (( ran_count++ ))
   fi
