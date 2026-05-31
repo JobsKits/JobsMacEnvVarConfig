@@ -40,6 +40,9 @@
 │   ├── trs.command/
 │   │   ├── trs.command             # macOS 原生翻译入口脚本
 │   │   └── README.md
+│   ├── 【MacOS】🔊Supertonic本地朗读.command/
+│   │   ├── 【MacOS】🔊Supertonic本地朗读.command # Supertonic 本地 TTS 朗读入口
+│   │   └── README.md
 │   ├── gif.command/
 │   │   ├── gif.command             # 终端 / 全屏录制并转 GIF 脚本
 │   │   └── README.md
@@ -84,6 +87,7 @@
 ├── Scripts/
 │   ├── install_jdk17.command/install_jdk17.command
 │   ├── trs.command/trs.command
+│   ├── 【MacOS】🔊Supertonic本地朗读.command/【MacOS】🔊Supertonic本地朗读.command
 │   ├── gif.command/gif.command
 │   ├── simios.command/simios.command
 │   ├── list.command/list.command
@@ -114,7 +118,8 @@ chmod +x install.command
 5. `m5c` 可比较两个文件的 MD5，判断文件字节内容是否一致
 6. `flat` 可对 URL 编码文本执行去乱码 / 解码，并自动复制结果到剪贴板
 7. `trs` 首次使用时会对 `fzf` / `translate-cli` 这类必需依赖执行补齐流程
-8. `gif` 首次使用时会检测 Homebrew / asciinema / agg / ffmpeg；启动时按回车默认录制当前终端，进入设置菜单可选择全屏录制
+8. `tts` 会调用 `【MacOS】🔊Supertonic本地朗读.command`，输入文本后通过本地 Supertonic 服务生成并播放语音
+9. `gif` 首次使用时会检测 Homebrew / asciinema / agg / ffmpeg；启动时按回车默认录制当前终端，进入设置菜单可选择全屏录制
 9. `simios` 会先检测完整 Xcode / xcode-select / xcodebuild / Xcode license / 首次启动组件，再执行 iOS Simulator Runtime 下载
 
 如果选择替换 `~/.zshrc`，脚本会先自动备份旧文件：

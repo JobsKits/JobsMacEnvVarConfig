@@ -238,6 +238,7 @@ build_menu_items() {
 文件校验	m5c	比较两个文件 MD5，判断字节内容是否一致	script	m5c.command
 去乱码	flat	URL 百分号编码解码，并复制结果到剪贴板	script	flat.command
 翻译	trs	macOS 原生翻译入口	script	trs.command
+本地朗读	tts	本地 TTS：英文走 Supertonic，中文走 macOS say	script	【MacOS】🔊Supertonic本地朗读.command
 录制 / GIF	gif	终端 / 全屏录制并导出 GIF / MP4	script	gif.command
 iOS 模拟器	simios	检测 Xcode 环境并下载 / 补齐 iOS Simulator Runtime	script	simios.command
 本地 Pod 自检	pods	检查本地 CocoaPods Pod 编译与 podspec lint 结果	script	pods.command
@@ -449,7 +450,8 @@ show_menu() {
   local fzf_args=(
     --delimiter=$'\t'
     --with-nth=6
-    --nth=6
+    # 只限制展示列，不再限制搜索列；让标题、短命令、说明、脚本目标都参与搜索。
+    # 这样输入 tts / trs / gif 这类短命令时可以稳定命中。
     --prompt='JobsMacEnv > '
     --height=80%
     --border

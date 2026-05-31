@@ -36,6 +36,7 @@ list [参数...]
 文件校验：m5c
 去乱码：flat
 翻译：trs
+本地朗读：tts（【MacOS】🔊Supertonic本地朗读.command）
 录制 / GIF：gif
 iOS 模拟器：simios
 本地 Pod 自检：pods
@@ -145,3 +146,8 @@ to mp4
 ```
 
 <a id="🔚" href="#前言" style="font-size:17px; color:green; font-weight:bold;">我是有底线的➤点我回到首页</a>
+
+
+## 搜索说明
+
+搜索说明：`list` 菜单搜索会匹配功能名、短命令、说明和脚本目标，例如输入 `tts` 可匹配本地朗读。
