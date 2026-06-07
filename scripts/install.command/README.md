@@ -85,6 +85,8 @@
     hugo
     yt-dlp
     ffmpeg
+    cmake
+    sevenzip
     go-task
     uv
     fzf
@@ -179,6 +181,8 @@
 - [**Hugo**](https://gohugo.io)
 - [**yt-dlp**](https://github.com/yt-dlp/yt-dlp)
 - [**FFmpeg**](https://ffmpeg.org)
+- [**CMake**](https://cmake.org)
+- [**sevenzip**](https://formulae.brew.sh/formula/sevenzip)
 - [**go-task**](https://taskfile.dev)
 - [**uv**](https://docs.astral.sh/uv/)
 - [**fzf**](https://github.com/junegunn/fzf)
@@ -284,6 +288,8 @@
   brew formula：hugo
   brew formula：yt-dlp
   brew formula：ffmpeg
+  brew formula：cmake
+  brew formula：sevenzip
   brew formula：go-task
   brew formula：uv
   brew formula：fzf

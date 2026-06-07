@@ -103,7 +103,7 @@ trs() { _jobs_run_scripts_command trs "$@"; }
 # gif：gif
 gif() { _jobs_run_scripts_command gif "$@"; }
 # tts：调用 Supertonic 本地 TTS，输入文本后生成并播放语音。
-tts() { _jobs_run_scripts_command "【MacOS】🔊Supertonic本地朗读" "$@"; }
+tts() { _jobs_run_scripts_command "tts" "$@"; }
 # simios：simios
 simios() { _jobs_run_scripts_command simios "$@"; }
 # pods：本地 CocoaPods Pod 编译 / podspec lint 自检。

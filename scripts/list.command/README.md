@@ -36,7 +36,7 @@ list [参数...]
 文件校验：m5c
 去乱码：flat
 翻译：trs
-本地朗读：tts（【MacOS】🔊Supertonic本地朗读.command）
+本地朗读：tts（tts.command）
 录制 / GIF：gif
 iOS 模拟器：simios
 本地 Pod 自检：pods

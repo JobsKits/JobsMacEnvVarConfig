@@ -153,6 +153,8 @@ readonly -a BREW_FORMULAE=(
   hugo
   yt-dlp
   ffmpeg
+  cmake
+  sevenzip
   go-task
   uv
   fzf
@@ -183,6 +185,8 @@ readonly -a BREW_FORMULAE=(
 | [**hugo**](https://gohugo.io/) | 静态站点生成器 |
 | [**yt-dlp**](https://github.com/yt-dlp/yt-dlp) | 视频下载工具 |
 | [**ffmpeg**](https://ffmpeg.org/) | 音视频处理工具 |
+| [**cmake**](https://cmake.org/) | 跨平台构建工具 |
+| [**sevenzip**](https://formulae.brew.sh/formula/sevenzip) | 7-Zip 压缩 / 解压工具 |
 | [**go-task**](https://taskfile.dev/) | 任务运行器 |
 | [**uv**](https://docs.astral.sh/uv/) | Python 包与项目管理工具 |
 | [**fzf**](https://github.com/junegunn/fzf) | 命令行模糊查找工具 |

@@ -1,4 +1,4 @@
-# `【MacOS】🔊Supertonic本地朗读.command`
+# `tts.command`
 
 ![Jobs出品，必属精品](https://picsum.photos/1500/400)
 
@@ -52,7 +52,7 @@ list
 在菜单里选择：
 
 ```text
-本地朗读    tts    调用【MacOS】🔊Supertonic本地朗读.command
+本地朗读    tts    调用tts.command
 ```
 
 ### 2.2、通过终端短命令运行
@@ -68,7 +68,7 @@ tts "Hello, this is a local TTS test."
 双击：
 
 ```text
-【MacOS】🔊Supertonic本地朗读.command
+tts.command
 ```
 
 按提示回车后，直接输入要朗读的文本即可。
@@ -94,7 +94,7 @@ python -m pip install 'supertonic[serve]'
 如果你的虚拟环境不在这个位置，可以临时指定：
 
 ```shell
-SUPERTONIC_VENV_DIR="/你的/venv/路径" ./"【MacOS】🔊Supertonic本地朗读.command"
+SUPERTONIC_VENV_DIR="/你的/venv/路径" ./"tts.command"
 ```
 
 ---
@@ -155,13 +155,13 @@ Supertonic 可以通过 `lang` 调节语言。
 主日志：
 
 ```text
-/tmp/【MacOS】🔊Supertonic本地朗读.log
+/tmp/tts.log
 ```
 
 服务日志：
 
 ```text
-/tmp/【MacOS】🔊Supertonic本地朗读.server.log
+/tmp/tts.server.log
 ```
 
 ---
@@ -171,7 +171,7 @@ Supertonic 可以通过 `lang` 调节语言。
 - 脚本不会使用 `sudo`。
 - 脚本不会删除你的文件。
 - 如果本地服务没启动，脚本会后台启动 `supertonic serve`。
-- 如果虚拟环境缺失，脚本会询问是否自动创建 / 修复；直接回车会跳过，不会默认安装。
+- 如果虚拟环境缺失，脚本会询问是否自动创建 / 修复；直接回车会执行安装 / 修复，输入任意字符后回车则跳过。
 - 退出脚本不一定关闭后台服务；需要关闭时输入 `:stop`。
 
 ---
@@ -183,7 +183,7 @@ Supertonic 可以通过 `lang` 调节语言。
 复制到 Mac 后建议执行：
 
 ```shell
-zsh -n 'scripts/【MacOS】🔊Supertonic本地朗读.command/【MacOS】🔊Supertonic本地朗读.command'
+zsh -n 'scripts/tts.command/tts.command'
 ```
 
 <a id="🔚" href="#前言" style="font-size:17px; color:green; font-weight:bold;">我是有底线的➤点我回到首页</a>

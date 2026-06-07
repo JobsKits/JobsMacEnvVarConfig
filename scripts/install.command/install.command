@@ -66,6 +66,8 @@ readonly -a BREW_FORMULAE=(
   hugo
   yt-dlp
   ffmpeg
+  cmake
+  sevenzip
   go-task
   uv
   fzf

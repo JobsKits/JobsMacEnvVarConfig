@@ -72,11 +72,11 @@ show_readme_and_wait() {
   read -r "?👉 按回车进入朗读；按 Ctrl+C 取消：" _
 }
 
-ask_any_to_run() {
+ask_enter_to_run() {
   local message="$1"
   local answer=""
-  read -r "?${message}（直接回车跳过；输入任意字符后回车执行）：" answer
-  [[ -n "$answer" ]]
+  read -r "?${message}（直接回车执行；输入任意字符后回车跳过）：" answer
+  [[ -z "$answer" ]]
 }
 
 strip_outer_quotes() {
@@ -151,7 +151,7 @@ ensure_environment() {
     gray_echo "如果虚拟环境不在默认位置，可以这样指定："
     gray_echo "SUPERTONIC_VENV_DIR=/你的/venv/路径 ${SCRIPT_PATH}"
     echo ""
-    if ask_any_to_run "是否自动创建 / 修复虚拟环境并安装 supertonic[serve]"; then
+    if ask_enter_to_run "是否自动创建 / 修复虚拟环境并安装 supertonic[serve]"; then
       install_or_repair_environment || {
         error_echo "环境创建 / 修复失败。日志：${LOG_FILE}"
         return 1
@@ -167,7 +167,7 @@ import supertonic
 PY
   if [[ $? -ne 0 ]]; then
     warn_echo "虚拟环境存在，但无法 import supertonic。"
-    if ask_any_to_run "是否自动重新安装 / 补齐 supertonic[serve]"; then
+    if ask_enter_to_run "是否自动重新安装 / 补齐 supertonic[serve]"; then
       install_or_repair_environment || return 1
     else
       error_echo "已跳过修复，无法继续朗读。"
