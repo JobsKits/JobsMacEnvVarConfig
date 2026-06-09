@@ -21,6 +21,30 @@ SUPERTONIC_ZH_ENGINE="${SUPERTONIC_ZH_ENGINE:-say}"
 SUPERTONIC_ZH_VOICE="${SUPERTONIC_ZH_VOICE:-}"
 SUPERTONIC_ZH_RATE="${SUPERTONIC_ZH_RATE:-200}"
 
+MOSS_TTS_NANO_HOME="${MOSS_TTS_NANO_HOME:-${HOME}/Desktop/MOSS-TTS-Nano}"
+MOSS_TTS_NANO_VENV_DIR="${MOSS_TTS_NANO_VENV_DIR:-${HOME}/Desktop/moss-tts-nano-venv}"
+MOSS_TTS_NANO_BACKEND="${MOSS_TTS_NANO_BACKEND:-onnx}"
+MOSS_TTS_NANO_EXECUTION_PROVIDER="${MOSS_TTS_NANO_EXECUTION_PROVIDER:-cpu}"
+MOSS_TTS_NANO_PROMPT_SPEECH="${MOSS_TTS_NANO_PROMPT_SPEECH:-${MOSS_TTS_NANO_HOME}/assets/audio/zh_1.wav}"
+MOSS_TTS_NANO_OUTPUT_DIR="${MOSS_TTS_NANO_OUTPUT_DIR:-${SCRIPT_DIR}/outputs}"
+MOSS_TTS_NANO_REPO_URL="${MOSS_TTS_NANO_REPO_URL:-https://github.com/OpenMOSS/MOSS-TTS-Nano.git}"
+MOSS_TTS_NANO_SKIP_INSTALL="${MOSS_TTS_NANO_SKIP_INSTALL:-0}"
+
+VOXCPM_VENV_DIR="${VOXCPM_VENV_DIR:-${HOME}/Desktop/voxcpm-venv}"
+VOXCPM_OUTPUT_DIR="${VOXCPM_OUTPUT_DIR:-${SCRIPT_DIR}/outputs}"
+VOXCPM_DEVICE="${VOXCPM_DEVICE:-auto}"
+VOXCPM_CONTROL="${VOXCPM_CONTROL:-}"
+VOXCPM_REFERENCE_AUDIO="${VOXCPM_REFERENCE_AUDIO:-}"
+VOXCPM_PROMPT_AUDIO="${VOXCPM_PROMPT_AUDIO:-}"
+VOXCPM_PROMPT_TEXT="${VOXCPM_PROMPT_TEXT:-}"
+VOXCPM_DENOISE="${VOXCPM_DENOISE:-0}"
+VOXCPM_NO_OPTIMIZE="${VOXCPM_NO_OPTIMIZE:-1}"
+VOXCPM_HF_ENDPOINT="${VOXCPM_HF_ENDPOINT:-}"
+VOXCPM_SKIP_INSTALL="${VOXCPM_SKIP_INSTALL:-0}"
+TTS_ENGINE="${TTS_ENGINE:-}"
+FZF_BIN="${FZF_BIN:-}"
+TTS_SELECTED_ENGINE=""
+
 SERVER_URL="http://${SUPERTONIC_HOST}:${SUPERTONIC_PORT}"
 SERVER_LOG="/tmp/${SCRIPT_BASENAME}.server.log"
 SERVER_PID_FILE="/tmp/${SCRIPT_BASENAME}.server.pid"
@@ -42,6 +66,117 @@ bold_echo()      { log "\033[1m$1\033[0m"; }
 underline_echo() { log "\033[4m$1\033[0m"; }
 
 # ---------- 通用交互 ----------
+
+find_fzf_bin() {
+  if command -v fzf >/dev/null 2>&1; then
+    command -v fzf
+    return 0
+  fi
+
+  local brew_prefix=""
+  if command -v brew >/dev/null 2>&1; then
+    brew_prefix="$(brew --prefix 2>/dev/null || true)"
+    if [[ -n "$brew_prefix" && -x "$brew_prefix/bin/fzf" ]]; then
+      print -r -- "$brew_prefix/bin/fzf"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+ensure_fzf_for_engine_menu() {
+  if FZF_BIN="$(find_fzf_bin 2>/dev/null)"; then
+    return 0
+  fi
+
+  warn_echo "未检测到 fzf，TTS 引擎选择菜单需要 fzf。"
+  if command -v brew >/dev/null 2>&1; then
+    if ask_enter_to_run "是否自动执行 brew install fzf"; then
+      brew install fzf || return 1
+      FZF_BIN="$(find_fzf_bin 2>/dev/null)" || return 1
+      return 0
+    fi
+  else
+    warn_echo "当前未检测到 Homebrew，无法自动安装 fzf。"
+  fi
+
+  return 1
+}
+
+select_tts_engine_text_fallback() {
+  local answer=""
+  echo ""
+  highlight_echo "====================== 请选择 TTS 引擎 ======================" 
+  log "1) MOSS-TTS-Nano    优势：CPU 友好、中文/中英混读、长文本；劣势：音质/表现力弱于 VoxCPM2"
+  log "2) VoxCPM2          优势：30 语言、48kHz、声音设计/克隆；劣势：2B 大模型，首次下载大，CPU 慢"
+  log "3) Supertonic       优势：轻量稳定、启动快、英文/日韩；劣势：无官方中文，中文走 macOS say"
+  log "q) 退出"
+  highlight_echo "============================================================"
+  read -r "?请输入序号，默认 1：" answer
+  case "$answer" in
+    ""|1|moss|MOSS|moss-tts|moss-tts-nano) TTS_SELECTED_ENGINE="moss"; return 0 ;;
+    2|voxcpm|VoxCPM|VoxCPM2|vox|VOX) TTS_SELECTED_ENGINE="voxcpm"; return 0 ;;
+    3|supertonic|Supertonic|st|ST) TTS_SELECTED_ENGINE="supertonic"; return 0 ;;
+    q|Q|quit|exit) return 1 ;;
+    *) warn_echo "未知选择，默认使用 MOSS-TTS-Nano。"; TTS_SELECTED_ENGINE="moss"; return 0 ;;
+  esac
+}
+
+select_tts_engine() {
+  local selected=""
+  local selected_engine=""
+
+  if [[ -n "${TTS_ENGINE:-}" ]]; then
+    case "$TTS_ENGINE" in
+      moss|moss-tts|moss-tts-nano|MOSS|MOSS-TTS|MOSS-TTS-Nano) TTS_SELECTED_ENGINE="moss"; return 0 ;;
+      voxcpm|voxcpm2|vox|VoxCPM|VoxCPM2|VOX) TTS_SELECTED_ENGINE="voxcpm"; return 0 ;;
+      supertonic|Supertonic|st|ST) TTS_SELECTED_ENGINE="supertonic"; return 0 ;;
+    esac
+  fi
+
+  if ensure_fzf_for_engine_menu; then
+    selected="$(cat <<'ENGINE_MENU_EOF' | "$FZF_BIN" \
+      --delimiter=$'\t' \
+      --with-nth=2,3 \
+      --prompt='TTS Engine > ' \
+      --height=45% \
+      --border \
+      --no-sort \
+      --layout=reverse \
+      --header=$'选择本次朗读引擎：Enter 确认，Esc 取消。可输入 moss / voxcpm / supertonic 快速过滤。每行已写明优势和劣势。'
+moss	MOSS-TTS-Nano	优势：CPU 友好、中文/中英混读、长文本；劣势：音质/表现力弱于 VoxCPM2
+voxcpm	VoxCPM2	优势：30 语言、48kHz、声音设计/克隆；劣势：2B 大模型，首次下载大，CPU 慢
+supertonic	Supertonic	优势：轻量稳定、启动快、英文/日韩；劣势：无官方中文，中文走 macOS say
+ENGINE_MENU_EOF
+)"
+    [[ -z "$selected" ]] && return 1
+    selected_engine="${selected%%$'\t'*}"
+    case "$selected_engine" in
+      moss|voxcpm|supertonic) TTS_SELECTED_ENGINE="$selected_engine"; return 0 ;;
+    esac
+  fi
+
+  select_tts_engine_text_fallback
+}
+
+print_engine_banner() {
+  local engine="$1"
+  echo ""
+  case "$engine" in
+    moss)
+      highlight_echo "已选择：MOSS-TTS-Nano（CPU 友好 / 中文增强 / 长文本）"
+      ;;
+    voxcpm)
+      highlight_echo "已选择：VoxCPM2（高质量 / 声音设计 / 声音克隆）"
+      ;;
+    supertonic)
+      highlight_echo "已选择：Supertonic（轻量稳定 / 原有逻辑）"
+      ;;
+  esac
+  echo ""
+}
+
 show_readme_and_wait() {
   clear
   highlight_echo "==================== 【MacOS】🔊Supertonic 本地朗读 ===================="
@@ -420,6 +555,674 @@ speak_text() {
   fi
 }
 
+
+# ---------- MOSS-TTS-Nano 引擎 ----------
+moss_python_bin() {
+  print -r -- "${MOSS_TTS_NANO_VENV_DIR}/bin/python"
+}
+
+moss_cli_bin() {
+  print -r -- "${MOSS_TTS_NANO_VENV_DIR}/bin/moss-tts-nano"
+}
+
+moss_install_or_repair_environment() {
+  local py3=""
+  py3="$(command -v python3 || true)"
+
+  if [[ -z "$py3" ]]; then
+    error_echo "未找到 python3，无法创建 MOSS-TTS-Nano 虚拟环境。"
+    err_echo "请先安装 Python，例如：brew install python"
+    return 1
+  fi
+
+  local py_version=""
+  py_version="$($py3 - <<'MOSS_PYVER_EOF' 2>/dev/null
+import sys
+print(f"{sys.version_info.major}.{sys.version_info.minor}")
+MOSS_PYVER_EOF
+)"
+  if [[ -n "$py_version" ]]; then
+    local major="${py_version%%.*}"
+    local minor="${py_version#*.}"
+    if (( major < 3 || (major == 3 && minor < 10) )); then
+      error_echo "MOSS-TTS-Nano 需要 Python >= 3.10，当前 python3=${py_version}。"
+      err_echo "建议执行：brew install python"
+      return 1
+    fi
+  fi
+
+  if ! command -v git >/dev/null 2>&1; then
+    error_echo "未找到 git，无法拉取 MOSS-TTS-Nano 仓库。"
+    err_echo "请先安装 git，例如：brew install git"
+    return 1
+  fi
+
+  mkdir -p "$(dirname "$MOSS_TTS_NANO_HOME")" "$(dirname "$MOSS_TTS_NANO_VENV_DIR")"
+
+  if [[ ! -d "$MOSS_TTS_NANO_HOME/.git" ]]; then
+    if [[ -e "$MOSS_TTS_NANO_HOME" ]]; then
+      error_echo "目标目录已存在但不是 git 仓库：${MOSS_TTS_NANO_HOME}"
+      err_echo "请删除 / 改名后重试，或设置 MOSS_TTS_NANO_HOME 指向正确仓库。"
+      return 1
+    fi
+    note_echo "开始克隆 MOSS-TTS-Nano：${MOSS_TTS_NANO_HOME}"
+    git clone "$MOSS_TTS_NANO_REPO_URL" "$MOSS_TTS_NANO_HOME" >> "$LOG_FILE" 2>&1 || return 1
+  else
+    note_echo "检测到 MOSS-TTS-Nano 仓库，执行 git pull 同步。"
+    (cd "$MOSS_TTS_NANO_HOME" && git pull --ff-only) >> "$LOG_FILE" 2>&1 || warn_echo "git pull 失败，继续使用本地已有版本。"
+  fi
+
+  if [[ ! -d "$MOSS_TTS_NANO_VENV_DIR" ]]; then
+    note_echo "开始创建 MOSS-TTS-Nano 虚拟环境：${MOSS_TTS_NANO_VENV_DIR}"
+    "$py3" -m venv "$MOSS_TTS_NANO_VENV_DIR" >> "$LOG_FILE" 2>&1 || return 1
+  fi
+
+  local py="$(moss_python_bin)"
+  if [[ ! -x "$py" ]]; then
+    error_echo "MOSS-TTS-Nano 虚拟环境 Python 不可执行：${py}"
+    return 1
+  fi
+
+  note_echo "开始安装 / 补齐 MOSS-TTS-Nano 依赖。"
+  "$py" -m pip install --upgrade pip >> "$LOG_FILE" 2>&1 || return 1
+
+  if [[ -f "$MOSS_TTS_NANO_HOME/requirements.txt" ]]; then
+    (cd "$MOSS_TTS_NANO_HOME" && "$py" -m pip install -r requirements.txt) >> "$LOG_FILE" 2>&1 || {
+      error_echo "MOSS-TTS-Nano requirements 安装失败。"
+      warn_echo "常见原因：WeTextProcessing / pynini 在非 conda 环境安装失败。"
+      err_echo "可按官方建议手动处理 pynini 后重试，日志：${LOG_FILE}"
+      return 1
+    }
+  fi
+
+  (cd "$MOSS_TTS_NANO_HOME" && "$py" -m pip install -e .) >> "$LOG_FILE" 2>&1 || return 1
+  success_echo "MOSS-TTS-Nano 依赖已安装 / 补齐。"
+}
+
+moss_ensure_environment() {
+  local cli="$(moss_cli_bin)"
+
+  if [[ ! -x "$cli" || ! -d "$MOSS_TTS_NANO_HOME" ]]; then
+    warn_echo "未检测到可用的 MOSS-TTS-Nano 环境。"
+    gray_echo "默认仓库目录：${MOSS_TTS_NANO_HOME}"
+    gray_echo "默认虚拟环境：${MOSS_TTS_NANO_VENV_DIR}"
+    if [[ "$MOSS_TTS_NANO_SKIP_INSTALL" == "1" ]]; then
+      error_echo "已设置 MOSS_TTS_NANO_SKIP_INSTALL=1，跳过自动安装。"
+      return 1
+    fi
+    if ask_enter_to_run "是否自动克隆 / 创建虚拟环境 / 安装 MOSS-TTS-Nano"; then
+      moss_install_or_repair_environment || {
+        error_echo "MOSS-TTS-Nano 环境创建 / 修复失败。日志：${LOG_FILE}"
+        return 1
+      }
+    else
+      error_echo "已跳过安装，无法继续使用 MOSS-TTS-Nano。"
+      return 1
+    fi
+  fi
+
+  if [[ ! -f "$MOSS_TTS_NANO_PROMPT_SPEECH" ]]; then
+    warn_echo "未找到 MOSS-TTS-Nano 参考音频：${MOSS_TTS_NANO_PROMPT_SPEECH}"
+    gray_echo "脚本默认使用仓库内 assets/audio/zh_1.wav 作为 voice clone 参考音频。"
+    gray_echo "可以通过 :prompt /path/to/your_voice.wav 或环境变量 MOSS_TTS_NANO_PROMPT_SPEECH 指定。"
+  fi
+
+  success_echo "MOSS-TTS-Nano 环境可用：${MOSS_TTS_NANO_HOME}"
+}
+
+moss_detect_lang() {
+  local text="$1"
+  local py="$(moss_python_bin)"
+  if [[ ! -x "$py" ]]; then
+    py="$(command -v python3 || true)"
+  fi
+  "$py" - "$text" <<'MOSS_LANG_EOF'
+import re, sys
+text = sys.argv[1]
+if re.search(r"[\u4e00-\u9fff]", text):
+    print("zh")
+elif re.search(r"[\u3040-\u30ff]", text):
+    print("ja")
+elif re.search(r"[\uac00-\ud7af]", text):
+    print("ko")
+else:
+    print("en")
+MOSS_LANG_EOF
+}
+
+moss_speak_text() {
+  local raw_text="$1"
+  local text="$(strip_outer_quotes "$raw_text")"
+
+  if [[ -z "$text" ]]; then
+    warn_echo "空文本，已跳过。"
+    return 0
+  fi
+
+  local cli="$(moss_cli_bin)"
+  if [[ ! -x "$cli" ]]; then
+    error_echo "未找到 moss-tts-nano 命令：${cli}"
+    return 1
+  fi
+
+  if [[ ! -f "$MOSS_TTS_NANO_PROMPT_SPEECH" ]]; then
+    error_echo "未找到 MOSS-TTS-Nano 参考音频：${MOSS_TTS_NANO_PROMPT_SPEECH}"
+    err_echo "请先执行：:prompt /path/to/your_voice.wav"
+    return 1
+  fi
+
+  mkdir -p "$MOSS_TTS_NANO_OUTPUT_DIR" "$MOSS_TTS_NANO_HOME/generated_audio"
+  local timestamp="$(date '+%Y%m%d_%H%M%S')"
+  local default_output="${MOSS_TTS_NANO_HOME}/generated_audio/moss_tts_nano_output.wav"
+  local output_file="${MOSS_TTS_NANO_OUTPUT_DIR}/moss_tts_nano_${timestamp}.wav"
+  local detected_lang="$(moss_detect_lang "$text" 2>/dev/null || print -r -- auto)"
+
+  note_echo "正在生成语音：engine=MOSS-TTS-Nano backend=${MOSS_TTS_NANO_BACKEND} provider=${MOSS_TTS_NANO_EXECUTION_PROVIDER} lang=${detected_lang}"
+  gray_echo "参考音频：${MOSS_TTS_NANO_PROMPT_SPEECH}"
+  gray_echo "首次运行会自动下载 ONNX 模型，耗时取决于网络。"
+
+  rm -f "$default_output"
+
+  local cmd=("$cli" generate --prompt-speech "$MOSS_TTS_NANO_PROMPT_SPEECH" --text "$text")
+  if [[ -n "$MOSS_TTS_NANO_BACKEND" ]]; then
+    cmd+=(--backend "$MOSS_TTS_NANO_BACKEND")
+  fi
+  if [[ "$MOSS_TTS_NANO_BACKEND" == "onnx" && -n "$MOSS_TTS_NANO_EXECUTION_PROVIDER" ]]; then
+    cmd+=(--execution-provider "$MOSS_TTS_NANO_EXECUTION_PROVIDER")
+  fi
+
+  (cd "$MOSS_TTS_NANO_HOME" && "${cmd[@]}") >> "$LOG_FILE" 2>&1
+  if [[ $? -ne 0 ]]; then
+    error_echo "MOSS-TTS-Nano 语音生成失败。"
+    gray_echo "最近日志："
+    tail -n 120 "$LOG_FILE" 2>/dev/null | tee -a "$LOG_FILE"
+    return 1
+  fi
+
+  if [[ ! -s "$default_output" ]]; then
+    error_echo "未找到 MOSS-TTS-Nano 默认输出文件：${default_output}"
+    gray_echo "请检查 CLI 是否变更了默认输出路径。日志：${LOG_FILE}"
+    return 1
+  fi
+
+  cp -f "$default_output" "$output_file" || return 1
+  success_echo "语音已生成：${output_file}"
+
+  if command -v afplay >/dev/null 2>&1; then
+    afplay "$output_file"
+  else
+    open "$output_file"
+  fi
+}
+
+moss_show_readme_and_wait() {
+  clear
+  highlight_echo "==================== 【MacOS】🔊MOSS-TTS-Nano 本地朗读 ===================="
+  color_echo "用途：输入文本，调用 MOSS-TTS-Nano 生成语音并立即播放。"
+  echo ""
+  info_echo "默认仓库目录：${MOSS_TTS_NANO_HOME}"
+  info_echo "默认虚拟环境：${MOSS_TTS_NANO_VENV_DIR}"
+  info_echo "默认后端：${MOSS_TTS_NANO_BACKEND} / ${MOSS_TTS_NANO_EXECUTION_PROVIDER}"
+  info_echo "默认参考音频：${MOSS_TTS_NANO_PROMPT_SPEECH}"
+  echo ""
+  note_echo "常用输入："
+  gray_echo "  直接输入文本              立即朗读，例如：你好 / Hello"
+  gray_echo "  :prompt /path/voice.wav   指定 MOSS 参考音频"
+  gray_echo "  :backend onnx             使用 ONNX 后端，默认推荐"
+  gray_echo "  :provider cpu             ONNX CPU 推理，默认推荐"
+  gray_echo "  :config                   查看当前配置"
+  gray_echo "  :quit                     退出"
+  echo ""
+  warn_echo "说明：MOSS-TTS-Nano 首次运行会下载模型；如果网络慢，需要等待。"
+  gray_echo "日志：${LOG_FILE}"
+  highlight_echo "=========================================================================="
+  echo ""
+  read -r "?👉 按回车进入朗读；按 Ctrl+C 取消：" _
+}
+
+moss_show_runtime_config() {
+  echo ""
+  highlight_echo "========================= MOSS-TTS-Nano 当前配置 ========================="
+  gray_echo "仓库目录：${MOSS_TTS_NANO_HOME}"
+  gray_echo "虚拟环境：${MOSS_TTS_NANO_VENV_DIR}"
+  gray_echo "后端：${MOSS_TTS_NANO_BACKEND}"
+  gray_echo "执行设备：${MOSS_TTS_NANO_EXECUTION_PROVIDER}"
+  gray_echo "参考音频：${MOSS_TTS_NANO_PROMPT_SPEECH}"
+  gray_echo "输出目录：${MOSS_TTS_NANO_OUTPUT_DIR}"
+  gray_echo "日志：${LOG_FILE}"
+  highlight_echo "========================================================================="
+  echo ""
+}
+
+moss_show_help() {
+  cat <<'MOSS_HELP_EOF' | tee -a "$LOG_FILE"
+可用命令：
+  直接输入文本              立即朗读
+  :prompt /path/voice.wav   指定 voice clone 参考音频
+  :backend onnx             切换后端，默认 onnx
+  :provider cpu             切换 ONNX 执行设备，默认 cpu；可选 cuda
+  :config                   查看当前配置
+  :quit                     退出脚本
+MOSS_HELP_EOF
+}
+
+moss_interactive_loop() {
+  moss_show_runtime_config
+  moss_show_help
+  echo ""
+
+  while true; do
+    local input=""
+    read -r "?🔊 请输入要朗读的文本（直接回车退出）： " input
+    input="$(strip_outer_quotes "$input")"
+
+    if [[ -z "$input" ]]; then
+      success_echo "已退出朗读循环。"
+      break
+    fi
+
+    case "$input" in
+      ":quit"|":q"|":exit")
+        success_echo "已退出朗读循环。"
+        break
+        ;;
+      ":help")
+        moss_show_help
+        ;;
+      ":config")
+        moss_show_runtime_config
+        ;;
+      ":prompt "*)
+        MOSS_TTS_NANO_PROMPT_SPEECH="${input#":prompt "}"
+        success_echo "MOSS 参考音频已切换为：${MOSS_TTS_NANO_PROMPT_SPEECH}"
+        ;;
+      ":backend "*)
+        MOSS_TTS_NANO_BACKEND="${input#":backend "}"
+        success_echo "MOSS 后端已切换为：${MOSS_TTS_NANO_BACKEND}"
+        ;;
+      ":provider "*)
+        MOSS_TTS_NANO_EXECUTION_PROVIDER="${input#":provider "}"
+        success_echo "MOSS 执行设备已切换为：${MOSS_TTS_NANO_EXECUTION_PROVIDER}"
+        ;;
+      *)
+        moss_speak_text "$input"
+        ;;
+    esac
+    echo ""
+  done
+}
+
+moss_main() {
+  if [[ "$#" -gt 0 ]]; then
+    moss_ensure_environment || exit 1
+    moss_speak_text "$*"
+    return $?
+  fi
+
+  moss_show_readme_and_wait
+  moss_ensure_environment || exit 1
+  moss_interactive_loop
+}
+
+
+# ---------- VoxCPM2 引擎 ----------
+voxcpm_python_bin() {
+  print -r -- "${VOXCPM_VENV_DIR}/bin/python"
+}
+
+voxcpm_cli_bin() {
+  print -r -- "${VOXCPM_VENV_DIR}/bin/voxcpm"
+}
+
+voxcpm_install_or_repair_environment() {
+  local py3=""
+  py3="$(command -v python3 || true)"
+
+  if [[ -z "$py3" ]]; then
+    error_echo "未找到 python3，无法创建 VoxCPM 虚拟环境。"
+    err_echo "请先安装 Python，例如：brew install python"
+    return 1
+  fi
+
+  local py_version=""
+  py_version="$($py3 - <<'VOXCPM_PYVER_EOF' 2>/dev/null
+import sys
+print(f"{sys.version_info.major}.{sys.version_info.minor}")
+VOXCPM_PYVER_EOF
+)"
+  if [[ -n "$py_version" ]]; then
+    local major="${py_version%%.*}"
+    local minor="${py_version#*.}"
+    if (( major < 3 || (major == 3 && minor < 10) || major >= 3 && minor >= 13 )); then
+      error_echo "VoxCPM 推荐 Python 3.10-3.12，当前 python3=${py_version}。"
+      err_echo "建议安装 Python 3.11 / 3.12 后重试。"
+      return 1
+    fi
+  fi
+
+  mkdir -p "$(dirname "$VOXCPM_VENV_DIR")"
+
+  if [[ ! -d "$VOXCPM_VENV_DIR" ]]; then
+    note_echo "开始创建 VoxCPM 虚拟环境：${VOXCPM_VENV_DIR}"
+    "$py3" -m venv "$VOXCPM_VENV_DIR" >> "$LOG_FILE" 2>&1 || return 1
+  fi
+
+  local py="$(voxcpm_python_bin)"
+  if [[ ! -x "$py" ]]; then
+    error_echo "VoxCPM 虚拟环境 Python 不可执行：${py}"
+    return 1
+  fi
+
+  if [[ -n "$VOXCPM_HF_ENDPOINT" ]]; then
+    export HF_ENDPOINT="$VOXCPM_HF_ENDPOINT"
+  fi
+
+  note_echo "开始安装 / 补齐 VoxCPM 依赖。"
+  "$py" -m pip install --upgrade pip >> "$LOG_FILE" 2>&1 || return 1
+  "$py" -m pip install voxcpm >> "$LOG_FILE" 2>&1 || return 1
+
+  "$py" - <<'VOXCPM_IMPORT_EOF' >> "$LOG_FILE" 2>&1
+from voxcpm import VoxCPM
+print("VoxCPM is ready")
+VOXCPM_IMPORT_EOF
+  if [[ $? -ne 0 ]]; then
+    error_echo "VoxCPM 安装后仍无法 import。日志：${LOG_FILE}"
+    return 1
+  fi
+
+  success_echo "VoxCPM 依赖已安装 / 补齐。"
+}
+
+voxcpm_ensure_environment() {
+  local cli="$(voxcpm_cli_bin)"
+  local py="$(voxcpm_python_bin)"
+
+  if [[ ! -x "$py" || ! -x "$cli" ]]; then
+    warn_echo "未检测到可用的 VoxCPM 环境。"
+    gray_echo "默认虚拟环境：${VOXCPM_VENV_DIR}"
+    if [[ "$VOXCPM_SKIP_INSTALL" == "1" ]]; then
+      error_echo "已设置 VOXCPM_SKIP_INSTALL=1，跳过自动安装。"
+      return 1
+    fi
+    if ask_enter_to_run "是否自动创建 / 修复 VoxCPM 环境并安装 voxcpm"; then
+      voxcpm_install_or_repair_environment || {
+        error_echo "VoxCPM 环境创建 / 修复失败。日志：${LOG_FILE}"
+        return 1
+      }
+    else
+      error_echo "已跳过安装，无法继续朗读。"
+      return 1
+    fi
+  fi
+
+  "$py" - <<'VOXCPM_CHECK_EOF' >/dev/null 2>&1
+from voxcpm import VoxCPM
+VOXCPM_CHECK_EOF
+  if [[ $? -ne 0 ]]; then
+    warn_echo "虚拟环境存在，但无法 import voxcpm。"
+    if ask_enter_to_run "是否自动重新安装 / 补齐 voxcpm"; then
+      voxcpm_install_or_repair_environment || return 1
+    else
+      error_echo "已跳过修复，无法继续朗读。"
+      return 1
+    fi
+  fi
+
+  success_echo "VoxCPM 虚拟环境可用：${VOXCPM_VENV_DIR}"
+}
+
+voxcpm_speak_text() {
+  local raw_text="$1"
+  local text="$(strip_outer_quotes "$raw_text")"
+
+  if [[ -z "$text" ]]; then
+    warn_echo "空文本，已跳过。"
+    return 0
+  fi
+
+  local cli="$(voxcpm_cli_bin)"
+  if [[ ! -x "$cli" ]]; then
+    error_echo "未找到 voxcpm 命令：${cli}"
+    return 1
+  fi
+
+  if [[ -n "$VOXCPM_PROMPT_AUDIO" && -z "$VOXCPM_PROMPT_TEXT" ]]; then
+    error_echo "已设置 VOXCPM_PROMPT_AUDIO，但未设置 VOXCPM_PROMPT_TEXT。Hi-Fi 克隆需要参考音频的逐字稿。"
+    err_echo "请在交互里执行：:prompt-text 参考音频对应文本"
+    return 1
+  fi
+
+  if [[ -n "$VOXCPM_REFERENCE_AUDIO" && ! -f "$VOXCPM_REFERENCE_AUDIO" ]]; then
+    error_echo "VoxCPM 参考音频不存在：${VOXCPM_REFERENCE_AUDIO}"
+    return 1
+  fi
+
+  if [[ -n "$VOXCPM_PROMPT_AUDIO" && ! -f "$VOXCPM_PROMPT_AUDIO" ]]; then
+    error_echo "VoxCPM prompt 音频不存在：${VOXCPM_PROMPT_AUDIO}"
+    return 1
+  fi
+
+  if [[ -n "$VOXCPM_HF_ENDPOINT" ]]; then
+    export HF_ENDPOINT="$VOXCPM_HF_ENDPOINT"
+  fi
+
+  mkdir -p "$VOXCPM_OUTPUT_DIR"
+  local timestamp="$(date '+%Y%m%d_%H%M%S')"
+  local output_file="${VOXCPM_OUTPUT_DIR}/voxcpm_${timestamp}.wav"
+  local cmd=()
+  local mode="design"
+
+  if [[ -n "$VOXCPM_PROMPT_AUDIO" ]]; then
+    mode="clone"
+    cmd=("$cli" clone --text "$text" --prompt-audio "$VOXCPM_PROMPT_AUDIO" --prompt-text "$VOXCPM_PROMPT_TEXT" --output "$output_file")
+    [[ -n "$VOXCPM_REFERENCE_AUDIO" ]] && cmd+=(--reference-audio "$VOXCPM_REFERENCE_AUDIO")
+    note_echo "正在生成语音：engine=VoxCPM2 mode=Hi-Fi Clone device=${VOXCPM_DEVICE}"
+  elif [[ -n "$VOXCPM_REFERENCE_AUDIO" ]]; then
+    mode="clone"
+    cmd=("$cli" clone --text "$text" --reference-audio "$VOXCPM_REFERENCE_AUDIO" --output "$output_file")
+    note_echo "正在生成语音：engine=VoxCPM2 mode=Clone device=${VOXCPM_DEVICE}"
+  else
+    cmd=("$cli" design --text "$text" --output "$output_file")
+    [[ -n "$VOXCPM_CONTROL" ]] && cmd+=(--control "$VOXCPM_CONTROL")
+    note_echo "正在生成语音：engine=VoxCPM2 mode=Design device=${VOXCPM_DEVICE}"
+  fi
+
+  [[ -n "$VOXCPM_DEVICE" ]] && cmd+=(--device "$VOXCPM_DEVICE")
+  [[ "$VOXCPM_NO_OPTIMIZE" == "1" || "$VOXCPM_NO_OPTIMIZE" == "true" ]] && cmd+=(--no-optimize)
+  [[ "$mode" == "clone" && ( "$VOXCPM_DENOISE" == "1" || "$VOXCPM_DENOISE" == "true" ) ]] && cmd+=(--denoise)
+
+  gray_echo "输出文件：${output_file}"
+  gray_echo "首次运行会自动下载 VoxCPM2 权重，体积较大；CPU 模式可能很慢，Apple Silicon 建议 device=mps。"
+
+  "${cmd[@]}" >> "$LOG_FILE" 2>&1
+  if [[ $? -ne 0 || ! -s "$output_file" ]]; then
+    error_echo "VoxCPM 语音生成失败：${output_file}"
+    gray_echo "最近日志："
+    tail -n 160 "$LOG_FILE" 2>/dev/null | tee -a "$LOG_FILE"
+    return 1
+  fi
+
+  success_echo "语音已生成：${output_file}"
+
+  if command -v afplay >/dev/null 2>&1; then
+    afplay "$output_file"
+  else
+    open "$output_file"
+  fi
+}
+
+voxcpm_show_readme_and_wait() {
+  clear
+  highlight_echo "====================== 【MacOS】🔊VoxCPM2 本地朗读 ======================"
+  color_echo "用途：高质量多语言 TTS、声音设计、参考音频克隆。"
+  echo ""
+  info_echo "默认虚拟环境：${VOXCPM_VENV_DIR}"
+  info_echo "默认设备：${VOXCPM_DEVICE}（auto 会按 cuda → mps → cpu 选择）"
+  info_echo "输出目录：${VOXCPM_OUTPUT_DIR}"
+  echo ""
+  note_echo "常用输入："
+  gray_echo "  直接输入文本                    立即朗读"
+  gray_echo "  :device auto|mps|cpu|cuda       切换设备，Apple Silicon 推荐 mps"
+  gray_echo "  :control 年轻女声，温柔甜美       设置声音设计提示词"
+  gray_echo "  :reference /path/voice.wav      使用参考音频做声音克隆"
+  gray_echo "  :prompt /path/voice.wav         Hi-Fi 克隆 prompt 音频，需要配合 :prompt-text"
+  gray_echo "  :prompt-text 参考音频逐字稿       设置 Hi-Fi 克隆参考文本"
+  gray_echo "  :denoise on|off                 克隆时是否对参考音频降噪"
+  gray_echo "  :optimize on|off                控制 torch.compile；CPU/MPS 不稳时建议 off"
+  gray_echo "  :hf-mirror on|off               设置 / 取消 HF_ENDPOINT=https://hf-mirror.com"
+  gray_echo "  :config                         查看当前配置"
+  gray_echo "  :quit                           退出"
+  echo ""
+  warn_echo "说明：VoxCPM2 质量强，但模型大；首次下载慢，CPU 推理慢。普通短文本/英文轻量朗读不要默认选它。"
+  gray_echo "日志：${LOG_FILE}"
+  highlight_echo "======================================================================="
+  echo ""
+  read -r "?👉 按回车进入朗读；按 Ctrl+C 取消：" _
+}
+
+voxcpm_show_runtime_config() {
+  echo ""
+  highlight_echo "============================ VoxCPM2 当前配置 ============================"
+  gray_echo "虚拟环境：${VOXCPM_VENV_DIR}"
+  gray_echo "设备：${VOXCPM_DEVICE}"
+  gray_echo "声音设计提示：${VOXCPM_CONTROL:-未设置}"
+  gray_echo "参考音频：${VOXCPM_REFERENCE_AUDIO:-未设置}"
+  gray_echo "Prompt 音频：${VOXCPM_PROMPT_AUDIO:-未设置}"
+  gray_echo "Prompt 文本：${VOXCPM_PROMPT_TEXT:-未设置}"
+  gray_echo "降噪：${VOXCPM_DENOISE}"
+  gray_echo "no-optimize：${VOXCPM_NO_OPTIMIZE}"
+  gray_echo "HF_ENDPOINT：${HF_ENDPOINT:-${VOXCPM_HF_ENDPOINT:-未设置}}"
+  gray_echo "输出目录：${VOXCPM_OUTPUT_DIR}"
+  gray_echo "日志：${LOG_FILE}"
+  highlight_echo "========================================================================="
+  echo ""
+}
+
+voxcpm_show_help() {
+  cat <<'VOXCPM_HELP_EOF' | tee -a "$LOG_FILE"
+可用命令：
+  直接输入文本                    立即朗读
+  :device auto|mps|cpu|cuda       切换设备
+  :control 文本                   设置声音设计提示词；清空用 :control off
+  :reference /path/voice.wav      设置参考音频；清空用 :reference off
+  :prompt /path/voice.wav         设置 Hi-Fi 克隆 prompt 音频；清空用 :prompt off
+  :prompt-text 文本               设置 Hi-Fi 克隆 prompt 文本；清空用 :prompt-text off
+  :denoise on|off                 克隆时是否启用参考音频降噪
+  :optimize on|off                on=允许优化；off=传入 --no-optimize
+  :hf-mirror on|off               on=HF_ENDPOINT=https://hf-mirror.com
+  :config                         查看当前配置
+  :quit                           退出脚本
+VOXCPM_HELP_EOF
+}
+
+voxcpm_interactive_loop() {
+  voxcpm_show_runtime_config
+  voxcpm_show_help
+  echo ""
+
+  while true; do
+    local input=""
+    read -r "?🔊 请输入要朗读的文本（直接回车退出）： " input
+    input="$(strip_outer_quotes "$input")"
+
+    if [[ -z "$input" ]]; then
+      success_echo "已退出朗读循环。"
+      break
+    fi
+
+    case "$input" in
+      ":quit"|":q"|":exit")
+        success_echo "已退出朗读循环。"
+        break
+        ;;
+      ":help")
+        voxcpm_show_help
+        ;;
+      ":config")
+        voxcpm_show_runtime_config
+        ;;
+      ":device "*)
+        VOXCPM_DEVICE="${input#":device "}"
+        success_echo "VoxCPM 设备已切换为：${VOXCPM_DEVICE}"
+        ;;
+      ":control off")
+        VOXCPM_CONTROL=""
+        success_echo "VoxCPM 声音设计提示已清空。"
+        ;;
+      ":control "*)
+        VOXCPM_CONTROL="${input#":control "}"
+        success_echo "VoxCPM 声音设计提示已设置为：${VOXCPM_CONTROL}"
+        ;;
+      ":reference off")
+        VOXCPM_REFERENCE_AUDIO=""
+        success_echo "VoxCPM 参考音频已清空。"
+        ;;
+      ":reference "*)
+        VOXCPM_REFERENCE_AUDIO="${input#":reference "}"
+        success_echo "VoxCPM 参考音频已切换为：${VOXCPM_REFERENCE_AUDIO}"
+        ;;
+      ":prompt off")
+        VOXCPM_PROMPT_AUDIO=""
+        success_echo "VoxCPM prompt 音频已清空。"
+        ;;
+      ":prompt "*)
+        VOXCPM_PROMPT_AUDIO="${input#":prompt "}"
+        success_echo "VoxCPM prompt 音频已切换为：${VOXCPM_PROMPT_AUDIO}"
+        ;;
+      ":prompt-text off")
+        VOXCPM_PROMPT_TEXT=""
+        success_echo "VoxCPM prompt 文本已清空。"
+        ;;
+      ":prompt-text "*)
+        VOXCPM_PROMPT_TEXT="${input#":prompt-text "}"
+        success_echo "VoxCPM prompt 文本已设置。"
+        ;;
+      ":denoise on")
+        VOXCPM_DENOISE="1"
+        success_echo "VoxCPM 降噪已开启。"
+        ;;
+      ":denoise off")
+        VOXCPM_DENOISE="0"
+        success_echo "VoxCPM 降噪已关闭。"
+        ;;
+      ":optimize on")
+        VOXCPM_NO_OPTIMIZE="0"
+        success_echo "VoxCPM 优化已开启。"
+        ;;
+      ":optimize off")
+        VOXCPM_NO_OPTIMIZE="1"
+        success_echo "VoxCPM 优化已关闭，将传入 --no-optimize。"
+        ;;
+      ":hf-mirror on")
+        VOXCPM_HF_ENDPOINT="https://hf-mirror.com"
+        export HF_ENDPOINT="$VOXCPM_HF_ENDPOINT"
+        success_echo "已设置 HF_ENDPOINT=${VOXCPM_HF_ENDPOINT}"
+        ;;
+      ":hf-mirror off")
+        VOXCPM_HF_ENDPOINT=""
+        unset HF_ENDPOINT
+        success_echo "已取消 HF_ENDPOINT。"
+        ;;
+      *)
+        voxcpm_speak_text "$input"
+        ;;
+    esac
+    echo ""
+  done
+}
+
+voxcpm_main() {
+  if [[ "$#" -gt 0 ]]; then
+    voxcpm_ensure_environment || exit 1
+    voxcpm_speak_text "$*"
+    return $?
+  fi
+
+  voxcpm_show_readme_and_wait
+  voxcpm_ensure_environment || exit 1
+  voxcpm_interactive_loop
+}
+
 # ---------- 菜单与交互 ----------
 show_supported_languages() {
   cat <<'EOF' | tee -a "$LOG_FILE"
@@ -547,7 +1350,7 @@ interactive_loop() {
   done
 }
 
-main() {
+supertonic_main() {
   if [[ "$#" -gt 0 ]]; then
     ensure_environment || exit 1
     start_server_if_needed || exit 1
@@ -559,6 +1362,79 @@ main() {
   ensure_environment || exit 1
   start_server_if_needed || exit 1
   interactive_loop
+}
+
+parse_engine_args() {
+  local next_is_engine="false"
+  local cleaned=()
+  local arg=""
+
+  for arg in "$@"; do
+    if [[ "$next_is_engine" == "true" ]]; then
+      TTS_ENGINE="$arg"
+      next_is_engine="false"
+      continue
+    fi
+
+    case "$arg" in
+      --engine)
+        next_is_engine="true"
+        ;;
+      --engine=*)
+        TTS_ENGINE="${arg#--engine=}"
+        ;;
+      --moss|--moss-tts|--moss-tts-nano)
+        TTS_ENGINE="moss"
+        ;;
+      --voxcpm|--voxcpm2|--vox)
+        TTS_ENGINE="voxcpm"
+        ;;
+      --supertonic)
+        TTS_ENGINE="supertonic"
+        ;;
+      *)
+        cleaned+=("$arg")
+        ;;
+    esac
+  done
+
+  printf '%s\n' "${cleaned[@]}"
+}
+
+main() {
+  local parsed=""
+  local engine=""
+  local args=()
+
+  parsed="$(parse_engine_args "$@")"
+  if [[ -n "$parsed" ]]; then
+    while IFS= read -r item; do
+      [[ -n "$item" ]] && args+=("$item")
+    done <<< "$parsed"
+  fi
+
+  if ! select_tts_engine; then
+    info_echo "已取消 TTS 引擎选择。"
+    return 0
+  fi
+  engine="$TTS_SELECTED_ENGINE"
+  print_engine_banner "$engine"
+
+  case "$engine" in
+    moss)
+      moss_main "${args[@]}"
+      ;;
+    voxcpm)
+      voxcpm_main "${args[@]}"
+      ;;
+    supertonic)
+      supertonic_main "${args[@]}"
+      ;;
+    *)
+      error_echo "未知 TTS 引擎：${engine}"
+      return 1
+      ;;
+  esac
 }
 
 main "$@"
