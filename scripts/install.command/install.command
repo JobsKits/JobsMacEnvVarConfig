@@ -1107,6 +1107,7 @@ component_manual_download_pages() {
   open_download_page "Visual Studio Code" "https://code.visualstudio.com/"
   open_download_page "Android Studio" "https://developer.android.com/studio?hl=zh-cn"
   open_download_page "Python" "https://www.python.org/downloads/"
+  open_download_page "Codex++" "https://github.com/BigPizzaV3/CodexPlusPlus"
 }
 
 # ---------- 菜单 ----------

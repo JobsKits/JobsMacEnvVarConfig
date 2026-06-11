@@ -501,21 +501,13 @@
 
 ## 十四、手动下载页面
 
-- 手动下载页面部件会按需打开：
+- [**Visual Studio Code**](https://code.visualstudio.com/)
 
-  ```text
-  Visual Studio Code
-  Android Studio
-  Python
-  ```
+- [**Android Studio**](https://developer.android.com/studio?hl=zh-cn)
 
-- 对应页面：
+- [**Python**](https://www.python.org/downloads/)
 
-  - [**Visual Studio Code**](https://code.visualstudio.com/)
-
-  - [**Android Studio**](https://developer.android.com/studio?hl=zh-cn)
-
-  - [**Python**](https://www.python.org/downloads/)
+- [**Codex++**](https://github.com/BigPizzaV3/CodexPlusPlus)
 
 ## 十五、网络前置检查
 
