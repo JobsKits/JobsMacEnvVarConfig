@@ -113,6 +113,7 @@ readonly -a BREW_CASKS=(
   flutter
   trex
   vlc
+  jdownloader
   codex-app
   codex
   github-store
@@ -125,6 +126,7 @@ readonly -a BREW_CASKS=(
 | [**flutter**](https://flutter.dev/) | Flutter SDK / 桌面开发工具链 |
 | [**trex**](https://formulae.brew.sh/cask/trex) | OCR / 取词相关工具 |
 | [**vlc**](https://www.videolan.org/vlc/) | 视频播放器 |
+| [**jdownloader**](https://formulae.brew.sh/cask/jdownloader) | 下载管理工具 |
 | [**codex-app**](https://formulae.brew.sh/cask/codex-app) | Codex 图形化应用入口 |
 | [**codex**](https://formulae.brew.sh/cask/codex) | Codex 相关图形化入口 |
 | `github-store` | GitHub-Store 图形化应用入口；来自 `OpenHub-Store/tap` |

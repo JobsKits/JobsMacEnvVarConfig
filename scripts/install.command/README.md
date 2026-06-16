@@ -61,6 +61,7 @@
     flutter
     trex
     vlc
+    jdownloader
     codex-app # 图形化界面
     codex # 终端使用
     github-store
@@ -137,6 +138,13 @@
 - [**trex**](https://formulae.brew.sh/cask/trex)
 
 - [**VLC**](https://www.videolan.org/vlc/)
+
+- [**JDownloader**](https://formulae.brew.sh/cask/jdownloader)
+  下载管理工具，对应：
+
+  ```zsh
+  brew install --cask jdownloader
+  ```
 
 - [**Codex App**](https://formulae.brew.sh/cask/codex-app)
   图形化桌面工具，对应：
@@ -267,6 +275,7 @@
   brew cask：flutter
   brew cask：trex
   brew cask：vlc
+  brew cask：jdownloader
   brew cask：codex-app
   brew cask：codex
   brew cask：github-store

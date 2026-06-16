@@ -34,6 +34,7 @@ readonly -a BREW_CASKS=(
   flutter
   trex
   vlc
+  jdownloader
   codex-app
   codex
   github-store
