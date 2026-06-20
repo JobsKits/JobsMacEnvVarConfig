@@ -17,18 +17,31 @@ LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 color_echo()     { log "\033[1;32m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warm_echo()      { log "\033[1;33m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 err_echo()       { log "\033[1;31m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 debug_echo()     { log "\033[1;35m🐞 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 highlight_echo() { log "\033[1;36m🔹 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 gray_echo()      { log "\033[0;90m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "\033[1m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }
 
 # ---------- 常量 ----------
@@ -44,6 +57,7 @@ press_enter_to_continue() {
   IFS= read -r _answer
 }
 
+# 展示脚本用途和影响范围，并在执行前等待用户确认。
 show_readme() {
   clear
   bold_echo "🌍 JDK 17 安装脚本"
@@ -64,10 +78,12 @@ show_readme() {
   clear
 }
 
+# 解析并返回后续流程需要的目标信息。
 get_cpu_arch() {
   uname -m
 }
 
+# 解析并返回后续流程需要的目标信息。
 get_profile_file() {
   case "${SHELL##*/}" in
     zsh)  echo "$HOME/.zprofile" ;;
@@ -76,6 +92,7 @@ get_profile_file() {
   esac
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_file_exists() {
   local file_path="$1"
   [[ -f "$file_path" ]] || touch "$file_path"
@@ -99,6 +116,7 @@ find_brew_bin() {
   return 1
 }
 
+# 封装 inject_shellenv_block 对应的独立处理逻辑。
 inject_shellenv_block() {
   local profile_file="$1"
   local brew_bin="$2"
@@ -127,6 +145,7 @@ inject_shellenv_block() {
   success_echo "Homebrew 环境变量已在当前会话生效"
 }
 
+# 执行对应的环境配置或同步处理。
 install_homebrew_if_needed() {
   local arch shell_path profile_file brew_bin
   arch="$(get_cpu_arch)"
@@ -189,10 +208,12 @@ has_java17() {
   /usr/libexec/java_home -v "$JDK_VERSION" >/dev/null 2>&1
 }
 
+# 解析并返回后续流程需要的目标信息。
 get_java17_home() {
   /usr/libexec/java_home -v "$JDK_VERSION" 2>/dev/null || true
 }
 
+# 封装 print_java17_info 对应的独立处理逻辑。
 print_java17_info() {
   local java_home
   java_home="$(get_java17_home)"
@@ -219,6 +240,7 @@ install_jdk_candidate() {
   fi
 }
 
+# 封装 link_openjdk17_for_java_home 对应的独立处理逻辑。
 link_openjdk17_for_java_home() {
   local brew_prefix openjdk_home link_path
 
@@ -240,6 +262,7 @@ link_openjdk17_for_java_home() {
   success_echo "已创建 openjdk@17 系统软链接"
 }
 
+# 执行对应的环境配置或同步处理。
 install_jdk17_if_needed() {
   if has_java17; then
     print_java17_info
@@ -278,7 +301,7 @@ finish_script() {
 }
 
 # ---------- 主流程入口 ----------
-main() {
+run_main_flow() {
   : > "$LOG_FILE"
 
   show_readme
@@ -287,6 +310,12 @@ main() {
   finish_script
 
   success_echo "JDK $JDK_VERSION 检查 / 安装流程结束"
+}
+
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  run_main_flow "$@"
 }
 
 main "$@"

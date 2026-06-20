@@ -14,18 +14,31 @@ FFMPEG_BIN=""
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 color_echo()     { log "\033[1;32m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warm_echo()      { log "\033[1;33m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 err_echo()       { log "\033[1;31m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 debug_echo()     { log "\033[1;35m🐞 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 highlight_echo() { log "\033[1;36m🔹 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 gray_echo()      { log "\033[0;90m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "\033[1m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }
 
 # ---------- 通用交互 ----------
@@ -39,6 +52,7 @@ ask_any_to_run() {
   [[ -n "$answer" ]]
 }
 
+# 封装 strip_outer_quotes 对应的独立处理逻辑。
 strip_outer_quotes() {
   emulate -L zsh
 
@@ -64,6 +78,7 @@ strip_outer_quotes() {
   print -r -- "$value"
 }
 
+# 展示脚本用途和影响范围，并在执行前等待用户确认。
 show_readme_and_wait() {
   emulate -L zsh
 
@@ -103,6 +118,7 @@ find_brew_bin() {
   return 1
 }
 
+# 解析并返回后续流程需要的目标信息。
 find_ffmpeg_bin() {
   emulate -L zsh
 
@@ -122,6 +138,7 @@ find_ffmpeg_bin() {
   return 1
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_ffmpeg() {
   emulate -L zsh
 
@@ -166,6 +183,7 @@ normalize_ext() {
   print -r -- "$ext"
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 is_format_shortcut() {
   emulate -L zsh
 
@@ -180,6 +198,7 @@ is_format_shortcut() {
   return 1
 }
 
+# 封装 next_output_path 对应的独立处理逻辑。
 next_output_path() {
   emulate -L zsh
 
@@ -197,6 +216,7 @@ next_output_path() {
   print -r -- "$output"
 }
 
+# 封装 print_usage 对应的独立处理逻辑。
 print_usage() {
   cat <<'EOFUSAGE' | tee -a "$LOG_FILE"
 ============================================================
@@ -229,6 +249,7 @@ to - FFmpeg 通用媒体格式转换
 EOFUSAGE
 }
 
+# 封装 read_target_ext 对应的独立处理逻辑。
 read_target_ext() {
   emulate -L zsh
 
@@ -241,6 +262,7 @@ read_target_ext() {
   print -r -- "$target_ext"
 }
 
+# 封装 read_input_paths 对应的独立处理逻辑。
 read_input_paths() {
   emulate -L zsh
 
@@ -292,6 +314,7 @@ read_input_paths() {
   done
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 prompt_output_stem() {
   emulate -L zsh
 
@@ -327,6 +350,7 @@ run_and_log() {
   return ${pipestatus[1]}
 }
 
+# 执行已经拆分完成的独立业务步骤。
 run_ffmpeg_convert() {
   emulate -L zsh
 
@@ -385,6 +409,7 @@ run_ffmpeg_convert() {
   esac
 }
 
+# 封装 convert_one 对应的独立处理逻辑。
 convert_one() {
   emulate -L zsh
 
@@ -434,6 +459,7 @@ convert_one() {
   return "$status"
 }
 
+# 封装 convert_many 对应的独立处理逻辑。
 convert_many() {
   emulate -L zsh
 
@@ -500,6 +526,12 @@ jobs_to_main() {
   convert_many "$target_ext" "${inputs[@]}"
 }
 
-if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
   jobs_to_main "$@"
+}
+
+if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+  main "$@"
 fi

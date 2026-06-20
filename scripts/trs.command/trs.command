@@ -30,16 +30,22 @@ COLOR_BLUE="\033[34m"
 COLOR_CYAN="\033[36m"
 COLOR_BOLD="\033[1m"
 
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 log_info() { printf "%b\n" "${COLOR_BLUE}[INFO]${COLOR_RESET} $*"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 log_ok() { printf "%b\n" "${COLOR_GREEN}[OK]${COLOR_RESET} $*"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 log_warn() { printf "%b\n" "${COLOR_YELLOW}[WARN]${COLOR_RESET} $*"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 log_error() { printf "%b\n" "${COLOR_RED}[ERROR]${COLOR_RESET} $*"; }
 
+# 封装 pause 对应的独立处理逻辑。
 pause() {
   printf "%b" "${COLOR_CYAN}按回车继续...${COLOR_RESET}"
   read -r _
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 prompt_required_run() {
   local message="$1"
   printf "%b" "${COLOR_YELLOW}${message}${COLOR_RESET}\n按回车跳过；输入任意字符后回车执行；输入 q 后回车退出翻译："
@@ -48,15 +54,18 @@ prompt_required_run() {
   [[ -n "${answer}" && "${answer:l}" != "q" ]]
 }
 
+# 封装 command_exists 对应的独立处理逻辑。
 command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# 封装 version_major 对应的独立处理逻辑。
 version_major() {
   local version="$1"
   printf "%s" "${version%%.*}"
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 check_macos_version() {
   local version=""
   version="$(sw_vers -productVersion 2>/dev/null || true)"
@@ -78,6 +87,7 @@ check_macos_version() {
   fi
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_homebrew() {
   if command_exists brew; then
     eval "$(brew shellenv 2>/dev/null || true)" || true
@@ -113,6 +123,7 @@ ensure_homebrew() {
   fi
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_fzf() {
   if command_exists fzf; then
     return 0
@@ -137,6 +148,7 @@ ensure_fzf() {
   fi
 }
 
+# 解析并返回后续流程需要的目标信息。
 find_translate_bin() {
   local found=""
   found="$(command -v translate 2>/dev/null || true)"
@@ -153,6 +165,7 @@ find_translate_bin() {
   return 1
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_swift_toolchain() {
   if command_exists swift; then
     return 0
@@ -163,6 +176,7 @@ ensure_swift_toolchain() {
   return 1
 }
 
+# 封装 build_translate_cli 对应的独立处理逻辑。
 build_translate_cli() {
   ensure_swift_toolchain || return 1
 
@@ -202,6 +216,7 @@ build_translate_cli() {
   log_ok "translate 已安装：${TRANSLATE_BIN}"
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_translate_cli() {
   if find_translate_bin; then
     return 0
@@ -221,6 +236,7 @@ ensure_translate_cli() {
   fi
 }
 
+# 封装 load_config 对应的独立处理逻辑。
 load_config() {
   if [[ -f "${CONFIG_FILE}" ]]; then
     source "${CONFIG_FILE}" || true
@@ -243,6 +259,7 @@ load_config() {
   esac
 }
 
+# 封装 save_config 对应的独立处理逻辑。
 save_config() {
   mkdir -p "${APP_HOME}"
   {
@@ -252,6 +269,7 @@ save_config() {
   } > "${CONFIG_FILE}"
 }
 
+# 封装 print_header 对应的独立处理逻辑。
 print_header() {
   clear || true
   printf "%b\n" "${COLOR_BOLD}Jobs Translator / trs${COLOR_RESET}"
@@ -259,6 +277,7 @@ print_header() {
   printf "\n"
 }
 
+# 封装 language_rows 对应的独立处理逻辑。
 language_rows() {
   cat <<'LANGS'
 English US｜英语（美国）｜en-US
@@ -285,6 +304,7 @@ Ukrainian｜乌克兰语｜uk
 LANGS
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 select_language() {
   ensure_fzf
 
@@ -295,6 +315,7 @@ select_language() {
   [[ -n "${CURRENT_OTHER_CODE}" ]]
 }
 
+# 封装 show_help 对应的独立处理逻辑。
 show_help() {
   cat <<EOF_HELP
 
@@ -321,6 +342,7 @@ show_help() {
 EOF_HELP
 }
 
+# 封装 source_lang 对应的独立处理逻辑。
 source_lang() {
   if [[ "${CURRENT_DIRECTION}" == "to_zh" ]]; then
     printf "%s" "${CURRENT_OTHER_CODE}"
@@ -329,6 +351,7 @@ source_lang() {
   fi
 }
 
+# 封装 target_lang 对应的独立处理逻辑。
 target_lang() {
   if [[ "${CURRENT_DIRECTION}" == "to_zh" ]]; then
     printf "%s" "${CHINESE_CODE}"
@@ -337,6 +360,7 @@ target_lang() {
   fi
 }
 
+# 封装 direction_label 对应的独立处理逻辑。
 direction_label() {
   if [[ "${CURRENT_DIRECTION}" == "to_zh" ]]; then
     printf "%s → 中文" "${CURRENT_OTHER_NAME}"
@@ -345,6 +369,7 @@ direction_label() {
   fi
 }
 
+# 封装 open_translation_settings 对应的独立处理逻辑。
 open_translation_settings() {
   log_info "正在打开系统设置。"
   log_info "进入后找到：通用 → 语言与地区 → Translation Languages…"
@@ -357,6 +382,7 @@ open_translation_settings() {
   log_warn "无法自动打开系统设置，请手动进入：系统设置 → 通用 → 语言与地区 → Translation Languages…"
 }
 
+# 封装 classify_translate_error 对应的独立处理逻辑。
 classify_translate_error() {
   local output="$1"
 
@@ -368,6 +394,7 @@ classify_translate_error() {
   printf "unknown"
 }
 
+# 封装 record_translate_error 对应的独立处理逻辑。
 record_translate_error() {
   local output="$1"
   local from_code="$2"
@@ -380,6 +407,7 @@ record_translate_error() {
   LAST_TRANSLATE_ERROR_KIND="${kind}"
 }
 
+# 封装 print_translate_failure_hint 对应的独立处理逻辑。
 print_translate_failure_hint() {
   local output="$1"
   local from_code="$2"
@@ -400,6 +428,7 @@ print_translate_failure_hint() {
   printf "%s\n" "${output}"
 }
 
+# 封装 probe_text_for_source 对应的独立处理逻辑。
 probe_text_for_source() {
   local from_code="$1"
 
@@ -410,6 +439,7 @@ probe_text_for_source() {
   fi
 }
 
+# 封装 probe_language_pair 对应的独立处理逻辑。
 probe_language_pair() {
   local from_code="$1"
   local to_code="$2"
@@ -432,6 +462,7 @@ probe_language_pair() {
   return 0
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_current_pair_ready() {
   local from_code=""
   local to_code=""
@@ -471,6 +502,7 @@ ensure_current_pair_ready() {
   done
 }
 
+# 封装 change_language_interactive 对应的独立处理逻辑。
 change_language_interactive() {
   if select_language; then
     CURRENT_DIRECTION="to_zh"
@@ -481,6 +513,7 @@ change_language_interactive() {
   fi
 }
 
+# 封装 swap_direction 对应的独立处理逻辑。
 swap_direction() {
   if [[ "${CURRENT_DIRECTION}" == "to_zh" ]]; then
     CURRENT_DIRECTION="from_zh"
@@ -493,6 +526,7 @@ swap_direction() {
   ensure_current_pair_ready || exit 1
 }
 
+# 封装 translate_text 对应的独立处理逻辑。
 translate_text() {
   local text="$1"
   local from_code="$(source_lang)"
@@ -516,6 +550,7 @@ translate_text() {
   printf "%b\n" "${COLOR_GREEN}译文：${COLOR_RESET}${output}"
 }
 
+# 封装 settings_menu 对应的独立处理逻辑。
 settings_menu() {
   ensure_fzf
 
@@ -558,6 +593,7 @@ settings_menu() {
   esac
 }
 
+# 封装 trim_text 对应的独立处理逻辑。
 trim_text() {
   local value="$1"
   value="${value#${value%%[![:space:]]*}}"
@@ -565,6 +601,7 @@ trim_text() {
   printf "%s" "${value}"
 }
 
+# 封装 interactive_loop 对应的独立处理逻辑。
 interactive_loop() {
   load_config
   print_header
@@ -599,10 +636,17 @@ interactive_loop() {
   log_ok "已退出翻译。"
 }
 
-main() {
+# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
+run_main_flow() {
   check_macos_version
   ensure_translate_cli
   interactive_loop
+}
+
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  run_main_flow "$@"
 }
 
 main "$@"

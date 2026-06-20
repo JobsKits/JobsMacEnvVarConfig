@@ -14,13 +14,20 @@ ENV_HOME="${JOBS_MAC_ENV_HOME:-$HOME/.JobsMacEnv}"
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 info_echo()      { log "[1;34mℹ $1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warm_echo()      { log "[1;33m$1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 note_echo()      { log "[1;35m➤ $1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 error_echo()     { log "[1;31m✖ $1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 gray_echo()      { log "[0;90m$1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "[1m$1[0m"; }
 
+# 展示脚本用途和影响范围，并在执行前等待用户确认。
 jobs_d_show_readme_and_wait() {
   clear 2>/dev/null || true
   cat <<'EOFREADME' | tee -a "$LOG_FILE"
@@ -56,6 +63,7 @@ EOFREADME
   fi
 }
 
+# 封装 jobs_d_source_lib 对应的独立处理逻辑。
 jobs_d_source_lib() {
   local lib_name="$1"
   local candidate=""
@@ -78,15 +86,23 @@ jobs_d_source_lib() {
 
 jobs_d_source_lib "jobs_flutter_lib.zsh" || { return 1 2>/dev/null || exit 1; }
 
+# 封装 d 对应的独立处理逻辑。
 d() {
   jobs_flutter_d_impl "$@"
 }
 
+# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 jobs_d_main() {
   jobs_d_show_readme_and_wait
   d "$@"
 }
 
-if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
   jobs_d_main "$@"
+}
+
+if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+  main "$@"
 fi

@@ -12,18 +12,31 @@ LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 color_echo()     { log "\033[1;32m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warm_echo()      { log "\033[1;33m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 err_echo()       { log "\033[1;31m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 debug_echo()     { log "\033[1;35m🐞 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 highlight_echo() { log "\033[1;36m🔹 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 gray_echo()      { log "\033[0;90m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "\033[1m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }
 
 # ---------- 默认配置 ----------
@@ -53,6 +66,7 @@ ensure_dir() {
   [[ -d "$dir" ]] || mkdir -p "$dir"
 }
 
+# 封装 trim 对应的独立处理逻辑。
 trim() {
   local value="$1"
   value="${value#"${value%%[![:space:]]*}"}"
@@ -60,6 +74,7 @@ trim() {
   printf "%s" "$value"
 }
 
+# 封装 write_file_if_changed 对应的独立处理逻辑。
 write_file_if_changed() {
   local target="$1"
   local content="$2"
@@ -78,6 +93,7 @@ write_file_if_changed() {
   success_echo "已写入：$target"
 }
 
+# 封装 copy_file_if_changed 对应的独立处理逻辑。
 copy_file_if_changed() {
   local src="$1"
   local target="$2"
@@ -90,10 +106,12 @@ copy_file_if_changed() {
   write_file_if_changed "$target" "$(cat "$src")"
 }
 
+# 解析并返回后续流程需要的目标信息。
 get_cpu_arch() {
   uname -m
 }
 
+# 解析并返回后续流程需要的目标信息。
 find_brew_bin() {
   if command -v brew >/dev/null 2>&1; then
     command -v brew
@@ -111,6 +129,7 @@ find_brew_bin() {
   return 1
 }
 
+# 封装 profile_file_for_shell 对应的独立处理逻辑。
 profile_file_for_shell() {
   local shell_path="${SHELL##*/}"
 
@@ -121,6 +140,7 @@ profile_file_for_shell() {
   esac
 }
 
+# 封装 inject_shellenv_block 对应的独立处理逻辑。
 inject_shellenv_block() {
   local profile_file="$1"
   local shellenv="$2"
@@ -154,6 +174,7 @@ inject_shellenv_block() {
   success_echo "Homebrew shellenv 已在当前终端生效"
 }
 
+# 执行对应的环境配置或同步处理。
 install_homebrew() {
   local arch="$(get_cpu_arch)"
   local profile_file="$(profile_file_for_shell)"
@@ -262,6 +283,7 @@ parse_sync_file() {
   done < "$file"
 }
 
+# 封装 generate_env_content 对应的独立处理逻辑。
 generate_env_content() {
   cat <<EOFVARS
 # ========================
@@ -298,6 +320,7 @@ EOFPNPM
   fi
 }
 
+# 封装 generate_aliases_content 对应的独立处理逻辑。
 generate_aliases_content() {
   echo "# 自动生成别名"
 
@@ -309,6 +332,7 @@ generate_aliases_content() {
   done
 }
 
+# 封装 generate_minimal_zshrc 对应的独立处理逻辑。
 generate_minimal_zshrc() {
   cat <<'EOFZSHRC'
 # JobsMacEnv 主入口
@@ -317,6 +341,7 @@ generate_minimal_zshrc() {
 export JOBS_MAC_ENV_HOME="$HOME/.JobsMacEnv"
 [[ -n "${JOBS_MAC_ENV_HOME_OVERRIDE:-}" ]] && export JOBS_MAC_ENV_HOME="$JOBS_MAC_ENV_HOME_OVERRIDE"
 
+# 封装 jobs_source_if_exists 对应的独立处理逻辑。
 jobs_source_if_exists() {
   local file="$1"
   [[ -f "$file" ]] && source "$file"
@@ -337,6 +362,7 @@ has_java_version() {
   /usr/libexec/java_home -v "$version" >/dev/null 2>&1
 }
 
+# 执行对应的环境配置或同步处理。
 install_jdk_formula_or_cask() {
   local candidate="$1"
 
@@ -347,6 +373,7 @@ install_jdk_formula_or_cask() {
   fi
 }
 
+# 执行对应的环境配置或同步处理。
 install_jdk17_if_needed() {
   local version="$1"
   local candidates_csv="$2"
@@ -414,6 +441,7 @@ resolve_script_file() {
   return 1
 }
 
+# 封装 copy_script_bundle 对应的独立处理逻辑。
 copy_script_bundle() {
   local source_scripts_dir="$1"
   local target_scripts_dir="$2"
@@ -445,6 +473,7 @@ copy_script_bundle() {
   success_echo "已同步脚本：$script_name"
 }
 
+# 封装 copy_all_script_bundles 对应的独立处理逻辑。
 copy_all_script_bundles() {
   local source_scripts_dir="$1"
   local target_scripts_dir="$2"
@@ -469,6 +498,7 @@ copy_all_script_bundles() {
   copy_scripts_private_libs "$source_scripts_dir" "$target_scripts_dir"
 }
 
+# 封装 copy_scripts_private_libs 对应的独立处理逻辑。
 copy_scripts_private_libs() {
   local source_scripts_dir="$1"
   local target_scripts_dir="$2"
@@ -482,6 +512,7 @@ copy_scripts_private_libs() {
   fi
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 verify_scripts_modules() {
   local scripts_dir="$1"
   local required_files=(
@@ -502,6 +533,7 @@ verify_scripts_modules() {
     decode.command
     ts.command
     download.command
+    code.command
     to.command
     install.command
     update.command
@@ -565,6 +597,7 @@ verify_scripts_modules() {
   success_echo "Scripts 模块自检通过：$scripts_dir"
 }
 
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warn_if_command_conflict() {
   local bin_name="$1"
   local target_bin_dir="$2"
@@ -578,6 +611,7 @@ warn_if_command_conflict() {
   fi
 }
 
+# 执行对应的环境配置或同步处理。
 install_bin_entry() {
   local source_scripts_dir="$1"
   local target_bin_dir="$2"
@@ -597,6 +631,7 @@ install_bin_entry() {
   success_echo "已安装命令入口：$target_bin_dir/$bin_name"
 }
 
+# 执行对应的清理操作，并保留必要的安全检查。
 remove_obsolete_bin_entry() {
   local target_bin_dir="$1"
   local bin_name="$2"
@@ -613,6 +648,7 @@ remove_obsolete_bin_entry() {
   warn_echo "检测到 $target_path，但它不像 JobsMacEnv 旧入口，已保留。"
 }
 
+# 执行对应的清理操作，并保留必要的安全检查。
 remove_obsolete_script_bin_entry() {
   local source_scripts_dir="$1"
   local target_bin_dir="$2"
@@ -690,6 +726,7 @@ show_intro_and_wait() {
   list 是总入口，用 fzf 展示菜单。
   clean / cor / decode / ts / download / install / update / shell 等均已独立成 command。
   to / mp4 / mov / webm / mp3 等复用 to.command，用于 FFmpeg 媒体格式转换。
+  code 用于注册 VS Code 命令行入口，支持在终端执行 code .
 
 ------------------------------------------------------------
 三、交互规则
@@ -816,6 +853,7 @@ EOFINSTALL
   IFS= read -r _answer
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 prompt_replace_system_zshrc() {
   local generated_zshrc="$1"
   local system_zshrc="$HOME/.zshrc"
@@ -843,56 +881,68 @@ prompt_replace_system_zshrc() {
 }
 
 # ---------- 主流程 ----------
-main() {
-  local source_dir="$SCRIPT_DIR"
-  local target_root="$HOME/.JobsMacEnv"
-  local target_zsh_dir="$target_root/zsh"
-  local target_custom_dir="$target_zsh_dir/custom"
-  local target_scripts_dir="$target_root/Scripts"
-  local target_bin_dir="$HOME/.local/bin"
-  local old_target_scripts_dir="$target_root/scripts"
+# 初始化安装流程共用路径，避免在各职责函数之间重复传递长参数列表。
+prepare_install_paths() {
+  source_dir="$SCRIPT_DIR"
+  target_root="$HOME/.JobsMacEnv"
+  target_zsh_dir="$target_root/zsh"
+  target_custom_dir="$target_zsh_dir/custom"
+  target_scripts_dir="$target_root/Scripts"
+  target_bin_dir="$HOME/.local/bin"
+  old_target_scripts_dir="$target_root/scripts"
+  sync_file="$source_dir/sync_env.txt"
+  target_sync_file="$target_root/sync_env.txt"
+  target_readme="$target_root/README.md"
+  target_install="$target_root/install.command"
+  target_zshrc_template="$target_root/.zshrc"
+  target_env="$target_zsh_dir/env.zsh"
+  target_aliases="$target_zsh_dir/aliases.zsh"
+  source_zshrc="$source_dir/Sys/.zshrc"
+  source_scripts_dir="$source_dir/Scripts"
+}
 
-  local sync_file="$source_dir/sync_env.txt"
-  local target_sync_file="$target_root/sync_env.txt"
-  local target_readme="$target_root/README.md"
-  local target_install="$target_root/install.command"
-  local target_zshrc_template="$target_root/.zshrc"
-  local target_env="$target_zsh_dir/env.zsh"
-  local target_aliases="$target_zsh_dir/aliases.zsh"
-  local sys_dir="$source_dir/Sys"
-  local source_zshrc="$sys_dir/.zshrc"
-  local source_scripts_dir="$source_dir/Scripts"
-
+# 兼容旧仓库布局，在 Sys 目录缺少模板时回退读取根目录 .zshrc。
+resolve_source_zshrc() {
   if [[ ! -f "$source_zshrc" && -f "$source_dir/.zshrc" ]]; then
     source_zshrc="$source_dir/.zshrc"
   fi
+}
 
-  show_intro_and_wait
-
+# 校验同步所需源文件，避免安装进行到一半才因缺少输入而退出。
+validate_install_sources() {
   [[ -f "$sync_file" ]] || { error_echo "缺少 sync_env.txt"; exit 1; }
   [[ -f "$source_zshrc" ]] || { error_echo "缺少文件：$source_zshrc"; exit 1; }
+}
 
+# 解析配置并准备 Homebrew 与 JDK 基础环境。
+prepare_install_dependencies() {
   parse_sync_file "$sync_file"
   install_homebrew
   install_jdk17_if_needed "$JAVA_VERSION" "$JAVA_CANDIDATES"
+}
 
+# 创建目标目录并清理已经废弃的小写 scripts 目录。
+prepare_target_directories() {
   highlight_echo "开始同步 JobsMacEnv 到：$target_root"
-
   ensure_dir "$target_root"
   ensure_dir "$target_zsh_dir"
   ensure_dir "$target_custom_dir"
   ensure_dir "$target_bin_dir"
   ensure_dir "$target_root/assets"
-
   rm -rf "$old_target_scripts_dir" 2>/dev/null || true
+}
 
+# 同步仓库入口文件以及所有独立脚本模块。
+sync_core_files() {
   copy_file_if_changed "$source_zshrc" "$target_zshrc_template"
   copy_file_if_changed "$source_dir/README.md" "$target_readme"
   copy_file_if_changed "$source_dir/install.command" "$target_install"
   copy_file_if_changed "$source_dir/sync_env.txt" "$target_sync_file"
-
   copy_all_script_bundles "$source_scripts_dir" "$target_scripts_dir"
+}
 
+# 同步 zsh 模块，并兼容仓库中可选的自定义行为文件。
+sync_zsh_modules() {
   copy_file_if_changed "$source_dir/zsh/bootstrap.zsh" "$target_zsh_dir/bootstrap.zsh"
   copy_file_if_changed "$source_dir/zsh/env_methods.zsh" "$target_zsh_dir/env_methods.zsh"
   copy_file_if_changed "$source_dir/zsh/user_mounts.zsh" "$target_zsh_dir/user_mounts.zsh"
@@ -907,7 +957,10 @@ main() {
   fi
 
   copy_file_if_changed "$source_dir/zsh/custom/local.zsh" "$target_custom_dir/local.zsh"
+}
 
+# 清理旧函数文件并生成最新的环境、别名和轻量入口配置。
+generate_target_zsh_files() {
   if [[ -f "$target_custom_dir/legacy_functions.zsh" ]]; then
     rm -f "$target_custom_dir/legacy_functions.zsh"
     note_echo "已移除旧文件：$target_custom_dir/legacy_functions.zsh"
@@ -916,11 +969,12 @@ main() {
   write_file_if_changed "$target_env" "$(generate_env_content)"
   write_file_if_changed "$target_aliases" "$(generate_aliases_content)"
   write_file_if_changed "$target_zshrc_template" "$(generate_minimal_zshrc)"
-
   chmod +x "$target_install"
-
   verify_scripts_modules "$target_scripts_dir"
+}
 
+# 注册通用文件处理和开发辅助命令入口。
+install_general_bin_entries() {
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" list.command list
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" m5c.command m5c
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" flat.command flat
@@ -944,7 +998,11 @@ main() {
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" decode.command decode
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" ts.command ts
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" download.command download
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" code.command code
+}
 
+# 注册音视频格式转换命令入口。
+install_media_bin_entries() {
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command to
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command mp4
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command mov
@@ -959,6 +1017,10 @@ main() {
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command flac
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command ogg
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" to.command opus
+}
+
+# 注册环境管理、构建和发布相关命令入口。
+install_development_bin_entries() {
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" install.command install
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" update.command update
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" shell.command shell
@@ -980,8 +1042,10 @@ main() {
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" apk.command apk
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" ipa.command ipa
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" config.command config
+}
 
-
+# 输出同步结果，并由用户决定是否替换系统 .zshrc。
+finish_environment_sync() {
   success_echo "已生成轻量入口文件：$target_zshrc_template"
   success_echo "已同步 Scripts 模块目录：$target_scripts_dir"
 
@@ -993,6 +1057,29 @@ main() {
 
   success_echo "同步完成"
   gray_echo "日志路径：$LOG_FILE"
+}
+
+# 串联完整安装流程，具体业务保持在独立职责函数中。
+run_main_flow() {
+  prepare_install_paths
+  resolve_source_zshrc
+  show_intro_and_wait
+  validate_install_sources
+  prepare_install_dependencies
+  prepare_target_directories
+  sync_core_files
+  sync_zsh_modules
+  generate_target_zsh_files
+  install_general_bin_entries
+  install_media_bin_entries
+  install_development_bin_entries
+  finish_environment_sync
+}
+
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整安装流程，复杂逻辑统一下沉。
+  run_main_flow "$@"
 }
 
 main "$@"

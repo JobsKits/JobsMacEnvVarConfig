@@ -13,18 +13,31 @@ LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 color_echo()     { log "[1;32m$1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 info_echo()      { log "[1;34mℹ $1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 success_echo()   { log "[1;32m✔ $1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warn_echo()      { log "[1;33m⚠ $1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warm_echo()      { log "[1;33m$1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 note_echo()      { log "[1;35m➤ $1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 error_echo()     { log "[1;31m✖ $1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 err_echo()       { log "[1;31m$1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 debug_echo()     { log "[1;35m🐞 $1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 highlight_echo() { log "[1;36m🔹 $1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 gray_echo()      { log "[0;90m$1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "[1m$1[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "[4m$1[0m"; }
 
 # ---------- 内置自述 ----------
@@ -71,6 +84,7 @@ EOFREADME
 # 时区选择：直接回车使用当前系统时区；输入任意字符后用 fzf 选择其他时区。
 # 自动识别常见时间戳精度：秒 / 毫秒 / 微秒 / 纳秒。
 unalias ts 2>/dev/null
+# 封装 ts 对应的独立处理逻辑。
 ts() {
   emulate -L zsh
   setopt no_nomatch
@@ -82,6 +96,7 @@ ts() {
     return 1
   fi
 
+  # 封装 _jobs_ts_read_line 对应的独立处理逻辑。
   _jobs_ts_read_line() {
     emulate -L zsh
 
@@ -285,6 +300,12 @@ jobs_ts_main() {
   ts "$@"
 }
 
-if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
   jobs_ts_main "$@"
+}
+
+if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+  main "$@"
 fi

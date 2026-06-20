@@ -13,18 +13,31 @@ LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 color_echo()     { log "\033[1;32m$1\033[0m"; }         # 正常绿色输出
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 info_echo()      { log "\033[1;34mℹ $1\033[0m"; }       # 信息
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 success_echo()   { log "\033[1;32m✔ $1\033[0m"; }       # 成功
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }       # 警告
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warm_echo()      { log "\033[1;33m$1\033[0m"; }         # 温馨提示
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 note_echo()      { log "\033[1;35m➤ $1\033[0m"; }       # 说明
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 error_echo()     { log "\033[1;31m✖ $1\033[0m"; }       # 错误
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 err_echo()       { log "\033[1;31m$1\033[0m"; }         # 错误纯文本
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 debug_echo()     { log "\033[1;35m🐞 $1\033[0m"; }      # 调试
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 highlight_echo() { log "\033[1;36m🔹 $1\033[0m"; }      # 高亮
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 gray_echo()      { log "\033[0;90m$1\033[0m"; }         # 次要信息
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "\033[1m$1\033[0m"; }            # 加粗
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }            # 下划线
 
 # ---------- 自述 ----------
@@ -59,6 +72,7 @@ show_readme() {
   log "  输出是否一致"
 }
 
+# 封装 press_enter_to_continue 对应的独立处理逻辑。
 press_enter_to_continue() {
   log ""
   warm_echo "按回车开始比较..."
@@ -74,6 +88,7 @@ trim_text() {
   print -r -- "$value"
 }
 
+# 封装 normalize_path 对应的独立处理逻辑。
 normalize_path() {
   local raw="$1"
   local value=""
@@ -84,11 +99,13 @@ normalize_path() {
   print -r -- "$value"
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 is_quit_text() {
   local value="${1:l}"
   [[ "$value" == "q" || "$value" == "quit" || "$value" == "exit" ]]
 }
 
+# 封装 read_file_path 对应的独立处理逻辑。
 read_file_path() {
   local title="$1"
   local raw_path=""
@@ -157,6 +174,7 @@ calc_md5() {
   return 1
 }
 
+# 封装 compare_files 对应的独立处理逻辑。
 compare_files() {
   local file_a="$1"
   local file_b="$2"
@@ -189,7 +207,7 @@ compare_files() {
 }
 
 # ---------- 主流程 ----------
-main() {
+run_main_flow() {
   local file_a=""
   local file_b=""
 
@@ -203,6 +221,12 @@ main() {
   file_b="$REPLY_FILE_PATH"
 
   compare_files "$file_a" "$file_b"
+}
+
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  run_main_flow "$@"
 }
 
 main "$@"

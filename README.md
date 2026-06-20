@@ -51,6 +51,8 @@
 │   │   └── README.md
 │   ├── list.command/
 │   │   ├── list.command            # fzf 功能菜单总入口
+│   ├── code.command/
+│   │   ├── code.command            # VS Code 命令行入口包装脚本
 │   ├── pods.command/
 │   │   ├── pods.command            # 本地 CocoaPods Pod 编译 / podspec lint 自检入口
 │   │   └── README.md
@@ -256,6 +258,7 @@ export JOBS_ALIAS_DRAG_AUTO_RESOLVE=true
 | gif | 终端 / 全屏录制入口，基于 asciinema + agg / screencapture + ffmpeg 生成高质量 GIF / MP4 |
 | simios | 检测完整 Xcode 环境并下载 / 补齐 iOS Simulator Runtime |
 | list | fzf 功能菜单总入口，展示可执行能力并分发到具体脚本 |
+| code | VS Code 命令行入口包装脚本，支持 `code .` 打开当前目录 |
 | m5c | MD5 文件一致性比较工具，支持输入或拖入两个文件路径 |
 | flat | URL 编码去乱码 / 解码工具，支持普通 URL Decode 和 `--plus` 表单编码模式 |
 | clr | 清空 Google Chrome 下载记录，不删除真实下载文件 |
@@ -952,6 +955,7 @@ zsh/custom/local.zsh
 | `apk` | 构建 Flutter Android APK |
 | `ipa` | 构建 Flutter iOS IPA |
 | `config` | 打开配置文件目录，优先使用 Xcode |
+| `code` | 打开 VS Code，解决终端提示 `zsh: command not found: code` 的问题 |
 | `update` | 菜单化更新 Homebrew、Android SDK、Flutter、Node、Rust、Python、Ruby、CocoaPods、OpenClaw 等模块 |
 | `install` | 新系统环境配置入口 |
 | `cor` | 颜色格式转换器，支持 HEX / RGB / RGBA / 0xAARRGGBB，带色块预览 |
@@ -1081,7 +1085,7 @@ source ~/.zshrc
 
 `list` 现在作为 JobsMacEnv 自定义命令总菜单，不再打印长篇自述，也不再等待用户先按回车确认。运行后会直接使用 `fzf` 展示自定义命令和含义；如果 `fzf` 不可用，则退化为文本清单。
 
-当前纳入菜单的功能入口包括：`m5c`、`flat`、`trs`、`gif`、`install_jdk17.command`、`simios`、`cor`、`decode`、`ts`、`download`、`install`、`update`、`shell`、`zz`、`x`、`save`、`rb`、`a`、`b`、`i`、`flutter_project.command`、`fixfvm`、`check1`、`check`、`c`、`d`、`buildCheck`、`apk`、`ipa`、`config`。
+当前纳入菜单的功能入口包括：`m5c`、`flat`、`trs`、`gif`、`install_jdk17.command`、`simios`、`cor`、`decode`、`ts`、`download`、`code`、`install`、`update`、`shell`、`zz`、`x`、`save`、`rb`、`a`、`b`、`i`、`flutter_project.command`、`fixfvm`、`check1`、`check`、`c`、`d`、`buildCheck`、`apk`、`ipa`、`config`。
 
 
 ## JobsMacEnv 自定义命令收口规则

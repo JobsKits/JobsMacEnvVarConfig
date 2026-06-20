@@ -10,19 +10,33 @@ LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 
 : > "$LOG_FILE"
 
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 color_echo()     { log "\033[1;32m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warm_echo()      { log "\033[1;33m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 err_echo()       { log "\033[1;31m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 debug_echo()     { log "\033[1;35m🐞 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 highlight_echo() { log "\033[1;36m🔹 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 gray_echo()      { log "\033[0;90m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "\033[1m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }
 
 APP_HOME="${JOBS_MAC_ENV_HOME:-$HOME/.JobsMacEnv}"
@@ -66,6 +80,7 @@ FFMPEG_BIN=""
 SCREENCAPTURE_BIN=""
 SETTINGS_MENU="false"
 
+# 封装 show_usage 对应的独立处理逻辑。
 show_usage() {
   cat <<'EOF_USAGE'
 Jobs GIF / gif
@@ -100,11 +115,13 @@ Jobs GIF / gif
   全屏模式：session.mov、session.mp4、session.gif、README.md
 EOF_USAGE
 }
+# 执行对应的清理操作，并保留必要的安全检查。
 clear_terminal_soft() {
   command clear 2>/dev/null || true
   printf '\033[3J\033[H\033[2J'
 }
 
+# 展示脚本用途和影响范围，并在执行前等待用户确认。
 show_intro_if_double_clicked() {
   local current_name="$(basename -- "$SCRIPT_PATH")"
   [[ "$current_name" == *.command ]] || return 0
@@ -125,16 +142,19 @@ show_intro_if_double_clicked() {
   IFS= read -r _answer
 }
 
+# 解析并返回后续流程需要的目标信息。
 get_cpu_arch() {
   uname -m
 }
 
+# 封装 trim_text 对应的独立处理逻辑。
 trim_text() {
   local value="$1"
   value="$(printf "%s" "$value" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
   printf "%s" "$value"
 }
 
+# 封装 normalize_dragged_path 对应的独立处理逻辑。
 normalize_dragged_path() {
   local raw="$1"
   raw="$(trim_text "$raw")"
@@ -157,26 +177,32 @@ normalize_dragged_path() {
   printf "%s" "$raw"
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 is_positive_int() {
   [[ "$1" =~ '^[0-9]+$' ]] && [[ "$1" -gt 0 ]]
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 is_nonnegative_int() {
   [[ "$1" =~ '^[0-9]+$' ]]
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 is_positive_number() {
   [[ "$1" =~ '^[0-9]+([.][0-9]+)?$' ]]
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 is_bool_text() {
   [[ "$1" == "true" || "$1" == "false" ]]
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 is_theme_text() {
   [[ "$1" =~ '^[A-Za-z0-9,_#.-]+$' ]]
 }
 
+# 封装 load_config 对应的独立处理逻辑。
 load_config() {
   [[ -f "$CONFIG_FILE" ]] || return 0
 
@@ -187,10 +213,12 @@ load_config() {
   warn_echo "历史配置读取失败，已使用默认配置：$CONFIG_FILE"
 }
 
+# 封装 quote_value 对应的独立处理逻辑。
 quote_value() {
   printf "%q" "$1"
 }
 
+# 封装 save_config 对应的独立处理逻辑。
 save_config() {
   mkdir -p "$CONFIG_DIR"
   {
@@ -218,6 +246,7 @@ save_config() {
   } > "$CONFIG_FILE"
 }
 
+# 封装 refresh_brew_shellenv 对应的独立处理逻辑。
 refresh_brew_shellenv() {
   local brew_bin=""
 
@@ -234,6 +263,7 @@ refresh_brew_shellenv() {
   return 0
 }
 
+# 封装 inject_shellenv_block 对应的独立处理逻辑。
 inject_shellenv_block() {
   local profile_file="$1"
   local shellenv_cmd="$2"
@@ -263,6 +293,7 @@ inject_shellenv_block() {
   success_echo "已写入 Homebrew shellenv：$profile_file"
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 prompt_homebrew_update() {
   info_echo "Homebrew 已安装。是否执行更新？"
   echo "👉 按 [Enter]：跳过更新"
@@ -285,6 +316,7 @@ prompt_homebrew_update() {
   success_echo "Homebrew 已更新"
 }
 
+# 执行对应的环境配置或同步处理。
 install_homebrew() {
   local allow_update="${1:-false}"
   local arch="$(get_cpu_arch)"
@@ -328,6 +360,7 @@ install_homebrew() {
   prompt_homebrew_update
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_dependencies() {
   local allow_update="${1:-false}"
   local mode="${2:-terminal}"
@@ -379,6 +412,7 @@ ensure_dependencies() {
   command -v ffmpeg >/dev/null 2>&1 || { error_echo "ffmpeg 安装后仍不可用"; exit 1; }
   success_echo "录制依赖安装完成"
 }
+# 封装 assert_writable_dir 对应的独立处理逻辑。
 assert_writable_dir() {
   local dir="$1"
   local test_file=""
@@ -403,6 +437,7 @@ assert_writable_dir() {
   return 0
 }
 
+# 封装 make_unique_output_dir 对应的独立处理逻辑。
 make_unique_output_dir() {
   local parent="$1"
   local timestamp="$2"
@@ -419,6 +454,7 @@ make_unique_output_dir() {
   printf "%s" "$candidate"
 }
 
+# 封装 set_output_files 对应的独立处理逻辑。
 set_output_files() {
   OUTPUT_DIR="$1"
   CAST_FILE="$OUTPUT_DIR/session.cast"
@@ -428,6 +464,7 @@ set_output_files() {
   META_FILE="$OUTPUT_DIR/README.md"
 }
 
+# 封装 prepare_default_output_path 对应的独立处理逻辑。
 prepare_default_output_path() {
   local timestamp="$(date '+%Y.%m.%d %H:%M:%S')"
   local candidate="$GIF_OUTPUT_PARENT"
@@ -444,6 +481,7 @@ prepare_default_output_path() {
   set_output_files "$(make_unique_output_dir "$GIF_OUTPUT_PARENT" "$timestamp")"
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 prompt_launch_mode() {
   local input=""
 
@@ -471,6 +509,7 @@ prompt_launch_mode() {
   fi
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 prompt_record_mode() {
   local input=""
 
@@ -507,6 +546,7 @@ prompt_record_mode() {
     esac
   done
 }
+# 收集并校验用户输入，决定后续执行路径。
 prompt_output_path() {
   local default_parent="$HOME/Desktop"
   local input=""
@@ -546,6 +586,7 @@ prompt_output_path() {
   done
 }
 
+# 封装 apply_quality_preset 对应的独立处理逻辑。
 apply_quality_preset() {
   local preset="$1"
 
@@ -607,6 +648,7 @@ apply_quality_preset() {
   esac
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 prompt_custom_value() {
   local var_name="$1"
   local label="$2"
@@ -658,6 +700,7 @@ prompt_custom_value() {
   done
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 prompt_custom_quality() {
   info_echo "自定义品质；每一项直接回车代表保留当前值。"
   prompt_custom_value GIF_THEME "主题" theme
@@ -681,6 +724,7 @@ prompt_custom_quality() {
   prompt_custom_value GIF_CLEAR_AFTER_FINISH "结束后清屏 true/false" bool
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 prompt_quality() {
   local input=""
 
@@ -734,6 +778,7 @@ prompt_quality() {
   done
 }
 
+# 封装 write_metadata 对应的独立处理逻辑。
 write_metadata() {
   [[ -n "$META_FILE" ]] || return 0
 
@@ -802,6 +847,7 @@ $repair_text
 \`\`\`
 EOF_META
 }
+# 封装 write_latest_path 对应的独立处理逻辑。
 write_latest_path() {
   mkdir -p "$CONFIG_DIR"
   {
@@ -814,6 +860,7 @@ write_latest_path() {
   } > "$LATEST_FILE"
 }
 
+# 解析并返回后续流程需要的目标信息。
 find_tool() {
   local name="$1"
   local value=""
@@ -824,6 +871,7 @@ find_tool() {
   printf "%s" "$value"
 }
 
+# 解析并返回后续流程需要的目标信息。
 find_system_tool() {
   local name="$1"
   local value=""
@@ -834,12 +882,14 @@ find_system_tool() {
   printf "%s" "$value"
 }
 
+# 封装 agg_supports 对应的独立处理逻辑。
 agg_supports() {
   local agg_bin="$1"
   local option="$2"
   "$agg_bin" --help 2>&1 | grep -Fq -- "$option"
 }
 
+# 封装 build_agg_args 对应的独立处理逻辑。
 build_agg_args() {
   local agg_bin="$1"
   local -a result
@@ -865,6 +915,7 @@ build_agg_args() {
   print -rl -- "${result[@]}"
 }
 
+# 封装 convert_to_gif 对应的独立处理逻辑。
 convert_to_gif() {
   [[ -s "$CAST_FILE" ]] || {
     error_echo "录制文件不存在或为空：$CAST_FILE"
@@ -915,6 +966,7 @@ convert_to_gif() {
   return 0
 }
 
+# 封装 convert_to_mp4 对应的独立处理逻辑。
 convert_to_mp4() {
   [[ "$GIF_VIDEO_ENABLED" == "true" ]] || return 0
   [[ -s "$GIF_FILE" ]] || {
@@ -966,6 +1018,7 @@ convert_to_mp4() {
 }
 
 
+# 封装 build_screen_gif_filter 对应的独立处理逻辑。
 build_screen_gif_filter() {
   local fps_value="$GIF_SCREEN_FPS"
   local width_value="$GIF_SCREEN_GIF_WIDTH"
@@ -980,6 +1033,7 @@ build_screen_gif_filter() {
   fi
 }
 
+# 封装 convert_screen_mov_to_mp4 对应的独立处理逻辑。
 convert_screen_mov_to_mp4() {
   [[ "$GIF_VIDEO_ENABLED" == "true" ]] || return 0
   [[ -s "$SCREEN_MOV_FILE" ]] || {
@@ -1024,6 +1078,7 @@ convert_screen_mov_to_mp4() {
   return 0
 }
 
+# 封装 convert_screen_video_to_gif 对应的独立处理逻辑。
 convert_screen_video_to_gif() {
   local source_video="$VIDEO_FILE"
   [[ -s "$source_video" ]] || source_video="$SCREEN_MOV_FILE"
@@ -1080,6 +1135,7 @@ convert_screen_video_to_gif() {
   return 0
 }
 
+# 封装 notify_macos 对应的独立处理逻辑。
 notify_macos() {
   local title="$1"
   local message="$2"
@@ -1088,6 +1144,7 @@ notify_macos() {
   /usr/bin/osascript -e "display notification \"${message}\" with title \"${title}\"" >/dev/null 2>&1 || true
 }
 
+# 封装 finish_recording 对应的独立处理逻辑。
 finish_recording() {
   local result=0
 
@@ -1131,6 +1188,7 @@ finish_recording() {
 
   return 0
 }
+# 封装 create_recording_zdotdir 对应的独立处理逻辑。
 create_recording_zdotdir() {
   RECORD_ZDOTDIR="$OUTPUT_DIR/.gif-zdotdir"
   mkdir -p "$RECORD_ZDOTDIR"
@@ -1158,11 +1216,13 @@ EOF_ZLOGOUT
 # gif 录制期间，Ctrl-C 直接退出录制 shell；关闭 ECHOCTL 避免显示 ^C。
 if [[ "${JOBS_GIF_RECORDING:-}" == "1" ]]; then
   stty -echoctl 2>/dev/null || true
+  # 封装 TRAPINT 对应的独立处理逻辑。
   TRAPINT() { exit 130 }
 fi
 EOF_ZSHRC
 }
 
+# 封装 start_terminal_recording 对应的独立处理逻辑。
 start_terminal_recording() {
   local record_shell="/bin/zsh"
   local record_command=""
@@ -1186,6 +1246,7 @@ start_terminal_recording() {
   fi
 }
 
+# 封装 start_screen_recording 对应的独立处理逻辑。
 start_screen_recording() {
   local screencapture_bin="${SCREENCAPTURE_BIN:-}"
   [[ -n "$screencapture_bin" && -x "$screencapture_bin" ]] || screencapture_bin="$(find_system_tool screencapture 2>/dev/null || true)"
@@ -1224,6 +1285,7 @@ start_screen_recording() {
   fi
 }
 
+# 封装 start_recording 对应的独立处理逻辑。
 start_recording() {
   if [[ "$GIF_RECORD_MODE" == "screen" ]]; then
     start_screen_recording
@@ -1231,6 +1293,7 @@ start_recording() {
     start_terminal_recording
   fi
 }
+# 封装 repair_from_path 对应的独立处理逻辑。
 repair_from_path() {
   local target="$1"
   local dir=""
@@ -1274,7 +1337,8 @@ repair_from_path() {
   ensure_dependencies false "$GIF_RECORD_MODE"
   finish_recording
 }
-main() {
+# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
+run_main_flow() {
   case "${1:-}" in
     -h|--help|help)
       show_usage
@@ -1312,6 +1376,12 @@ main() {
   write_latest_path
   start_recording
   finish_recording || return 1
+}
+
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  run_main_flow "$@"
 }
 
 main "$@"

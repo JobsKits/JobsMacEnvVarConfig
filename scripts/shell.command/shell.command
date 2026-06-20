@@ -13,18 +13,31 @@ LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 color_echo()     { log "\033[1;32m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warm_echo()      { log "\033[1;33m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 err_echo()       { log "\033[1;31m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 debug_echo()     { log "\033[1;35m🐞 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 highlight_echo() { log "\033[1;36m🔹 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 gray_echo()      { log "\033[0;90m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "\033[1m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }
 
 # ---------- 内置自述 ----------
@@ -70,6 +83,7 @@ jobs_shell_has() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# 封装 jobs_shell_collect_candidates 对应的独立处理逻辑。
 jobs_shell_collect_candidates() {
   local candidates=()
   local item=""
@@ -111,12 +125,14 @@ jobs_shell_collect_candidates() {
   done
 }
 
+# 封装 jobs_shell_is_in_etc_shells 对应的独立处理逻辑。
 jobs_shell_is_in_etc_shells() {
   local shell_path="$1"
   [[ -f /etc/shells ]] || return 1
   grep -Fxq "$shell_path" /etc/shells
 }
 
+# 封装 jobs_shell_choose_with_fzf 对应的独立处理逻辑。
 jobs_shell_choose_with_fzf() {
   local current_shell="${SHELL:-}"
   jobs_shell_collect_candidates | while IFS= read -r item; do
@@ -139,6 +155,7 @@ jobs_shell_choose_with_fzf() {
   | awk -F '\t' '{print $1}'
 }
 
+# 封装 jobs_shell_choose_with_text_menu 对应的独立处理逻辑。
 jobs_shell_choose_with_text_menu() {
   local candidates=()
   local item=""
@@ -181,6 +198,7 @@ jobs_shell_choose_with_text_menu() {
   JOBS_SHELL_SELECTED="${candidates[$answer]}"
 }
 
+# 封装 jobs_shell_choose 对应的独立处理逻辑。
 jobs_shell_choose() {
   JOBS_SHELL_SELECTED=""
 
@@ -194,6 +212,7 @@ jobs_shell_choose() {
   [[ -n "$JOBS_SHELL_SELECTED" ]]
 }
 
+# 封装 jobs_shell_ensure_registered 对应的独立处理逻辑。
 jobs_shell_ensure_registered() {
   local selected_shell="$1"
   local answer=""
@@ -216,6 +235,7 @@ jobs_shell_ensure_registered() {
   success_echo "已写入 /etc/shells：$selected_shell"
 }
 
+# 封装 jobs_shell_switch 对应的独立处理逻辑。
 jobs_shell_switch() {
   local selected_shell="$1"
 
@@ -262,6 +282,12 @@ jobs_shell_main() {
   gray_echo "日志路径：$LOG_FILE"
 }
 
-if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
   jobs_shell_main "$@"
+}
+
+if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+  main "$@"
 fi

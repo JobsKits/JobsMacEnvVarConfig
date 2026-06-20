@@ -13,18 +13,31 @@ LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 color_echo()     { log "\033[1;32m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warm_echo()      { log "\033[1;33m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 err_echo()       { log "\033[1;31m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 debug_echo()     { log "\033[1;35m🐞 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 highlight_echo() { log "\033[1;36m🔹 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 gray_echo()      { log "\033[0;90m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "\033[1m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }
 
 # ---------- 运行配置 ----------
@@ -70,6 +83,7 @@ show_readme_and_wait() {
   IFS= read -r _answer
 }
 
+# 封装 pause_to_exit 对应的独立处理逻辑。
 pause_to_exit() {
   log ""
   warm_echo "按回车退出..."
@@ -77,6 +91,7 @@ pause_to_exit() {
   IFS= read -r _answer
 }
 
+# 封装 print_usage 对应的独立处理逻辑。
 print_usage() {
   cat <<'USAGE' | tee -a "$LOG_FILE"
 
@@ -128,6 +143,7 @@ end
   return 1
 }
 
+# 封装 copy_clipboard 对应的独立处理逻辑。
 copy_clipboard() {
   local text="$1"
 
@@ -141,6 +157,7 @@ copy_clipboard() {
   fi
 }
 
+# 封装 handle_one 对应的独立处理逻辑。
 handle_one() {
   local input="$1"
   local decoded=""
@@ -152,6 +169,7 @@ handle_one() {
   copy_clipboard "$decoded"
 }
 
+# 封装 handle_arguments 对应的独立处理逻辑。
 handle_arguments() {
   while (( $# > 0 )); do
     case "$1" in
@@ -191,6 +209,7 @@ handle_arguments() {
   interactive_loop
 }
 
+# 封装 interactive_loop 对应的独立处理逻辑。
 interactive_loop() {
   local input=""
 
@@ -215,9 +234,15 @@ interactive_loop() {
 }
 
 # ---------- 主流程统一收口 ----------
-main() {
+run_main_flow() {
   handle_arguments "$@"
   gray_echo "日志路径：$LOG_FILE"
+}
+
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  run_main_flow "$@"
 }
 
 main "$@"

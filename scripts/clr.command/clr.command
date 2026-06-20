@@ -13,14 +13,23 @@ LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 color_echo()     { log "\033[1;32m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warm_echo()      { log "\033[1;33m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 gray_echo()      { log "\033[0;90m$1\033[0m"; }
+# 封装 print_divider 对应的独立处理逻辑。
 print_divider()  { gray_echo "------------------------------------------------------------------------"; }
 
 # ---------- 常量 ----------
@@ -96,6 +105,7 @@ EOFREADME
   fi
 }
 
+# 封装 jobs_clr_usage 对应的独立处理逻辑。
 jobs_clr_usage() {
   cat <<'EOFUSAGE'
 usage: clr [--install-extension] [--open-only] [--open] [--yes] [--legacy-ui] [--force-extension] [--extension-id ID]
@@ -114,6 +124,7 @@ usage: clr [--install-extension] [--open-only] [--open] [--yes] [--legacy-ui] [-
 EOFUSAGE
 }
 
+# 封装 jobs_clr_parse_args 对应的独立处理逻辑。
 jobs_clr_parse_args() {
   while (( $# > 0 )); do
     case "$1" in
@@ -162,6 +173,7 @@ jobs_clr_parse_args() {
   return 0
 }
 
+# 封装 jobs_clr_confirm 对应的独立处理逻辑。
 jobs_clr_confirm() {
   if (( CLR_ASSUME_YES )); then
     return 0
@@ -190,6 +202,7 @@ jobs_clr_confirm() {
   return 1
 }
 
+# 封装 jobs_clr_open_chrome_url_new_tab 对应的独立处理逻辑。
 jobs_clr_open_chrome_url_new_tab() {
   local url="$1"
   local osa_output=""
@@ -226,6 +239,7 @@ EOFAPPLESCRIPT
   return 1
 }
 
+# 封装 jobs_clr_open_downloads_page 对应的独立处理逻辑。
 jobs_clr_open_downloads_page() {
   note_echo "在 Chrome 新标签页打开下载记录页：${CLR_DOWNLOADS_URL}"
   if jobs_clr_open_chrome_url_new_tab "$CLR_DOWNLOADS_URL"; then
@@ -237,6 +251,7 @@ jobs_clr_open_downloads_page() {
   return 1
 }
 
+# 封装 jobs_clr_write_extension_files 对应的独立处理逻辑。
 jobs_clr_write_extension_files() {
   mkdir -p "$CLR_EXTENSION_DIR" || return 1
 
@@ -269,6 +284,7 @@ EOFMANIFEST
   cat > "${CLR_EXTENSION_DIR}/background.js" <<'EOFBG'
 function chromeDownloadsSearch(query) {
   return new Promise((resolve, reject) => {
+    # 封装 try 对应的独立处理逻辑。
     try {
       chrome.downloads.search(query, (items) => {
         const err = chrome.runtime.lastError;
@@ -283,6 +299,7 @@ function chromeDownloadsSearch(query) {
 
 function chromeDownloadsErase(query) {
   return new Promise((resolve, reject) => {
+    # 封装 try 对应的独立处理逻辑。
     try {
       chrome.downloads.erase(query, (ids) => {
         const err = chrome.runtime.lastError;
@@ -300,6 +317,7 @@ async function clearDownloads() {
   const erasedIds = await chromeDownloadsErase({});
   const after = await chromeDownloadsSearch({});
 
+  # 封装 return 对应的独立处理逻辑。
   return {
     ok: true,
     before: before.length,
@@ -342,11 +360,14 @@ EOFBG
   <title>clr - Chrome 下载历史清理</title>
   <style>
     :root { color-scheme: light dark; }
+    # 封装 body 对应的独立处理逻辑。
     body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; margin: 48px; line-height: 1.6; }
     .card { max-width: 760px; border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); border-radius: 16px; padding: 28px; }
+    # 封装 h1 对应的独立处理逻辑。
     h1 { margin: 0 0 16px; font-size: 24px; }
     .status { font-size: 18px; font-weight: 700; }
     .muted { opacity: .72; }
+    # 封装 code 对应的独立处理逻辑。
     code { padding: 2px 6px; border-radius: 6px; background: color-mix(in srgb, CanvasText 10%, transparent); }
   </style>
 </head>
@@ -416,6 +437,7 @@ EOFEXTREADME
   return 0
 }
 
+# 封装 jobs_clr_reveal_extension_dir 对应的独立处理逻辑。
 jobs_clr_reveal_extension_dir() {
   jobs_clr_write_extension_files || return 1
   note_echo "本地扩展目录：${CLR_EXTENSION_DIR}"
@@ -424,6 +446,7 @@ jobs_clr_reveal_extension_dir() {
   open -R "$CLR_EXTENSION_DIR" >/dev/null 2>&1 || true
 }
 
+# 封装 jobs_clr_install_extension_flow 对应的独立处理逻辑。
 jobs_clr_install_extension_flow() {
   jobs_clr_write_extension_files || {
     error_echo "生成本地 Chrome 扩展失败。"
@@ -453,11 +476,13 @@ jobs_clr_install_extension_flow() {
   return 0
 }
 
+# 封装 jobs_clr_is_valid_extension_id 对应的独立处理逻辑。
 jobs_clr_is_valid_extension_id() {
   local candidate="$1"
   [[ "$candidate" =~ '^[a-p]{32}$' ]]
 }
 
+# 封装 jobs_clr_save_extension_id 对应的独立处理逻辑。
 jobs_clr_save_extension_id() {
   local candidate="$1"
   if ! jobs_clr_is_valid_extension_id "$candidate"; then
@@ -470,6 +495,7 @@ jobs_clr_save_extension_id() {
   return 0
 }
 
+# 封装 jobs_clr_lookup_extension_id_in_chrome 对应的独立处理逻辑。
 jobs_clr_lookup_extension_id_in_chrome() {
   local candidate="$1"
   local chrome_root="${HOME}/Library/Application Support/Google/Chrome"
@@ -531,6 +557,7 @@ sys.exit(0 if rows[0][0] == 'enabled' else 2)
 EOFPY
 }
 
+# 封装 jobs_clr_read_saved_extension_id 对应的独立处理逻辑。
 jobs_clr_read_saved_extension_id() {
   [[ -f "$CLR_EXTENSION_ID_FILE" ]] || return 1
 
@@ -570,6 +597,7 @@ jobs_clr_read_saved_extension_id() {
   return 1
 }
 
+# 封装 jobs_clr_find_extension_id 对应的独立处理逻辑。
 jobs_clr_find_extension_id() {
   if [[ -n "$CLR_MANUAL_EXTENSION_ID" ]]; then
     if ! jobs_clr_is_valid_extension_id "$CLR_MANUAL_EXTENSION_ID"; then
@@ -708,6 +736,7 @@ EOFPY
   warm_echo "请执行：clr --install-extension，并确认 Chrome 扩展页里的 Jobs Clear Chrome Downloads 已启用。"
   return 1
 }
+# 封装 jobs_clr_extension_installed 对应的独立处理逻辑。
 jobs_clr_extension_installed() {
   if jobs_clr_find_extension_id; then
     return 0
@@ -720,6 +749,7 @@ jobs_clr_extension_installed() {
   return 1
 }
 
+# 封装 jobs_clr_clear_by_extension 对应的独立处理逻辑。
 jobs_clr_clear_by_extension() {
   jobs_clr_write_extension_files || return 1
 
@@ -743,6 +773,7 @@ jobs_clr_clear_by_extension() {
   return 1
 }
 
+# 封装 jobs_clr_legacy_ui_click 对应的独立处理逻辑。
 jobs_clr_legacy_ui_click() {
   warn_echo "正在执行旧版 UI 自动点击兜底。这个方式不保证成功。"
 
@@ -786,6 +817,7 @@ EOFAPPLESCRIPT
   return 1
 }
 
+# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 jobs_clr_main() {
   local parse_status=0
   jobs_clr_parse_args "$@"
@@ -853,11 +885,18 @@ jobs_clr_main() {
   return $exit_code
 }
 
+# 封装 clr 对应的独立处理逻辑。
 clr() {
   emulate -L zsh
   jobs_clr_main "$@"
 }
 
-if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
   jobs_clr_main "$@"
+}
+
+if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+  main "$@"
 fi

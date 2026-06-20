@@ -80,18 +80,31 @@ readonly -a BREW_FORMULAE=(
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 color_echo()     { log "\033[1;32m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warm_echo()      { log "\033[1;33m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 err_echo()       { log "\033[1;31m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 debug_echo()     { log "\033[1;35m🐞 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 highlight_echo() { log "\033[1;36m🔹 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 gray_echo()      { log "\033[0;90m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "\033[1m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }
 
 # ---------- 通用基础函数 ----------
@@ -99,6 +112,7 @@ print_divider() {
   gray_echo "------------------------------------------------------------------------"
 }
 
+# 封装 pause_for_enter 对应的独立处理逻辑。
 pause_for_enter() {
   local prompt="${1:-👉 请按回车继续，或按 Ctrl+C 取消...}"
   if [[ -t 0 && "${JOBS_MAC_ENV_SKIP_README:-}" != "1" ]]; then
@@ -108,6 +122,7 @@ pause_for_enter() {
   fi
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 confirm_execute() {
   local title="$1"
   local action_word="${2:-执行}"
@@ -132,6 +147,7 @@ confirm_execute() {
   return 1
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 confirm_existing_third_party_upgrade_once() {
   if [[ "${THIRD_PARTY_EXISTING_UPGRADE_CONFIRMED}" == "1" ]]; then
     return 0
@@ -152,6 +168,7 @@ confirm_existing_third_party_upgrade_once() {
   return 1
 }
 
+# 封装 progress_step 对应的独立处理逻辑。
 progress_step() {
   local step_name="$1"
   CURRENT_STAGE=$((CURRENT_STAGE + 1))
@@ -166,6 +183,7 @@ progress_step() {
   print_divider
 }
 
+# 执行已经拆分完成的独立业务步骤。
 run_cmd() {
   local desc="$1"
   shift
@@ -185,6 +203,7 @@ run_cmd() {
   return $exit_code
 }
 
+# 执行已经拆分完成的独立业务步骤。
 run_sh() {
   local desc="$1"
   local cmd="$2"
@@ -204,11 +223,13 @@ run_sh() {
   return $exit_code
 }
 
+# 封装 require_command 对应的独立处理逻辑。
 require_command() {
   local cmd="$1"
   command -v "${cmd}" >/dev/null 2>&1
 }
 
+# 解析并返回后续流程需要的目标信息。
 get_node_major_version() {
   if ! require_command node; then
     echo "0"
@@ -220,6 +241,7 @@ get_node_major_version() {
   [[ -n "${version}" ]] && echo "${version}" || echo "0"
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_node_for_opencli() {
   local major=""
   major="$(get_node_major_version)"
@@ -246,15 +268,18 @@ ensure_node_for_opencli() {
   return 1
 }
 
+# 解析并返回后续流程需要的目标信息。
 get_cpu_arch() {
   [[ "$(uname -m)" == "arm64" ]] && echo "arm64" || echo "x86_64"
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 check_url_access() {
   local url="$1"
   curl -I -L -s --connect-timeout 8 --max-time 15 "${url}" >/dev/null 2>&1
 }
 
+# 封装 append_once 对应的独立处理逻辑。
 append_once() {
   local line="$1"
   local file="${2:-$HOME/.zshrc}"
@@ -270,6 +295,7 @@ append_once() {
   echo "$line" >> "$file"
 }
 
+# 封装 append_comment_once 对应的独立处理逻辑。
 append_comment_once() {
   local comment="$1"
   local file="$2"
@@ -285,6 +311,7 @@ append_comment_once() {
   echo "$comment" >> "$file"
 }
 
+# 解析并返回后续流程需要的目标信息。
 find_brew_bin() {
   if command -v brew >/dev/null 2>&1; then
     command -v brew
@@ -302,6 +329,7 @@ find_brew_bin() {
   return 1
 }
 
+# 解析并返回后续流程需要的目标信息。
 find_fzf_bin() {
   if command -v fzf >/dev/null 2>&1; then
     command -v fzf
@@ -323,6 +351,7 @@ find_fzf_bin() {
   return 1
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_raw_github_access_or_exit() {
   info_echo "开始检查 raw.githubusercontent.com 网络连通性..."
 
@@ -337,6 +366,7 @@ ensure_raw_github_access_or_exit() {
   exit 1
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_github_access_or_exit() {
   info_echo "开始检查 GitHub 网络连通性..."
 
@@ -351,6 +381,7 @@ ensure_github_access_or_exit() {
   exit 1
 }
 
+# 执行对应的环境配置或同步处理。
 setup_brew_shellenv() {
   local brew_bin="$1"
   local shellenv_line="eval \"\$(${brew_bin} shellenv)\""
@@ -371,6 +402,7 @@ setup_brew_shellenv() {
   hash -r 2>/dev/null || true
 }
 
+# 执行对应的环境配置或同步处理。
 setup_fzf_shellenv() {
   if ! require_command brew; then
     return 0
@@ -387,6 +419,7 @@ setup_fzf_shellenv() {
   fi
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_jenv_init() {
   append_comment_once "# jenv" "${HOME}/.zshrc"
   append_once 'export PATH="$HOME/.jenv/bin:$PATH"' "${HOME}/.zshrc"
@@ -394,12 +427,14 @@ ensure_jenv_init() {
   success_echo "已确认 jenv 初始化配置：${HOME}/.zshrc"
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_rbenv_init() {
   append_comment_once "# rbenv" "${HOME}/.zshrc"
   append_once 'eval "$(rbenv init - zsh)"' "${HOME}/.zshrc"
   success_echo "已确认 rbenv 初始化配置：${HOME}/.zshrc"
 }
 
+# 封装 post_openjdk_hint 对应的独立处理逻辑。
 post_openjdk_hint() {
   warm_echo "openjdk 安装 / 更新完成后，如需让系统 java 指向 Homebrew openjdk，可按需执行："
   warm_echo '  sudo ln -sfn "$(brew --prefix)/opt/openjdk/libexec/openjdk.jdk" /Library/Java/JavaVirtualMachines/openjdk.jdk'
@@ -520,6 +555,7 @@ install_homebrew_without_menu() {
   fi
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_brew_for_menu() {
   local brew_bin=""
 
@@ -531,6 +567,7 @@ ensure_brew_for_menu() {
   install_homebrew_without_menu
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_fzf_for_menu() {
   local fzf_bin=""
 
@@ -564,6 +601,7 @@ ensure_fzf_for_menu() {
   exit 1
 }
 
+# 封装 prepare_menu_runtime 对应的独立处理逻辑。
 prepare_menu_runtime() {
   highlight_echo "准备 fzf 菜单运行环境"
   print_divider
@@ -585,11 +623,13 @@ require_brew_or_skip() {
   return 1
 }
 
+# 封装 brew_formula_installed 对应的独立处理逻辑。
 brew_formula_installed() {
   local pkg="$1"
   brew list --formula --versions "${pkg}" >/dev/null 2>&1
 }
 
+# 封装 brew_cask_installed 对应的独立处理逻辑。
 brew_cask_installed() {
   local pkg="$1"
   brew list --cask --versions "${pkg}" >/dev/null 2>&1
@@ -731,6 +771,7 @@ brew_formula_install_arg() {
   esac
 }
 
+# 封装 brew_formula_tap_name 对应的独立处理逻辑。
 brew_formula_tap_name() {
   local formula_name="$1"
 
@@ -741,6 +782,7 @@ brew_formula_tap_name() {
   esac
 }
 
+# 封装 brew_formula_after_install 对应的独立处理逻辑。
 brew_formula_after_install() {
   local formula_name="$1"
 
@@ -753,6 +795,7 @@ brew_formula_after_install() {
   esac
 }
 
+# 封装 component_brew_formula 对应的独立处理逻辑。
 component_brew_formula() {
   local formula_name="$1"
   local install_arg=""
@@ -806,6 +849,7 @@ brew_cask_tap_name() {
   esac
 }
 
+# 封装 brew_cask_after_install 对应的独立处理逻辑。
 brew_cask_after_install() {
   local cask_name="$1"
 
@@ -823,6 +867,7 @@ brew_cask_after_install() {
   esac
 }
 
+# 封装 component_brew_cask 对应的独立处理逻辑。
 component_brew_cask() {
   local cask_name="$1"
   local tap_name=""
@@ -1062,6 +1107,7 @@ clone_or_update_repo() {
   fi
 }
 
+# 封装 component_jobs_repos 对应的独立处理逻辑。
 component_jobs_repos() {
   progress_step "JobsKits 仓库"
 
@@ -1102,6 +1148,7 @@ open_download_page() {
   fi
 }
 
+# 封装 component_manual_download_pages 对应的独立处理逻辑。
 component_manual_download_pages() {
   progress_step "手动下载页面"
 
@@ -1142,6 +1189,7 @@ get_menu_items() {
   )
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 choose_menu_items() {
   local fzf_bin=""
   fzf_bin="$(find_fzf_bin)" || return 1
@@ -1187,6 +1235,7 @@ choose_menu_items() {
   return 0
 }
 
+# 执行已经拆分完成的独立业务步骤。
 run_selected_item() {
   local item="$1"
 
@@ -1239,6 +1288,7 @@ install() {
   finish_summary
 }
 
+# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 jobs_install_main() {
   : > "${LOG_FILE}"
 
@@ -1248,6 +1298,12 @@ jobs_install_main() {
   pause_for_enter "👉 全部流程已执行完成。请按回车退出..."
 }
 
-if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
   jobs_install_main "$@"
+}
+
+if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+  main "$@"
 fi

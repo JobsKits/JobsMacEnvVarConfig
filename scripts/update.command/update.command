@@ -72,18 +72,31 @@ readonly -a BREW_FORMULAE=(
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 color_echo()     { log "\033[1;32m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warm_echo()      { log "\033[1;33m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 err_echo()       { log "\033[1;31m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 debug_echo()     { log "\033[1;35m🐞 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 highlight_echo() { log "\033[1;36m🔹 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 gray_echo()      { log "\033[0;90m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "\033[1m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }
 
 # ---------- 通用基础函数 ----------
@@ -91,10 +104,12 @@ print_divider() {
   gray_echo "------------------------------------------------------------------------"
 }
 
+# 封装 jobs_update_has 对应的独立处理逻辑。
 jobs_update_has() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# 封装 jobs_update_prompt_run 对应的独立处理逻辑。
 jobs_update_prompt_run() {
   local title="$1"
   local detail="$2"
@@ -120,6 +135,7 @@ jobs_update_prompt_run() {
   return 1
 }
 
+# 封装 jobs_update_run_step 对应的独立处理逻辑。
 jobs_update_run_step() {
   local title="$1"
   shift
@@ -140,6 +156,7 @@ jobs_update_run_step() {
   return 0
 }
 
+# 封装 jobs_update_run_cmd 对应的独立处理逻辑。
 jobs_update_run_cmd() {
   local desc="$1"
   shift
@@ -159,6 +176,7 @@ jobs_update_run_cmd() {
   return $exit_code
 }
 
+# 封装 jobs_update_run_sh 对应的独立处理逻辑。
 jobs_update_run_sh() {
   local desc="$1"
   local cmd="$2"
@@ -178,6 +196,7 @@ jobs_update_run_sh() {
   return $exit_code
 }
 
+# 封装 append_once 对应的独立处理逻辑。
 append_once() {
   local line="$1"
   local file="${2:-$HOME/.zshrc}"
@@ -193,6 +212,7 @@ append_once() {
   echo "$line" >> "$file"
 }
 
+# 封装 append_comment_once 对应的独立处理逻辑。
 append_comment_once() {
   local comment="$1"
   local file="$2"
@@ -208,6 +228,7 @@ append_comment_once() {
   echo "$comment" >> "$file"
 }
 
+# 解析并返回后续流程需要的目标信息。
 find_brew_bin() {
   if command -v brew >/dev/null 2>&1; then
     command -v brew
@@ -225,6 +246,7 @@ find_brew_bin() {
   return 1
 }
 
+# 执行对应的环境配置或同步处理。
 setup_brew_shellenv() {
   local brew_bin="$1"
   local shellenv_line="eval \"\$(${brew_bin} shellenv)\""
@@ -245,6 +267,7 @@ setup_brew_shellenv() {
   hash -r 2>/dev/null || true
 }
 
+# 封装 require_brew_or_skip 对应的独立处理逻辑。
 require_brew_or_skip() {
   local brew_bin=""
 
@@ -257,6 +280,7 @@ require_brew_or_skip() {
   return 1
 }
 
+# 执行对应的环境配置或同步处理。
 setup_fzf_shellenv() {
   if ! jobs_update_has brew; then
     return 0
@@ -273,6 +297,7 @@ setup_fzf_shellenv() {
   fi
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_jenv_init() {
   append_comment_once "# jenv" "${HOME}/.zshrc"
   append_once 'export PATH="$HOME/.jenv/bin:$PATH"' "${HOME}/.zshrc"
@@ -280,12 +305,14 @@ ensure_jenv_init() {
   success_echo "已确认 jenv 初始化配置：${HOME}/.zshrc"
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_rbenv_init() {
   append_comment_once "# rbenv" "${HOME}/.zshrc"
   append_once 'eval "$(rbenv init - zsh)"' "${HOME}/.zshrc"
   success_echo "已确认 rbenv 初始化配置：${HOME}/.zshrc"
 }
 
+# 封装 post_openjdk_hint 对应的独立处理逻辑。
 post_openjdk_hint() {
   warm_echo "openjdk 更新完成后，如需让系统 java 指向 Homebrew openjdk，可按需执行："
   warm_echo '  sudo ln -sfn "$(brew --prefix)/opt/openjdk/libexec/openjdk.jdk" /Library/Java/JavaVirtualMachines/openjdk.jdk'
@@ -293,6 +320,7 @@ post_openjdk_hint() {
   warm_echo '  jenv add "$(brew --prefix)/opt/openjdk/libexec/openjdk.jdk/Contents/Home"'
 }
 
+# 封装 jobs_update_source_nvm_if_needed 对应的独立处理逻辑。
 jobs_update_source_nvm_if_needed() {
   if jobs_update_has nvm; then
     return 0
@@ -304,6 +332,7 @@ jobs_update_source_nvm_if_needed() {
   fi
 }
 
+# 解析并返回后续流程需要的目标信息。
 get_node_major_version() {
   if ! jobs_update_has node; then
     echo "0"
@@ -315,6 +344,7 @@ get_node_major_version() {
   [[ -n "$version" ]] && echo "$version" || echo "0"
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_node_for_opencli() {
   local major=""
   major="$(get_node_major_version)"
@@ -329,6 +359,7 @@ ensure_node_for_opencli() {
   return 1
 }
 
+# 封装 jobs_update_find_external_command 对应的独立处理逻辑。
 jobs_update_find_external_command() {
   local command_name="$1"
   local path_dir=""
@@ -445,6 +476,7 @@ jobs_update_clt() {
   jobs_update_run_cmd "安装 macOS 可用软件更新" sudo softwareupdate --install --all || true
 }
 
+# 封装 jobs_update_xcode_ios_platform 对应的独立处理逻辑。
 jobs_update_xcode_ios_platform() {
   if ! jobs_update_has xcodebuild; then
     warn_echo "未检测到 xcodebuild，无法更新 Xcode iOS 平台组件。"
@@ -462,6 +494,7 @@ jobs_update_xcode_ios_platform() {
   jobs_update_run_cmd "下载 / 更新 iOS 模拟器平台" xcodebuild -downloadPlatform iOS -verbose || true
 }
 
+# 封装 jobs_update_oh_my_zsh 对应的独立处理逻辑。
 jobs_update_oh_my_zsh() {
   if [[ ! -d "${HOME}/.oh-my-zsh" ]]; then
     warn_echo "未检测到 Oh My Zsh。update.command 不负责安装，请运行 install.command 补装。"
@@ -477,6 +510,7 @@ jobs_update_oh_my_zsh() {
   fi
 }
 
+# 封装 jobs_update_rosetta 对应的独立处理逻辑。
 jobs_update_rosetta() {
   if [[ "$(uname -m)" != "arm64" ]]; then
     info_echo "当前不是 Apple Silicon，Rosetta 2 不适用。"
@@ -504,6 +538,7 @@ jobs_update_homebrew() {
   jobs_update_run_cmd "brew -v（输出 Homebrew 版本）" brew -v || true
 }
 
+# 封装 brew_formula_install_arg 对应的独立处理逻辑。
 brew_formula_install_arg() {
   local formula_name="$1"
 
@@ -513,6 +548,7 @@ brew_formula_install_arg() {
   esac
 }
 
+# 封装 brew_formula_tap_name 对应的独立处理逻辑。
 brew_formula_tap_name() {
   local formula_name="$1"
 
@@ -523,6 +559,7 @@ brew_formula_tap_name() {
   esac
 }
 
+# 封装 brew_formula_after_update 对应的独立处理逻辑。
 brew_formula_after_update() {
   local formula_name="$1"
 
@@ -535,6 +572,7 @@ brew_formula_after_update() {
   esac
 }
 
+# 封装 brew_cask_tap_name 对应的独立处理逻辑。
 brew_cask_tap_name() {
   local cask_name="$1"
 
@@ -544,6 +582,7 @@ brew_cask_tap_name() {
   esac
 }
 
+# 封装 brew_cask_install_hint 对应的独立处理逻辑。
 brew_cask_install_hint() {
   local cask_name="$1"
 
@@ -556,6 +595,7 @@ brew_cask_install_hint() {
   esac
 }
 
+# 封装 jobs_update_github_store_after_update 对应的独立处理逻辑。
 jobs_update_github_store_after_update() {
   local app_path="/Applications/GitHub-Store.app"
 
@@ -566,6 +606,7 @@ jobs_update_github_store_after_update() {
   fi
 }
 
+# 封装 brew_cask_after_update 对应的独立处理逻辑。
 brew_cask_after_update() {
   local cask_name="$1"
 
@@ -575,6 +616,7 @@ brew_cask_after_update() {
   esac
 }
 
+# 封装 jobs_update_brew_formula_one 对应的独立处理逻辑。
 jobs_update_brew_formula_one() {
   local formula_name="$1"
   local install_arg=""
@@ -600,6 +642,7 @@ jobs_update_brew_formula_one() {
   brew_formula_after_update "$formula_name"
 }
 
+# 封装 jobs_update_brew_formulae 对应的独立处理逻辑。
 jobs_update_brew_formulae() {
   local pkg
   for pkg in "${BREW_FORMULAE[@]}"; do
@@ -609,6 +652,7 @@ jobs_update_brew_formulae() {
   done
 }
 
+# 封装 jobs_update_brew_cask_one 对应的独立处理逻辑。
 jobs_update_brew_cask_one() {
   local cask_name="$1"
   local tap_name=""
@@ -632,6 +676,7 @@ jobs_update_brew_cask_one() {
   brew_cask_after_update "$cask_name"
 }
 
+# 封装 jobs_update_brew_casks 对应的独立处理逻辑。
 jobs_update_brew_casks() {
   local pkg
   for pkg in "${BREW_CASKS[@]}"; do
@@ -663,6 +708,7 @@ jobs_update_fvm_flutter() {
   fi
 }
 
+# 封装 jobs_update_node_base 对应的独立处理逻辑。
 jobs_update_node_base() {
   jobs_update_source_nvm_if_needed
 
@@ -687,6 +733,7 @@ jobs_update_node_base() {
   fi
 }
 
+# 封装 jobs_update_npm_quicktype 对应的独立处理逻辑。
 jobs_update_npm_quicktype() {
   if ! jobs_update_has npm; then
     warn_echo "npm 不存在，无法更新 quicktype。请先运行 install.command 安装 node。"
@@ -700,6 +747,7 @@ jobs_update_npm_quicktype() {
   fi
 }
 
+# 封装 jobs_update_npm_opencli 对应的独立处理逻辑。
 jobs_update_npm_opencli() {
   if ! jobs_update_has npm; then
     warn_echo "npm 不存在，无法更新 OpenCLI。请先运行 install.command 安装 node。"
@@ -725,6 +773,7 @@ jobs_update_npm_opencli() {
 }
 
 
+# 封装 jobs_update_npm_codegraph 对应的独立处理逻辑。
 jobs_update_npm_codegraph() {
   if ! jobs_update_has npm; then
     warn_echo "npm 不存在，无法更新 CodeGraph。请先运行 install.command 安装 node。"
@@ -755,6 +804,7 @@ jobs_update_npm_codegraph() {
   fi
 }
 
+# 封装 jobs_update_ruby_base 对应的独立处理逻辑。
 jobs_update_ruby_base() {
   if jobs_update_has rbenv; then
     ensure_rbenv_init
@@ -769,6 +819,7 @@ jobs_update_ruby_base() {
   fi
 }
 
+# 封装 jobs_update_gem_cocoapods 对应的独立处理逻辑。
 jobs_update_gem_cocoapods() {
   if ! jobs_update_has gem; then
     warn_echo "gem 不存在，无法更新 cocoapods。请先确认 Ruby 环境。"
@@ -786,6 +837,7 @@ jobs_update_gem_cocoapods() {
   fi
 }
 
+# 封装 jobs_update_python_base 对应的独立处理逻辑。
 jobs_update_python_base() {
   if jobs_update_has pyenv; then
     if pyenv commands | grep -qx update; then
@@ -809,6 +861,7 @@ jobs_update_python_base() {
   fi
 }
 
+# 封装 jobs_update_pub_cache 对应的独立处理逻辑。
 jobs_update_pub_cache() {
   if jobs_update_has dart; then
     jobs_update_run_cmd "Dart pub global list" dart pub global list || true
@@ -835,6 +888,7 @@ jobs_update_git_lfs_init() {
   jobs_update_run_cmd "配置 Git http.postBuffer=524288000" git config --global http.postBuffer 524288000 || true
 }
 
+# 封装 jobs_update_repo 对应的独立处理逻辑。
 jobs_update_repo() {
   local repo_name="$1"
   local repo_url="$2"
@@ -850,6 +904,7 @@ jobs_update_repo() {
   gray_echo "仓库地址：${repo_url}"
 }
 
+# 封装 jobs_update_jobs_repos 对应的独立处理逻辑。
 jobs_update_jobs_repos() {
   if ! jobs_update_has git; then
     warn_echo "git 不存在，跳过 JobsKits 仓库更新。"
@@ -866,6 +921,7 @@ jobs_update_jobs_repos() {
   fi
 }
 
+# 封装 open_download_page 对应的独立处理逻辑。
 open_download_page() {
   local name="$1"
   local url="$2"
@@ -878,6 +934,7 @@ open_download_page() {
   jobs_update_run_cmd "打开 ${name} 下载 / 更新页" open "$url" || true
 }
 
+# 封装 jobs_update_manual_download_pages 对应的独立处理逻辑。
 jobs_update_manual_download_pages() {
   open_download_page "Visual Studio Code" "https://code.visualstudio.com/"
   open_download_page "Android Studio" "https://developer.android.com/studio?hl=zh-cn"
@@ -1000,6 +1057,12 @@ jobs_update_main() {
   update "$@"
 }
 
-if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
   jobs_update_main "$@"
+}
+
+if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+  main "$@"
 fi

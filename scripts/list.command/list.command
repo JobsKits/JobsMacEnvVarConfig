@@ -22,19 +22,31 @@ MODULES_LOADED="false"
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 color_echo()     { log "\033[1;32m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warm_echo()      { log "\033[1;33m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 gray_echo()      { log "\033[0;90m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "\033[1m$1\033[0m"; }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_dir() { [[ -d "$1" ]] || mkdir -p "$1"; }
+# 解析并返回后续流程需要的目标信息。
 get_cpu_arch() { uname -m; }
 
+# 解析并返回后续流程需要的目标信息。
 find_brew_bin() {
   if command -v brew >/dev/null 2>&1; then
     command -v brew
@@ -52,6 +64,7 @@ find_brew_bin() {
   return 1
 }
 
+# 封装 profile_file_for_shell 对应的独立处理逻辑。
 profile_file_for_shell() {
   case "${SHELL##*/}" in
     zsh)  print -r -- "$HOME/.zprofile" ;;
@@ -60,6 +73,7 @@ profile_file_for_shell() {
   esac
 }
 
+# 封装 inject_shellenv_block 对应的独立处理逻辑。
 inject_shellenv_block() {
   local profile_file="$1"
   local shellenv="$2"
@@ -82,6 +96,7 @@ inject_shellenv_block() {
   eval "$shellenv"
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 prompt_enter_skip_any_run() {
   local title="$1"
   local detail="$2"
@@ -96,6 +111,7 @@ prompt_enter_skip_any_run() {
   [[ -n "$answer" ]]
 }
 
+# 解析并返回后续流程需要的目标信息。
 resolve_script_file() {
   local script_name="$1"
   local nested_file="$SCRIPTS_ROOT/$script_name/$script_name"
@@ -114,6 +130,7 @@ resolve_script_file() {
   return 1
 }
 
+# 解析并返回后续流程需要的目标信息。
 resolve_module_file() {
   local module_name="$1"
   local nested_file="$SCRIPTS_ROOT/$module_name/$module_name"
@@ -132,6 +149,7 @@ resolve_module_file() {
   return 1
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_homebrew() {
   local arch="$(get_cpu_arch)"
   local profile_file="$(profile_file_for_shell)"
@@ -162,6 +180,7 @@ ensure_homebrew() {
   inject_shellenv_block "$profile_file" "$shellenv_cmd"
 }
 
+# 解析并返回后续流程需要的目标信息。
 find_fzf_bin() {
   if command -v fzf >/dev/null 2>&1; then
     command -v fzf
@@ -179,10 +198,12 @@ find_fzf_bin() {
   return 1
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 is_fzf_installed_by_brew() {
   brew list --formula fzf >/dev/null 2>&1
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_fzf() {
   local fzf_bin=""
 
@@ -233,6 +254,7 @@ load_function_modules() {
   MODULES_LOADED="true"
 }
 
+# 封装 build_menu_items 对应的独立处理逻辑。
 build_menu_items() {
   cat <<'MENU'
 文件校验	m5c	比较两个文件 MD5，判断字节内容是否一致	script	m5c.command
@@ -264,6 +286,7 @@ URL 解码	decode	交互式 URL Decode，并自动复制到剪贴板	script	deco
 转 OPUS	opus	调用 to.command 提取或转换为 Opus 音频	to_format	opus
 转 GIF	to gif	调用 to.command 转为 GIF；不抢占原 gif 录制命令	to_format	gif
 媒体下载	download	调用 yt-dlp，自动使用默认浏览器 cookies 下载媒体	script	download.command
+VS Code	code	打开 VS Code；支持 code . 和 code 文件路径	script	code.command
 环境安装	install	新系统开发环境配置 / 依赖安装入口	script	install.command
 环境更新	update	JobsMacEnv 更新菜单，批量更新开发工具链	script	update.command
 Shell 切换	shell	扫描并切换可用 shell	script	shell.command
@@ -288,6 +311,7 @@ Flutter Doctor	check	执行项目相关检查 / flutter doctor	script	check.comm
 MENU
 }
 
+# 封装 display_width 对应的独立处理逻辑。
 display_width() {
   local text="$1"
   local bytes="0"
@@ -304,6 +328,7 @@ display_width() {
   print -r -- $(( chars + (bytes - chars) / 2 ))
 }
 
+# 封装 pad_right_visual 对应的独立处理逻辑。
 pad_right_visual() {
   local text="$1"
   local target_width="$2"
@@ -317,6 +342,7 @@ pad_right_visual() {
   printf "%s%*s" "$text" "$pad_count" ""
 }
 
+# 封装 build_fzf_items 对应的独立处理逻辑。
 build_fzf_items() {
   local title=""
   local command_name=""
@@ -341,10 +367,12 @@ build_fzf_items() {
   done
 }
 
+# 封装 fzf_supports_info_command 对应的独立处理逻辑。
 fzf_supports_info_command() {
   "$FZF_BIN" --help 2>/dev/null | grep -q -- '--info-command'
 }
 
+# 封装 print_command_table 对应的独立处理逻辑。
 print_command_table() {
   bold_echo "JobsMacEnv 功能菜单"
   log ""
@@ -357,6 +385,7 @@ print_command_table() {
   done
 }
 
+# 执行已经拆分完成的独立业务步骤。
 run_script_feature() {
   local script_name="$1"
   local script_file=""
@@ -371,6 +400,7 @@ run_script_feature() {
   "$script_file"
 }
 
+# 执行已经拆分完成的独立业务步骤。
 run_to_format_feature() {
   local target_ext="$1"
   local script_file=""
@@ -390,6 +420,7 @@ run_to_format_feature() {
   "$script_file" "$target_ext"
 }
 
+# 执行已经拆分完成的独立业务步骤。
 run_function_feature() {
   local function_name="$1"
 
@@ -405,6 +436,7 @@ run_function_feature() {
   "$function_name"
 }
 
+# 执行已经拆分完成的独立业务步骤。
 run_feature() {
   local command_name="$1"
   local run_type="$2"
@@ -431,6 +463,7 @@ run_feature() {
   esac
 }
 
+# 封装 show_text_menu 对应的独立处理逻辑。
 show_text_menu() {
   print_command_table
   log ""
@@ -438,6 +471,7 @@ show_text_menu() {
   gray_echo "日志路径：$LOG_FILE"
 }
 
+# 封装 show_menu 对应的独立处理逻辑。
 show_menu() {
   local selected=""
   local command_name=""
@@ -488,7 +522,8 @@ show_menu() {
   done
 }
 
-main() {
+# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
+run_main_flow() {
   if [[ "${1:-}" == "--plain" || "${1:-}" == "-p" ]]; then
     print_command_table
     gray_echo "日志路径：$LOG_FILE"
@@ -507,6 +542,12 @@ main() {
 
   show_menu
   gray_echo "日志路径：$LOG_FILE"
+}
+
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  run_main_flow "$@"
 }
 
 main "$@"

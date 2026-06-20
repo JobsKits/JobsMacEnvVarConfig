@@ -44,18 +44,31 @@ CLEANED_UP="false"
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 color_echo()     { log "\033[1;32m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warm_echo()      { log "\033[1;33m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 err_echo()       { log "\033[1;31m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 debug_echo()     { log "\033[1;35m🐞 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 highlight_echo() { log "\033[1;36m🔹 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 gray_echo()      { log "\033[0;90m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "\033[1m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }
 
 # ---------- 内置说明 ----------
@@ -125,6 +138,7 @@ df - dufs + Caddy 局域网目录共享
 EOFREADME
 }
 
+# 展示脚本用途和影响范围，并在执行前等待用户确认。
 jobs_df_show_readme_and_wait() {
   clear
   jobs_df_print_builtin_readme
@@ -132,6 +146,7 @@ jobs_df_show_readme_and_wait() {
   read -r "?按回车继续执行 df；按 Ctrl+C 取消。" _
 }
 
+# 封装 jobs_df_print_usage 对应的独立处理逻辑。
 jobs_df_print_usage() {
   jobs_df_print_builtin_readme
   cat <<'EOFUSAGE' | tee -a "$LOG_FILE"
@@ -169,6 +184,7 @@ jobs_df_trim() {
   print -r -- "$value"
 }
 
+# 封装 jobs_df_strip_outer_quotes 对应的独立处理逻辑。
 jobs_df_strip_outer_quotes() {
   local value="$1"
   value="${value%$'\r'}"
@@ -180,6 +196,7 @@ jobs_df_strip_outer_quotes() {
   print -r -- "$value"
 }
 
+# 封装 jobs_df_decode_drag_path 对应的独立处理逻辑。
 jobs_df_decode_drag_path() {
   local raw="$1"
   raw="$(jobs_df_trim "$raw")"
@@ -196,6 +213,7 @@ jobs_df_decode_drag_path() {
   print -r -- "$raw"
 }
 
+# 封装 jobs_df_abs_dir 对应的独立处理逻辑。
 jobs_df_abs_dir() {
   local path="$1"
   [[ -n "$path" ]] || return 1
@@ -208,28 +226,33 @@ jobs_df_abs_dir() {
   return 1
 }
 
+# 封装 jobs_df_ensure_dir 对应的独立处理逻辑。
 jobs_df_ensure_dir() {
   local dir="$1"
   [[ -d "$dir" ]] || mkdir -p "$dir"
 }
 
+# 封装 jobs_df_is_uint 对应的独立处理逻辑。
 jobs_df_is_uint() {
   local value="$1"
   [[ "$value" == <-> ]]
 }
 
+# 封装 jobs_df_is_valid_port 对应的独立处理逻辑。
 jobs_df_is_valid_port() {
   local value="$1"
   jobs_df_is_uint "$value" || return 1
   (( value >= 1 && value <= 65535 ))
 }
 
+# 封装 jobs_df_port_needs_sudo 对应的独立处理逻辑。
 jobs_df_port_needs_sudo() {
   local value="$1"
   jobs_df_is_uint "$value" || return 1
   (( value < 1024 ))
 }
 
+# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 jobs_df_clean_domain() {
   local value="$1"
   value="$(jobs_df_trim "$value")"
@@ -241,6 +264,7 @@ jobs_df_clean_domain() {
   print -r -- "$value"
 }
 
+# 封装 jobs_df_slugify_name 对应的独立处理逻辑。
 jobs_df_slugify_name() {
   local value="$1"
   value="$(jobs_df_trim "$value")"
@@ -250,6 +274,7 @@ jobs_df_slugify_name() {
   print -r -- "$value"
 }
 
+# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 jobs_df_prepare_default_domain() {
   local raw_path="$1"
   local decoded=""
@@ -270,6 +295,7 @@ jobs_df_prepare_default_domain() {
   JOBS_DF_DOMAIN_DEFAULT="${slug}.${JOBS_DF_LOCAL_DOMAIN_SUFFIX}"
 }
 
+# 封装 jobs_df_normalize_domain_input 对应的独立处理逻辑。
 jobs_df_normalize_domain_input() {
   local value="$1"
   local default_domain="${2:-$JOBS_DF_DOMAIN_DEFAULT}"
@@ -294,6 +320,7 @@ jobs_df_normalize_domain_input() {
   print -r -- "$value"
 }
 
+# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 jobs_df_is_allowed_local_domain() {
   local value="$1"
   case "$value" in
@@ -302,6 +329,7 @@ jobs_df_is_allowed_local_domain() {
   esac
 }
 
+# 封装 jobs_df_warn_public_domain_suffix 对应的独立处理逻辑。
 jobs_df_warn_public_domain_suffix() {
   local value="$1"
   err_echo "不要使用 .cn / .com / .net / .org / .io 等公网真实后缀做局域网短域名。"
@@ -310,6 +338,7 @@ jobs_df_warn_public_domain_suffix() {
   [[ -n "$value" ]] && warn_echo "已拒绝：$value"
 }
 
+# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 jobs_df_is_valid_domain() {
   local value="$1"
   [[ -n "$value" ]] || return 1
@@ -321,6 +350,7 @@ jobs_df_is_valid_domain() {
   return 0
 }
 
+# 封装 jobs_df_find_brew_bin 对应的独立处理逻辑。
 jobs_df_find_brew_bin() {
   if command -v brew >/dev/null 2>&1; then
     command -v brew
@@ -338,6 +368,7 @@ jobs_df_find_brew_bin() {
   return 1
 }
 
+# 封装 jobs_df_ask_any_to_run 对应的独立处理逻辑。
 jobs_df_ask_any_to_run() {
   local message="$1"
   local answer=""
@@ -346,6 +377,7 @@ jobs_df_ask_any_to_run() {
   [[ -n "$answer" ]]
 }
 
+# 封装 jobs_df_confirm_yes 对应的独立处理逻辑。
 jobs_df_confirm_yes() {
   local message="$1"
   local answer=""
@@ -370,6 +402,7 @@ jobs_df_confirm_yes() {
 }
 
 
+# 封装 jobs_df_remove_managed_hosts_to_file 对应的独立处理逻辑。
 jobs_df_remove_managed_hosts_to_file() {
   local source_file="$1"
   local target_file="$2"
@@ -381,6 +414,7 @@ jobs_df_remove_managed_hosts_to_file() {
   ' "$source_file" > "$target_file"
 }
 
+# 封装 jobs_df_write_local_hosts 对应的独立处理逻辑。
 jobs_df_write_local_hosts() {
   local local_domain="$1"
   local tmp=""
@@ -440,6 +474,7 @@ jobs_df_write_local_hosts() {
   gray_echo "hosts 备份：$backup"
 }
 
+# 封装 jobs_df_http_self_check 对应的独立处理逻辑。
 jobs_df_http_self_check() {
   local title="$1"
   local url="$2"
@@ -471,6 +506,7 @@ jobs_df_http_self_check() {
   esac
 }
 
+# 封装 jobs_df_run_self_checks 对应的独立处理逻辑。
 jobs_df_run_self_checks() {
   local external_port="$1"
   local local_domain="$2"
@@ -484,6 +520,7 @@ jobs_df_run_self_checks() {
   fi
 }
 
+# 封装 jobs_df_ask_yes_no 对应的独立处理逻辑。
 jobs_df_ask_yes_no() {
   local message="$1"
   local default_value="$2"
@@ -508,6 +545,7 @@ jobs_df_ask_yes_no() {
   done
 }
 
+# 封装 jobs_df_ask_port 对应的独立处理逻辑。
 jobs_df_ask_port() {
   local title="$1"
   local current_value="$2"
@@ -533,6 +571,7 @@ jobs_df_ask_port() {
   done
 }
 
+# 封装 jobs_df_finalize_domain_or_fail 对应的独立处理逻辑。
 jobs_df_finalize_domain_or_fail() {
   local input_value="$1"
   local normalized=""
@@ -562,6 +601,7 @@ jobs_df_finalize_domain_or_fail() {
   return 0
 }
 
+# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 jobs_df_ask_domain() {
   local input=""
   local normalized=""
@@ -607,6 +647,7 @@ jobs_df_ask_domain() {
   done
 }
 
+# 封装 jobs_df_require_homebrew 对应的独立处理逻辑。
 jobs_df_require_homebrew() {
   if BREW_BIN="$(jobs_df_find_brew_bin 2>/dev/null)"; then
     return 0
@@ -616,6 +657,7 @@ jobs_df_require_homebrew() {
   return 1
 }
 
+# 封装 jobs_df_resolve_bin 对应的独立处理逻辑。
 jobs_df_resolve_bin() {
   local bin_name="$1"
   local resolved=""
@@ -641,6 +683,7 @@ jobs_df_resolve_bin() {
   return 1
 }
 
+# 封装 jobs_df_ensure_formula 对应的独立处理逻辑。
 jobs_df_ensure_formula() {
   local formula="$1"
   local bin_name="$2"
@@ -665,6 +708,7 @@ jobs_df_ensure_formula() {
   fi
 }
 
+# 封装 jobs_df_ensure_dependencies 对应的独立处理逻辑。
 jobs_df_ensure_dependencies() {
   jobs_df_ensure_formula dufs dufs || return 1
   jobs_df_ensure_formula caddy caddy || return 1
@@ -677,6 +721,7 @@ jobs_df_ensure_dependencies() {
   success_echo "caddy：$CADDY_BIN"
 }
 
+# 封装 jobs_df_find_caddyfile 对应的独立处理逻辑。
 jobs_df_find_caddyfile() {
   if [[ -n "$CADDYFILE_PATH" ]]; then
     print -r -- "$CADDYFILE_PATH"
@@ -710,6 +755,7 @@ jobs_df_find_caddyfile() {
   print -r -- "$HOME/.config/caddy/Caddyfile"
 }
 
+# 封装 jobs_df_remove_managed_block_to_file 对应的独立处理逻辑。
 jobs_df_remove_managed_block_to_file() {
   local source_file="$1"
   local target_file="$2"
@@ -721,6 +767,7 @@ jobs_df_remove_managed_block_to_file() {
   ' "$source_file" > "$target_file"
 }
 
+# 封装 jobs_df_write_caddyfile_block 对应的独立处理逻辑。
 jobs_df_write_caddyfile_block() {
   local caddyfile="$1"
   local external_port="$2"
@@ -779,6 +826,7 @@ jobs_df_write_caddyfile_block() {
   gray_echo "Caddyfile 备份：$backup"
 }
 
+# 封装 jobs_df_remove_caddyfile_block 对应的独立处理逻辑。
 jobs_df_remove_caddyfile_block() {
   local caddyfile="$1"
   local tmp=""
@@ -800,6 +848,7 @@ jobs_df_remove_caddyfile_block() {
   fi
 }
 
+# 封装 jobs_df_reload_caddy 对应的独立处理逻辑。
 jobs_df_reload_caddy() {
   local caddyfile="$1"
   local brew_caddyfile=""
@@ -844,6 +893,7 @@ jobs_df_reload_caddy() {
   "$CADDY_BIN" start --config "$caddyfile" --adapter caddyfile
 }
 
+# 封装 jobs_df_start_dufs 对应的独立处理逻辑。
 jobs_df_start_dufs() {
   local serve_path="$1"
   local dufs_port="$2"
@@ -877,6 +927,7 @@ jobs_df_start_dufs() {
   gray_echo "dufs 日志：$RUNNING_DUFS_LOG"
 }
 
+# 封装 jobs_df_stop_dufs 对应的独立处理逻辑。
 jobs_df_stop_dufs() {
   if [[ -n "$RUNNING_DUFS_PID" ]] && kill -0 "$RUNNING_DUFS_PID" >/dev/null 2>&1; then
     kill "$RUNNING_DUFS_PID" >/dev/null 2>&1 || true
@@ -887,6 +938,7 @@ jobs_df_stop_dufs() {
   RUNNING_DUFS_PID=""
 }
 
+# 封装 jobs_df_lan_ips 对应的独立处理逻辑。
 jobs_df_lan_ips() {
   local ip=""
   local iface=""
@@ -901,10 +953,12 @@ jobs_df_lan_ips() {
   fi
 }
 
+# 封装 jobs_df_primary_lan_ip 对应的独立处理逻辑。
 jobs_df_primary_lan_ip() {
   jobs_df_lan_ips | sort -u | head -n 1
 }
 
+# 封装 jobs_df_macos_local_hostname 对应的独立处理逻辑。
 jobs_df_macos_local_hostname() {
   local name=""
 
@@ -917,6 +971,7 @@ jobs_df_macos_local_hostname() {
   print -r -- "${name}.local"
 }
 
+# 封装 jobs_df_url_for_host 对应的独立处理逻辑。
 jobs_df_url_for_host() {
   local host="$1"
   local external_port="$2"
@@ -930,6 +985,7 @@ jobs_df_url_for_host() {
 
 
 
+# 封装 jobs_df_print_urls 对应的独立处理逻辑。
 jobs_df_print_urls() {
   local external_port="$1"
   local local_domain="$2"
@@ -1011,6 +1067,7 @@ jobs_df_print_urls() {
   gray_echo "手机打不开自定义短域名时，不要反复改 Caddy；优先用 IP 或 .local，或配置路由器 DNS。"
 }
 
+# 封装 jobs_df_interactive_config 对应的独立处理逻辑。
 jobs_df_interactive_config() {
   local port_input=""
   local auth_input=""
@@ -1041,6 +1098,7 @@ jobs_df_interactive_config() {
   return 0
 }
 
+# 封装 jobs_df_run_one_session 对应的独立处理逻辑。
 jobs_df_run_one_session() {
   local input_path="$1"
   local decoded=""
@@ -1108,6 +1166,7 @@ jobs_df_run_one_session() {
   jobs_df_stop_dufs
 }
 
+# 封装 jobs_df_cleanup 对应的独立处理逻辑。
 jobs_df_cleanup() {
   [[ "$CLEANED_UP" == "true" ]] && return 0
   CLEANED_UP="true"
@@ -1121,11 +1180,13 @@ jobs_df_cleanup() {
   gray_echo "日志路径：$LOG_FILE"
 }
 
+# 封装 jobs_df_interrupt 对应的独立处理逻辑。
 jobs_df_interrupt() {
   jobs_df_cleanup
   exit 130
 }
 
+# 封装 jobs_df_parse_args 对应的独立处理逻辑。
 jobs_df_parse_args() {
   local arg=""
 
@@ -1217,6 +1278,7 @@ jobs_df_parse_args() {
   # --domain 允许只传前缀，例如 jobsdocs；最终会自动补 .test 并在交互配置阶段校验。
 }
 
+# 封装 jobs_df_interactive_loop 对应的独立处理逻辑。
 jobs_df_interactive_loop() {
   local input_path=""
   local again=""
@@ -1252,7 +1314,8 @@ jobs_df_interactive_loop() {
   done
 }
 
-main() {
+# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
+run_main_flow() {
   trap jobs_df_cleanup EXIT
   trap jobs_df_interrupt INT TERM
 
@@ -1278,6 +1341,12 @@ main() {
   fi
 
   jobs_df_interactive_loop
+}
+
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  run_main_flow "$@"
 }
 
 main "$@"

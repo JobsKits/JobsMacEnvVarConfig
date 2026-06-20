@@ -2,6 +2,7 @@
 # JobsMacEnv executable command wrappers.
 # 这里只注册终端短命令；真实实现统一放在 Scripts/<命令>.command/<命令>.command。
 
+# 封装 _jobs_resolve_scripts_command 对应的独立处理逻辑。
 _jobs_resolve_scripts_command() {
   emulate -L zsh
 
@@ -25,6 +26,7 @@ _jobs_resolve_scripts_command() {
   return 1
 }
 
+# 封装 _jobs_run_scripts_command 对应的独立处理逻辑。
 _jobs_run_scripts_command() {
   emulate -L zsh
 
@@ -41,6 +43,7 @@ _jobs_run_scripts_command() {
   "$script" "$@"
 }
 
+# 封装 _jobs_restore_stateful_wrapper 对应的独立处理逻辑。
 _jobs_restore_stateful_wrapper() {
   emulate -L zsh
 
@@ -49,6 +52,7 @@ _jobs_restore_stateful_wrapper() {
   eval "${command_name}() { _jobs_source_and_run_scripts_command ${command_name} ${main_function} \"\$@\"; }"
 }
 
+# 封装 _jobs_source_and_run_scripts_command 对应的独立处理逻辑。
 _jobs_source_and_run_scripts_command() {
   emulate -L zsh
 
@@ -124,19 +128,33 @@ ts() { _jobs_run_scripts_command ts "$@"; }
 download() { _jobs_run_scripts_command download "$@"; }
 # to：FFmpeg 通用媒体格式转换入口。
 to() { _jobs_run_scripts_command to "$@"; }
+# code：打开 VS Code；用于补齐未注册 code 命令时的终端入口。
+code() { _jobs_run_scripts_command code "$@"; }
 # mp4 / mov / webm 等：统一复用 to.command，不复制真实业务脚本。
 mp4()  { _jobs_run_scripts_command to mp4 "$@"; }
+# 封装 mov 对应的独立处理逻辑。
 mov()  { _jobs_run_scripts_command to mov "$@"; }
+# 封装 webm 对应的独立处理逻辑。
 webm() { _jobs_run_scripts_command to webm "$@"; }
+# 封装 mkv 对应的独立处理逻辑。
 mkv()  { _jobs_run_scripts_command to mkv "$@"; }
+# 封装 avi 对应的独立处理逻辑。
 avi()  { _jobs_run_scripts_command to avi "$@"; }
+# 封装 m4v 对应的独立处理逻辑。
 m4v()  { _jobs_run_scripts_command to m4v "$@"; }
+# 封装 mp3 对应的独立处理逻辑。
 mp3()  { _jobs_run_scripts_command to mp3 "$@"; }
+# 封装 m4a 对应的独立处理逻辑。
 m4a()  { _jobs_run_scripts_command to m4a "$@"; }
+# 封装 aac 对应的独立处理逻辑。
 aac()  { _jobs_run_scripts_command to aac "$@"; }
+# 封装 wav 对应的独立处理逻辑。
 wav()  { _jobs_run_scripts_command to wav "$@"; }
+# 封装 flac 对应的独立处理逻辑。
 flac() { _jobs_run_scripts_command to flac "$@"; }
+# 封装 ogg 对应的独立处理逻辑。
 ogg()  { _jobs_run_scripts_command to ogg "$@"; }
+# 封装 opus 对应的独立处理逻辑。
 opus() { _jobs_run_scripts_command to opus "$@"; }
 # install：安装和初始化常用开发环境依赖。注意：该命令名与系统 /usr/bin/install 有冲突风险。
 install() { _jobs_run_scripts_command install "$@"; }

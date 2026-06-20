@@ -13,18 +13,31 @@ LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 color_echo()     { log "\033[1;32m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warm_echo()      { log "\033[1;33m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 err_echo()       { log "\033[1;31m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 debug_echo()     { log "\033[1;35m🐞 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 highlight_echo() { log "\033[1;36m🔹 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 gray_echo()      { log "\033[0;90m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "\033[1m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }
 
 # ---------- 内置自述 ----------
@@ -82,6 +95,7 @@ jobs_cor_supports_truecolor() {
   return 1
 }
 
+# 封装 jobs_cor_title_color 对应的独立处理逻辑。
 jobs_cor_title_color() {
   emulate -L zsh
 
@@ -93,21 +107,25 @@ jobs_cor_title_color() {
   fi
 }
 
+# 封装 jobs_cor_to_hex 对应的独立处理逻辑。
 jobs_cor_to_hex() {
   emulate -L zsh
   printf "%02X" "$1"
 }
 
+# 封装 jobs_cor_hex_to_dec 对应的独立处理逻辑。
 jobs_cor_hex_to_dec() {
   emulate -L zsh
   printf "%d" "$(( 16#$1 ))"
 }
 
+# 封装 jobs_cor_is_hex 对应的独立处理逻辑。
 jobs_cor_is_hex() {
   emulate -L zsh
   [[ "$1" =~ '^[0-9a-fA-F]+$' ]]
 }
 
+# 封装 jobs_cor_expand_short_hex 对应的独立处理逻辑。
 jobs_cor_expand_short_hex() {
   emulate -L zsh
 
@@ -119,36 +137,43 @@ jobs_cor_expand_short_hex() {
   print -r -- "$out"
 }
 
+# 封装 jobs_cor_alpha_float_to_255 对应的独立处理逻辑。
 jobs_cor_alpha_float_to_255() {
   emulate -L zsh
   awk -v v="$1" 'BEGIN { if (v < 0) v = 0; if (v > 1) v = 1; printf("%d", (v * 255) + 0.5) }'
 }
 
+# 封装 jobs_cor_alpha_255_to_float 对应的独立处理逻辑。
 jobs_cor_alpha_255_to_float() {
   emulate -L zsh
   awk -v v="$1" 'BEGIN { printf("%.2f", v / 255) }'
 }
 
+# 封装 jobs_cor_clamp_alpha_float 对应的独立处理逻辑。
 jobs_cor_clamp_alpha_float() {
   emulate -L zsh
   awk -v v="$1" 'BEGIN { if (v < 0) v = 0; if (v > 1) v = 1; printf("%.2f", v) }'
 }
 
+# 封装 jobs_cor_sanitize_input 对应的独立处理逻辑。
 jobs_cor_sanitize_input() {
   emulate -L zsh
   print -r -- "$1" | tr -d '[:space:]' | tr -d '"' | tr -d "'"
 }
 
+# 封装 jobs_cor_upper_hex 对应的独立处理逻辑。
 jobs_cor_upper_hex() {
   emulate -L zsh
   print -r -- "$1" | tr '[:lower:]' '[:upper:]'
 }
 
+# 封装 jobs_cor_rel_luma 对应的独立处理逻辑。
 jobs_cor_rel_luma() {
   emulate -L zsh
   awk -v r="$1" -v g="$2" -v b="$3" 'BEGIN { printf("%.0f", 0.2126 * r + 0.7152 * g + 0.0722 * b) }'
 }
 
+# 封装 jobs_cor_pick_fg_rgb 对应的独立处理逻辑。
 jobs_cor_pick_fg_rgb() {
   emulate -L zsh
 
@@ -161,6 +186,7 @@ jobs_cor_pick_fg_rgb() {
   fi
 }
 
+# 封装 jobs_cor_pick_fg_code 对应的独立处理逻辑。
 jobs_cor_pick_fg_code() {
   emulate -L zsh
 
@@ -173,6 +199,7 @@ jobs_cor_pick_fg_code() {
   fi
 }
 
+# 封装 jobs_cor_rgb_to_ansi256 对应的独立处理逻辑。
 jobs_cor_rgb_to_ansi256() {
   emulate -L zsh
 
@@ -196,6 +223,7 @@ jobs_cor_rgb_to_ansi256() {
   print -r -- $(( 16 + 36 * rc + 6 * gc + bc ))
 }
 
+# 封装 jobs_cor_set_globals_from_hex 对应的独立处理逻辑。
 jobs_cor_set_globals_from_hex() {
   emulate -L zsh
 
@@ -273,6 +301,7 @@ jobs_cor_show_block_line() {
   printf "\033[0m\n"
 }
 
+# 封装 jobs_cor_show_block 对应的独立处理逻辑。
 jobs_cor_show_block() {
   emulate -L zsh
 
@@ -332,6 +361,7 @@ jobs_cor_parse_rgb_parts() {
   return 0
 }
 
+# 封装 jobs_cor_parse_input 对应的独立处理逻辑。
 jobs_cor_parse_input() {
   emulate -L zsh
 
@@ -410,6 +440,7 @@ jobs_cor_format_and_print_all() {
   printf "\n"
 }
 
+# 封装 jobs_cor_print_title 对应的独立处理逻辑。
 jobs_cor_print_title() {
   emulate -L zsh
 
@@ -421,6 +452,7 @@ jobs_cor_print_title() {
   printf "\n"
 }
 
+# 封装 jobs_cor_convert_once 对应的独立处理逻辑。
 jobs_cor_convert_once() {
   emulate -L zsh
 
@@ -434,6 +466,7 @@ jobs_cor_convert_once() {
   fi
 }
 
+# 封装 jobs_cor_interactive_loop 对应的独立处理逻辑。
 jobs_cor_interactive_loop() {
   emulate -L zsh
 
@@ -457,6 +490,7 @@ jobs_cor_interactive_loop() {
   done
 }
 
+# 封装 cor 对应的独立处理逻辑。
 cor() {
   emulate -L zsh
 
@@ -479,6 +513,12 @@ jobs_cor_main() {
   cor "$@"
 }
 
-if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
   jobs_cor_main "$@"
+}
+
+if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+  main "$@"
 fi

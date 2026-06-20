@@ -51,22 +51,36 @@ SERVER_PID_FILE="/tmp/${SCRIPT_BASENAME}.server.pid"
 
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 color_echo()     { log "\033[1;32m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 info_echo()      { log "\033[1;34mℹ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 success_echo()   { log "\033[1;32m✔ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warn_echo()      { log "\033[1;33m⚠ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 warm_echo()      { log "\033[1;33m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 note_echo()      { log "\033[1;35m➤ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 err_echo()       { log "\033[1;31m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 debug_echo()     { log "\033[1;35m🐞 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 highlight_echo() { log "\033[1;36m🔹 $1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 gray_echo()      { log "\033[0;90m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "\033[1m$1\033[0m"; }
+# 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }
 
 # ---------- 通用交互 ----------
 
+# 解析并返回后续流程需要的目标信息。
 find_fzf_bin() {
   if command -v fzf >/dev/null 2>&1; then
     command -v fzf
@@ -85,6 +99,7 @@ find_fzf_bin() {
   return 1
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_fzf_for_engine_menu() {
   if FZF_BIN="$(find_fzf_bin 2>/dev/null)"; then
     return 0
@@ -104,6 +119,7 @@ ensure_fzf_for_engine_menu() {
   return 1
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 select_tts_engine_text_fallback() {
   local answer=""
   echo ""
@@ -123,6 +139,7 @@ select_tts_engine_text_fallback() {
   esac
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 select_tts_engine() {
   local selected=""
   local selected_engine=""
@@ -160,6 +177,7 @@ ENGINE_MENU_EOF
   select_tts_engine_text_fallback
 }
 
+# 封装 print_engine_banner 对应的独立处理逻辑。
 print_engine_banner() {
   local engine="$1"
   echo ""
@@ -177,6 +195,7 @@ print_engine_banner() {
   echo ""
 }
 
+# 展示脚本用途和影响范围，并在执行前等待用户确认。
 show_readme_and_wait() {
   clear
   highlight_echo "==================== 【MacOS】🔊Supertonic 本地朗读 ===================="
@@ -207,6 +226,7 @@ show_readme_and_wait() {
   read -r "?👉 按回车进入朗读；按 Ctrl+C 取消：" _
 }
 
+# 收集并校验用户输入，决定后续执行路径。
 ask_enter_to_run() {
   local message="$1"
   local answer=""
@@ -214,6 +234,7 @@ ask_enter_to_run() {
   [[ -z "$answer" ]]
 }
 
+# 封装 strip_outer_quotes 对应的独立处理逻辑。
 strip_outer_quotes() {
   local value="$1"
   value="${value%$'\r'}"
@@ -225,14 +246,17 @@ strip_outer_quotes() {
   print -r -- "$value"
 }
 
+# 封装 python_bin 对应的独立处理逻辑。
 python_bin() {
   print -r -- "${SUPERTONIC_VENV_DIR}/bin/python"
 }
 
+# 封装 supertonic_bin 对应的独立处理逻辑。
 supertonic_bin() {
   print -r -- "${SUPERTONIC_VENV_DIR}/bin/supertonic"
 }
 
+# 封装 require_command 对应的独立处理逻辑。
 require_command() {
   local cmd="$1"
   local tip="$2"
@@ -274,6 +298,7 @@ install_or_repair_environment() {
   success_echo "Supertonic 依赖已安装 / 补齐。"
 }
 
+# 检查当前运行条件是否满足后续流程要求。
 ensure_environment() {
   require_command "curl" "macOS 通常自带 curl，如果缺失请检查系统环境。" || return 1
 
@@ -318,6 +343,7 @@ is_server_alive() {
   curl -fsS "${SERVER_URL}/docs" >/dev/null 2>&1
 }
 
+# 封装 start_server_if_needed 对应的独立处理逻辑。
 start_server_if_needed() {
   if is_server_alive; then
     success_echo "本地 Supertonic 服务已可用：${SERVER_URL}"
@@ -358,6 +384,7 @@ start_server_if_needed() {
   return 1
 }
 
+# 封装 stop_started_server 对应的独立处理逻辑。
 stop_started_server() {
   if [[ ! -f "$SERVER_PID_FILE" ]]; then
     warn_echo "未找到本脚本记录的服务 PID：${SERVER_PID_FILE}"
@@ -391,6 +418,7 @@ print("yes" if re.search(r"[\u4e00-\u9fff]", sys.argv[1]) else "no")
 PY
 }
 
+# 封装 list_macos_chinese_voices 对应的独立处理逻辑。
 list_macos_chinese_voices() {
   if ! command -v say >/dev/null 2>&1; then
     error_echo "当前系统未找到 macOS say 命令。"
@@ -400,6 +428,7 @@ list_macos_chinese_voices() {
   say -v '?' 2>/dev/null | grep -Ei 'zh_|chinese|mandarin|cantonese|tingting|mei-?jia|sin-?ji|yu-?shu|li-?mu' | tee -a "$LOG_FILE" || true
 }
 
+# 封装 pick_macos_chinese_voice 对应的独立处理逻辑。
 pick_macos_chinese_voice() {
   if [[ -n "$SUPERTONIC_ZH_VOICE" ]]; then
     print -r -- "$SUPERTONIC_ZH_VOICE"
@@ -427,6 +456,7 @@ pick_macos_chinese_voice() {
   return 1
 }
 
+# 封装 speak_chinese_with_macos_say 对应的独立处理逻辑。
 speak_chinese_with_macos_say() {
   local raw_text="$1"
   local text="$(strip_outer_quotes "$raw_text")"
@@ -486,6 +516,7 @@ else:
 PY
 }
 
+# 封装 build_payload 对应的独立处理逻辑。
 build_payload() {
   local text="$1"
   local lang="$2"
@@ -507,6 +538,7 @@ print(json.dumps(payload, ensure_ascii=False))
 PY
 }
 
+# 封装 speak_text 对应的独立处理逻辑。
 speak_text() {
   local raw_text="$1"
   local text="$(strip_outer_quotes "$raw_text")"
@@ -561,10 +593,12 @@ moss_python_bin() {
   print -r -- "${MOSS_TTS_NANO_VENV_DIR}/bin/python"
 }
 
+# 封装 moss_cli_bin 对应的独立处理逻辑。
 moss_cli_bin() {
   print -r -- "${MOSS_TTS_NANO_VENV_DIR}/bin/moss-tts-nano"
 }
 
+# 封装 moss_install_or_repair_environment 对应的独立处理逻辑。
 moss_install_or_repair_environment() {
   local py3=""
   py3="$(command -v python3 || true)"
@@ -639,6 +673,7 @@ MOSS_PYVER_EOF
   success_echo "MOSS-TTS-Nano 依赖已安装 / 补齐。"
 }
 
+# 封装 moss_ensure_environment 对应的独立处理逻辑。
 moss_ensure_environment() {
   local cli="$(moss_cli_bin)"
 
@@ -670,6 +705,7 @@ moss_ensure_environment() {
   success_echo "MOSS-TTS-Nano 环境可用：${MOSS_TTS_NANO_HOME}"
 }
 
+# 封装 moss_detect_lang 对应的独立处理逻辑。
 moss_detect_lang() {
   local text="$1"
   local py="$(moss_python_bin)"
@@ -690,6 +726,7 @@ else:
 MOSS_LANG_EOF
 }
 
+# 封装 moss_speak_text 对应的独立处理逻辑。
 moss_speak_text() {
   local raw_text="$1"
   local text="$(strip_outer_quotes "$raw_text")"
@@ -755,6 +792,7 @@ moss_speak_text() {
   fi
 }
 
+# 展示脚本用途和影响范围，并在执行前等待用户确认。
 moss_show_readme_and_wait() {
   clear
   highlight_echo "==================== 【MacOS】🔊MOSS-TTS-Nano 本地朗读 ===================="
@@ -780,6 +818,7 @@ moss_show_readme_and_wait() {
   read -r "?👉 按回车进入朗读；按 Ctrl+C 取消：" _
 }
 
+# 封装 moss_show_runtime_config 对应的独立处理逻辑。
 moss_show_runtime_config() {
   echo ""
   highlight_echo "========================= MOSS-TTS-Nano 当前配置 ========================="
@@ -794,6 +833,7 @@ moss_show_runtime_config() {
   echo ""
 }
 
+# 封装 moss_show_help 对应的独立处理逻辑。
 moss_show_help() {
   cat <<'MOSS_HELP_EOF' | tee -a "$LOG_FILE"
 可用命令：
@@ -806,6 +846,7 @@ moss_show_help() {
 MOSS_HELP_EOF
 }
 
+# 封装 moss_interactive_loop 对应的独立处理逻辑。
 moss_interactive_loop() {
   moss_show_runtime_config
   moss_show_help
@@ -852,6 +893,7 @@ moss_interactive_loop() {
   done
 }
 
+# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 moss_main() {
   if [[ "$#" -gt 0 ]]; then
     moss_ensure_environment || exit 1
@@ -870,10 +912,12 @@ voxcpm_python_bin() {
   print -r -- "${VOXCPM_VENV_DIR}/bin/python"
 }
 
+# 封装 voxcpm_cli_bin 对应的独立处理逻辑。
 voxcpm_cli_bin() {
   print -r -- "${VOXCPM_VENV_DIR}/bin/voxcpm"
 }
 
+# 封装 voxcpm_install_or_repair_environment 对应的独立处理逻辑。
 voxcpm_install_or_repair_environment() {
   local py3=""
   py3="$(command -v python3 || true)"
@@ -933,6 +977,7 @@ VOXCPM_IMPORT_EOF
   success_echo "VoxCPM 依赖已安装 / 补齐。"
 }
 
+# 封装 voxcpm_ensure_environment 对应的独立处理逻辑。
 voxcpm_ensure_environment() {
   local cli="$(voxcpm_cli_bin)"
   local py="$(voxcpm_python_bin)"
@@ -971,6 +1016,7 @@ VOXCPM_CHECK_EOF
   success_echo "VoxCPM 虚拟环境可用：${VOXCPM_VENV_DIR}"
 }
 
+# 封装 voxcpm_speak_text 对应的独立处理逻辑。
 voxcpm_speak_text() {
   local raw_text="$1"
   local text="$(strip_outer_quotes "$raw_text")"
@@ -1051,6 +1097,7 @@ voxcpm_speak_text() {
   fi
 }
 
+# 展示脚本用途和影响范围，并在执行前等待用户确认。
 voxcpm_show_readme_and_wait() {
   clear
   highlight_echo "====================== 【MacOS】🔊VoxCPM2 本地朗读 ======================"
@@ -1080,6 +1127,7 @@ voxcpm_show_readme_and_wait() {
   read -r "?👉 按回车进入朗读；按 Ctrl+C 取消：" _
 }
 
+# 封装 voxcpm_show_runtime_config 对应的独立处理逻辑。
 voxcpm_show_runtime_config() {
   echo ""
   highlight_echo "============================ VoxCPM2 当前配置 ============================"
@@ -1098,6 +1146,7 @@ voxcpm_show_runtime_config() {
   echo ""
 }
 
+# 封装 voxcpm_show_help 对应的独立处理逻辑。
 voxcpm_show_help() {
   cat <<'VOXCPM_HELP_EOF' | tee -a "$LOG_FILE"
 可用命令：
@@ -1115,6 +1164,7 @@ voxcpm_show_help() {
 VOXCPM_HELP_EOF
 }
 
+# 封装 voxcpm_interactive_loop 对应的独立处理逻辑。
 voxcpm_interactive_loop() {
   voxcpm_show_runtime_config
   voxcpm_show_help
@@ -1211,6 +1261,7 @@ voxcpm_interactive_loop() {
   done
 }
 
+# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 voxcpm_main() {
   if [[ "$#" -gt 0 ]]; then
     voxcpm_ensure_environment || exit 1
@@ -1241,6 +1292,7 @@ show_supported_languages() {
 EOF
 }
 
+# 封装 show_runtime_config 对应的独立处理逻辑。
 show_runtime_config() {
   echo ""
   highlight_echo "============================== 当前配置 =============================="
@@ -1260,6 +1312,7 @@ show_runtime_config() {
   echo ""
 }
 
+# 封装 show_help 对应的独立处理逻辑。
 show_help() {
   cat <<'EOF' | tee -a "$LOG_FILE"
 可用命令：
@@ -1276,6 +1329,7 @@ show_help() {
 EOF
 }
 
+# 封装 interactive_loop 对应的独立处理逻辑。
 interactive_loop() {
   show_runtime_config
   show_help
@@ -1350,6 +1404,7 @@ interactive_loop() {
   done
 }
 
+# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 supertonic_main() {
   if [[ "$#" -gt 0 ]]; then
     ensure_environment || exit 1
@@ -1364,6 +1419,7 @@ supertonic_main() {
   interactive_loop
 }
 
+# 封装 parse_engine_args 对应的独立处理逻辑。
 parse_engine_args() {
   local next_is_engine="false"
   local cleaned=()
@@ -1401,7 +1457,8 @@ parse_engine_args() {
   printf '%s\n' "${cleaned[@]}"
 }
 
-main() {
+# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
+run_main_flow() {
   local parsed=""
   local engine=""
   local args=()
@@ -1435,6 +1492,12 @@ main() {
       return 1
       ;;
   esac
+}
+
+# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+main() {
+  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  run_main_flow "$@"
 }
 
 main "$@"
