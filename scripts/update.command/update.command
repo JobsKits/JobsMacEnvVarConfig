@@ -1,8 +1,10 @@
 #!/bin/zsh
+# 脚本自述：
+# - 脚本名称：update.command
+# - 核心用途：执行“update”对应的自动化任务。
+# - 影响范围：可能修改当前项目、用户环境或脚本指定的目标。
+# - 运行提示：运行后会先打印内置自述；终端模式按回车确认后继续，按 Ctrl+C 可取消。
 
-set -u
-set -o pipefail
-setopt NO_NOMATCH
 
 # ============================================================
 # update.command - macOS 开发环境升级维护
@@ -22,7 +24,6 @@ SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "$0")"
 SCRIPT_BASENAME=$(basename "$0" | sed 's/\.[^.]*$//')
 LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 
-: > "$LOG_FILE"
 
 # ---------- 全局配置：必须与 install.command 保持同源 ----------
 readonly JOBS_SOFTWARE_REPO="https://github.com/JobsKits/JobsSoftware.MacOS.git"
@@ -69,7 +70,6 @@ readonly -a BREW_FORMULAE=(
   dufs
   git-filter-repo
 )
-
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
@@ -98,17 +98,14 @@ gray_echo()      { log "\033[0;90m$1\033[0m"; }
 bold_echo()      { log "\033[1m$1\033[0m"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }
-
 # ---------- 通用基础函数 ----------
 print_divider() {
   gray_echo "------------------------------------------------------------------------"
 }
-
 # 封装 jobs_update_has 对应的独立处理逻辑。
 jobs_update_has() {
   command -v "$1" >/dev/null 2>&1
 }
-
 # 封装 jobs_update_prompt_run 对应的独立处理逻辑。
 jobs_update_prompt_run() {
   local title="$1"
@@ -134,7 +131,6 @@ jobs_update_prompt_run() {
   note_echo "已跳过：${title}"
   return 1
 }
-
 # 封装 jobs_update_run_step 对应的独立处理逻辑。
 jobs_update_run_step() {
   local title="$1"
@@ -155,7 +151,6 @@ jobs_update_run_step() {
 
   return 0
 }
-
 # 封装 jobs_update_run_cmd 对应的独立处理逻辑。
 jobs_update_run_cmd() {
   local desc="$1"
@@ -175,7 +170,6 @@ jobs_update_run_cmd() {
 
   return $exit_code
 }
-
 # 封装 jobs_update_run_sh 对应的独立处理逻辑。
 jobs_update_run_sh() {
   local desc="$1"
@@ -195,7 +189,6 @@ jobs_update_run_sh() {
 
   return $exit_code
 }
-
 # 封装 append_once 对应的独立处理逻辑。
 append_once() {
   local line="$1"
@@ -211,7 +204,6 @@ append_once() {
   echo "" >> "$file"
   echo "$line" >> "$file"
 }
-
 # 封装 append_comment_once 对应的独立处理逻辑。
 append_comment_once() {
   local comment="$1"
@@ -227,7 +219,6 @@ append_comment_once() {
   echo "" >> "$file"
   echo "$comment" >> "$file"
 }
-
 # 解析并返回后续流程需要的目标信息。
 find_brew_bin() {
   if command -v brew >/dev/null 2>&1; then
@@ -245,7 +236,6 @@ find_brew_bin() {
 
   return 1
 }
-
 # 执行对应的环境配置或同步处理。
 setup_brew_shellenv() {
   local brew_bin="$1"
@@ -266,7 +256,6 @@ setup_brew_shellenv() {
   eval "$($brew_bin shellenv)"
   hash -r 2>/dev/null || true
 }
-
 # 封装 require_brew_or_skip 对应的独立处理逻辑。
 require_brew_or_skip() {
   local brew_bin=""
@@ -279,7 +268,6 @@ require_brew_or_skip() {
   warn_echo "未检测到 Homebrew，跳过当前更新项。请先运行 install.command 安装 Homebrew。"
   return 1
 }
-
 # 执行对应的环境配置或同步处理。
 setup_fzf_shellenv() {
   if ! jobs_update_has brew; then
@@ -296,7 +284,6 @@ setup_fzf_shellenv() {
     success_echo "已确认 fzf shell 配置：${HOME}/.zshrc"
   fi
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_jenv_init() {
   append_comment_once "# jenv" "${HOME}/.zshrc"
@@ -304,14 +291,12 @@ ensure_jenv_init() {
   append_once 'eval "$(jenv init -)"' "${HOME}/.zshrc"
   success_echo "已确认 jenv 初始化配置：${HOME}/.zshrc"
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_rbenv_init() {
   append_comment_once "# rbenv" "${HOME}/.zshrc"
   append_once 'eval "$(rbenv init - zsh)"' "${HOME}/.zshrc"
   success_echo "已确认 rbenv 初始化配置：${HOME}/.zshrc"
 }
-
 # 封装 post_openjdk_hint 对应的独立处理逻辑。
 post_openjdk_hint() {
   warm_echo "openjdk 更新完成后，如需让系统 java 指向 Homebrew openjdk，可按需执行："
@@ -319,7 +304,6 @@ post_openjdk_hint() {
   warm_echo "如果使用 jenv 管理 Java，推荐执行："
   warm_echo '  jenv add "$(brew --prefix)/opt/openjdk/libexec/openjdk.jdk/Contents/Home"'
 }
-
 # 封装 jobs_update_source_nvm_if_needed 对应的独立处理逻辑。
 jobs_update_source_nvm_if_needed() {
   if jobs_update_has nvm; then
@@ -331,7 +315,6 @@ jobs_update_source_nvm_if_needed() {
     source "$nvm_dir/nvm.sh"
   fi
 }
-
 # 解析并返回后续流程需要的目标信息。
 get_node_major_version() {
   if ! jobs_update_has node; then
@@ -343,7 +326,6 @@ get_node_major_version() {
   version="$(node --version 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
   [[ -n "$version" ]] && echo "$version" || echo "0"
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_node_for_opencli() {
   local major=""
@@ -358,7 +340,6 @@ ensure_node_for_opencli() {
   warn_echo "update.command 不会静默安装 Node，请先通过 Homebrew / nvm 升级 Node 后重试。"
   return 1
 }
-
 # 封装 jobs_update_find_external_command 对应的独立处理逻辑。
 jobs_update_find_external_command() {
   local command_name="$1"
@@ -385,7 +366,6 @@ jobs_update_find_external_command() {
 
   return 1
 }
-
 # ---------- 内置自述 ----------
 jobs_update_show_readme_and_wait() {
   clear 2>/dev/null || true
@@ -456,7 +436,6 @@ EOFREADME
     IFS= read -r "_answer?👉 已阅读自述文件，按回车开始逐项更新；按 Ctrl+C 取消："
   fi
 }
-
 # ---------- 更新项：系统 / Xcode / Shell ----------
 jobs_update_clt() {
   if ! xcode-select -p >/dev/null 2>&1; then
@@ -475,7 +454,6 @@ jobs_update_clt() {
   warn_echo "softwareupdate --install --all 可能安装 macOS 可用系统更新，耗时较长。"
   jobs_update_run_cmd "安装 macOS 可用软件更新" sudo softwareupdate --install --all || true
 }
-
 # 封装 jobs_update_xcode_ios_platform 对应的独立处理逻辑。
 jobs_update_xcode_ios_platform() {
   if ! jobs_update_has xcodebuild; then
@@ -493,7 +471,6 @@ jobs_update_xcode_ios_platform() {
   jobs_update_run_sh "清理 CoreSimulator 缓存" 'rm -rf ~/Library/Developer/CoreSimulator/Caches' || true
   jobs_update_run_cmd "下载 / 更新 iOS 模拟器平台" xcodebuild -downloadPlatform iOS -verbose || true
 }
-
 # 封装 jobs_update_oh_my_zsh 对应的独立处理逻辑。
 jobs_update_oh_my_zsh() {
   if [[ ! -d "${HOME}/.oh-my-zsh" ]]; then
@@ -509,7 +486,6 @@ jobs_update_oh_my_zsh() {
     warn_echo "未找到 Oh My Zsh upgrade.sh，跳过更新"
   fi
 }
-
 # 封装 jobs_update_rosetta 对应的独立处理逻辑。
 jobs_update_rosetta() {
   if [[ "$(uname -m)" != "arm64" ]]; then
@@ -523,7 +499,6 @@ jobs_update_rosetta() {
     warn_echo "未检测到 Rosetta 2。update.command 不负责安装，请运行 install.command 补装。"
   fi
 }
-
 # ---------- 更新项：Homebrew ----------
 jobs_update_homebrew() {
   if ! require_brew_or_skip; then
@@ -537,7 +512,6 @@ jobs_update_homebrew() {
   jobs_update_run_cmd "brew doctor（检查 Homebrew 健康状态）" brew doctor || true
   jobs_update_run_cmd "brew -v（输出 Homebrew 版本）" brew -v || true
 }
-
 # 封装 brew_formula_install_arg 对应的独立处理逻辑。
 brew_formula_install_arg() {
   local formula_name="$1"
@@ -547,7 +521,6 @@ brew_formula_install_arg() {
     *) echo "$formula_name" ;;
   esac
 }
-
 # 封装 brew_formula_tap_name 对应的独立处理逻辑。
 brew_formula_tap_name() {
   local formula_name="$1"
@@ -558,7 +531,6 @@ brew_formula_tap_name() {
     *) echo "" ;;
   esac
 }
-
 # 封装 brew_formula_after_update 对应的独立处理逻辑。
 brew_formula_after_update() {
   local formula_name="$1"
@@ -571,7 +543,6 @@ brew_formula_after_update() {
     *) return 0 ;;
   esac
 }
-
 # 封装 brew_cask_tap_name 对应的独立处理逻辑。
 brew_cask_tap_name() {
   local cask_name="$1"
@@ -581,7 +552,6 @@ brew_cask_tap_name() {
     *) echo "" ;;
   esac
 }
-
 # 封装 brew_cask_install_hint 对应的独立处理逻辑。
 brew_cask_install_hint() {
   local cask_name="$1"
@@ -594,7 +564,6 @@ brew_cask_install_hint() {
     *) return 0 ;;
   esac
 }
-
 # 封装 jobs_update_github_store_after_update 对应的独立处理逻辑。
 jobs_update_github_store_after_update() {
   local app_path="/Applications/GitHub-Store.app"
@@ -605,7 +574,6 @@ jobs_update_github_store_after_update() {
     warn_echo "未找到 ${app_path}，跳过 quarantine 标记清理。"
   fi
 }
-
 # 封装 brew_cask_after_update 对应的独立处理逻辑。
 brew_cask_after_update() {
   local cask_name="$1"
@@ -615,7 +583,6 @@ brew_cask_after_update() {
     *) return 0 ;;
   esac
 }
-
 # 封装 jobs_update_brew_formula_one 对应的独立处理逻辑。
 jobs_update_brew_formula_one() {
   local formula_name="$1"
@@ -641,7 +608,6 @@ jobs_update_brew_formula_one() {
   jobs_update_run_cmd "升级 brew formula：${formula_name}" brew upgrade "$install_arg" || true
   brew_formula_after_update "$formula_name"
 }
-
 # 封装 jobs_update_brew_formulae 对应的独立处理逻辑。
 jobs_update_brew_formulae() {
   local pkg
@@ -651,7 +617,6 @@ jobs_update_brew_formulae() {
     jobs_update_brew_formula_one "$pkg"
   done
 }
-
 # 封装 jobs_update_brew_cask_one 对应的独立处理逻辑。
 jobs_update_brew_cask_one() {
   local cask_name="$1"
@@ -675,7 +640,6 @@ jobs_update_brew_cask_one() {
   jobs_update_run_cmd "升级 brew cask：${cask_name}" brew upgrade --cask "$cask_name" || true
   brew_cask_after_update "$cask_name"
 }
-
 # 封装 jobs_update_brew_casks 对应的独立处理逻辑。
 jobs_update_brew_casks() {
   local pkg
@@ -685,7 +649,6 @@ jobs_update_brew_casks() {
     jobs_update_brew_cask_one "$pkg"
   done
 }
-
 # ---------- 更新项：语言 / 包管理 ----------
 jobs_update_fvm_flutter() {
   local external_flutter=""
@@ -707,7 +670,6 @@ jobs_update_fvm_flutter() {
     warn_echo "未检测到外部 flutter / fvm，跳过 Flutter SDK 更新"
   fi
 }
-
 # 封装 jobs_update_node_base 对应的独立处理逻辑。
 jobs_update_node_base() {
   jobs_update_source_nvm_if_needed
@@ -732,7 +694,6 @@ jobs_update_node_base() {
     jobs_update_run_cmd "输出 npm 版本" npm -v || true
   fi
 }
-
 # 封装 jobs_update_npm_quicktype 对应的独立处理逻辑。
 jobs_update_npm_quicktype() {
   if ! jobs_update_has npm; then
@@ -746,7 +707,6 @@ jobs_update_npm_quicktype() {
     warn_echo "未检测到 npm 全局包 quicktype，跳过升级。请运行 install.command 补装。"
   fi
 }
-
 # 封装 jobs_update_npm_opencli 对应的独立处理逻辑。
 jobs_update_npm_opencli() {
   if ! jobs_update_has npm; then
@@ -771,8 +731,6 @@ jobs_update_npm_opencli() {
     warn_echo "当前 PATH 仍找不到 opencli，建议重新打开终端或检查 npm global bin。"
   fi
 }
-
-
 # 封装 jobs_update_npm_codegraph 对应的独立处理逻辑。
 jobs_update_npm_codegraph() {
   if ! jobs_update_has npm; then
@@ -803,7 +761,6 @@ jobs_update_npm_codegraph() {
     warn_echo "CodeGraph 已尝试升级，但当前 PATH 仍找不到 codegraph。建议重新打开终端或检查 npm global bin。"
   fi
 }
-
 # 封装 jobs_update_ruby_base 对应的独立处理逻辑。
 jobs_update_ruby_base() {
   if jobs_update_has rbenv; then
@@ -818,7 +775,6 @@ jobs_update_ruby_base() {
     warn_echo "未检测到 gem，跳过 RubyGems 更新"
   fi
 }
-
 # 封装 jobs_update_gem_cocoapods 对应的独立处理逻辑。
 jobs_update_gem_cocoapods() {
   if ! jobs_update_has gem; then
@@ -836,7 +792,6 @@ jobs_update_gem_cocoapods() {
     jobs_update_run_cmd "pod repo update" pod repo update || true
   fi
 }
-
 # 封装 jobs_update_python_base 对应的独立处理逻辑。
 jobs_update_python_base() {
   if jobs_update_has pyenv; then
@@ -860,7 +815,6 @@ jobs_update_python_base() {
     warn_echo "未检测到 Python，跳过 Python 更新"
   fi
 }
-
 # 封装 jobs_update_pub_cache 对应的独立处理逻辑。
 jobs_update_pub_cache() {
   if jobs_update_has dart; then
@@ -870,7 +824,6 @@ jobs_update_pub_cache() {
     warn_echo "未检测到 dart，跳过 Dart pub cache 更新"
   fi
 }
-
 # ---------- 更新项：Git / JobsKits / 手动下载页 ----------
 jobs_update_git_lfs_init() {
   if ! jobs_update_has git; then
@@ -887,7 +840,6 @@ jobs_update_git_lfs_init() {
   jobs_update_run_cmd "配置 Git core.compression=0" git config --global core.compression 0 || true
   jobs_update_run_cmd "配置 Git http.postBuffer=524288000" git config --global http.postBuffer 524288000 || true
 }
-
 # 封装 jobs_update_repo 对应的独立处理逻辑。
 jobs_update_repo() {
   local repo_name="$1"
@@ -903,7 +855,6 @@ jobs_update_repo() {
   warm_echo "update.command 不负责克隆新仓库。需要补装时请运行 install.command。"
   gray_echo "仓库地址：${repo_url}"
 }
-
 # 封装 jobs_update_jobs_repos 对应的独立处理逻辑。
 jobs_update_jobs_repos() {
   if ! jobs_update_has git; then
@@ -914,13 +865,12 @@ jobs_update_jobs_repos() {
   jobs_update_repo "JobsSoftware.MacOS" "$JOBS_SOFTWARE_REPO" "${JOBS_WORKSPACE}/JobsSoftware.MacOS"
   jobs_update_repo "JobsMacEnvVarConfig" "$JOBS_ENV_REPO" "${JOBS_WORKSPACE}/JobsMacEnvVarConfig"
 
-  local install_script="${JOBS_WORKSPACE}/JobsMacEnvVarConfig/install.command"
+  local install_script="${JOBS_WORKSPACE}/JobsMacEnvVarConfig/install.command/install.command"
   if [[ -f "$install_script" ]]; then
     jobs_update_run_cmd "确认 JobsMacEnvVarConfig/install.command 可执行权限" chmod +x "$install_script" || true
     warn_echo "不会执行 ${install_script}，避免 install.command 递归调用。"
   fi
 }
-
 # 封装 open_download_page 对应的独立处理逻辑。
 open_download_page() {
   local name="$1"
@@ -933,14 +883,12 @@ open_download_page() {
 
   jobs_update_run_cmd "打开 ${name} 下载 / 更新页" open "$url" || true
 }
-
 # 封装 jobs_update_manual_download_pages 对应的独立处理逻辑。
 jobs_update_manual_download_pages() {
   open_download_page "Visual Studio Code" "https://code.visualstudio.com/"
   open_download_page "Android Studio" "https://developer.android.com/studio?hl=zh-cn"
   open_download_page "Python" "https://www.python.org/downloads/"
 }
-
 # ---------- 命令实现 ----------
 update() {
   local ran_count=0
@@ -1050,19 +998,43 @@ update() {
   info_echo "日志文件位置：${LOG_FILE}"
   print_divider
 }
-
 # ---------- 主流程统一收口 ----------
 jobs_update_main() {
+  # 展示脚本说明并等待用户确认影响范围。
   jobs_update_show_readme_and_wait
+  # 执行更新或升级步骤，确保该动作不会被默认触发。
   update "$@"
 }
-
+# 打印脚本内置自述，并按运行入口决定是否等待用户确认。
+show_script_intro_and_wait() {
+  print -r -- '============================== 脚本内置自述 =============================='
+  print -r -- '脚本名称：update.command'
+  print -r -- '核心用途：执行“update”对应的自动化任务。'
+  print -r -- '影响范围：可能修改当前项目、用户环境或脚本指定的目标。'
+  print -r -- '取消方式：确认前按 Ctrl+C 终止，不会继续执行后续业务。'
+  print -r -- '============================================================================'
+  if [[ ! -t 0 ]]; then
+    print -u2 -r -- '当前没有可交互输入，请在终端中重新运行。'
+    return 1
+  fi
+  read -r "?👉 已了解脚本用途与影响，按回车继续；按 Ctrl+C 取消：" _
+}
 # 统一收口脚本入口，仅委托已经拆分完成的业务流程。
 main() {
-  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  # 展示脚本内置自述，并按运行入口完成防误触确认。
+  show_script_intro_and_wait
+  # 执行 jobs_update_main 对应的核心业务步骤。
   jobs_update_main "$@"
 }
-
-if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
-  main "$@"
-fi
+# 初始化脚本运行环境，并集中承载原有的顶层执行逻辑。
+initialize_script_module() {
+  set -u
+  set -o pipefail
+  setopt NO_NOMATCH
+  : > "$LOG_FILE"
+  if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+    main "$@"
+  fi
+}
+# 加载模块时统一执行必要的初始化和入口分派。
+initialize_script_module "$@"

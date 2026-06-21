@@ -1,8 +1,10 @@
 #!/bin/zsh
+# 脚本自述：
+# - 脚本名称：install.command
+# - 核心用途：执行“install”对应的自动化任务。
+# - 影响范围：可能修改当前项目、用户环境或脚本指定的目标。
+# - 运行提示：运行后会先打印内置自述；终端模式按回车确认后继续，按 Ctrl+C 可取消。
 
-set -u
-set -o pipefail
-setopt NO_NOMATCH
 
 # ============================================================
 # install.command - macOS 新系统配置（fzf 菜单版）
@@ -77,7 +79,6 @@ readonly -a BREW_FORMULAE=(
   dufs
   git-filter-repo
 )
-
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
@@ -106,12 +107,10 @@ gray_echo()      { log "\033[0;90m$1\033[0m"; }
 bold_echo()      { log "\033[1m$1\033[0m"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }
-
 # ---------- 通用基础函数 ----------
 print_divider() {
   gray_echo "------------------------------------------------------------------------"
 }
-
 # 封装 pause_for_enter 对应的独立处理逻辑。
 pause_for_enter() {
   local prompt="${1:-👉 请按回车继续，或按 Ctrl+C 取消...}"
@@ -121,7 +120,6 @@ pause_for_enter() {
     read "answer?${prompt}"
   fi
 }
-
 # 收集并校验用户输入，决定后续执行路径。
 confirm_execute() {
   local title="$1"
@@ -146,7 +144,6 @@ confirm_execute() {
   warn_echo "已跳过：${title}"
   return 1
 }
-
 # 收集并校验用户输入，决定后续执行路径。
 confirm_existing_third_party_upgrade_once() {
   if [[ "${THIRD_PARTY_EXISTING_UPGRADE_CONFIRMED}" == "1" ]]; then
@@ -167,7 +164,6 @@ confirm_existing_third_party_upgrade_once() {
   warn_echo "本轮已存在第三方依赖将统一跳过升级，后续不再逐项询问。"
   return 1
 }
-
 # 封装 progress_step 对应的独立处理逻辑。
 progress_step() {
   local step_name="$1"
@@ -182,7 +178,6 @@ progress_step() {
 
   print_divider
 }
-
 # 执行已经拆分完成的独立业务步骤。
 run_cmd() {
   local desc="$1"
@@ -202,7 +197,6 @@ run_cmd() {
 
   return $exit_code
 }
-
 # 执行已经拆分完成的独立业务步骤。
 run_sh() {
   local desc="$1"
@@ -222,13 +216,11 @@ run_sh() {
 
   return $exit_code
 }
-
 # 封装 require_command 对应的独立处理逻辑。
 require_command() {
   local cmd="$1"
   command -v "${cmd}" >/dev/null 2>&1
 }
-
 # 解析并返回后续流程需要的目标信息。
 get_node_major_version() {
   if ! require_command node; then
@@ -240,7 +232,6 @@ get_node_major_version() {
   version="$(node --version 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
   [[ -n "${version}" ]] && echo "${version}" || echo "0"
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_node_for_opencli() {
   local major=""
@@ -267,18 +258,15 @@ ensure_node_for_opencli() {
   error_echo "Node.js 仍低于 21，跳过 OpenCLI 安装。请先升级 Node.js 后重试。"
   return 1
 }
-
 # 解析并返回后续流程需要的目标信息。
 get_cpu_arch() {
   [[ "$(uname -m)" == "arm64" ]] && echo "arm64" || echo "x86_64"
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 check_url_access() {
   local url="$1"
   curl -I -L -s --connect-timeout 8 --max-time 15 "${url}" >/dev/null 2>&1
 }
-
 # 封装 append_once 对应的独立处理逻辑。
 append_once() {
   local line="$1"
@@ -294,7 +282,6 @@ append_once() {
   echo "" >> "$file"
   echo "$line" >> "$file"
 }
-
 # 封装 append_comment_once 对应的独立处理逻辑。
 append_comment_once() {
   local comment="$1"
@@ -310,7 +297,6 @@ append_comment_once() {
   echo "" >> "$file"
   echo "$comment" >> "$file"
 }
-
 # 解析并返回后续流程需要的目标信息。
 find_brew_bin() {
   if command -v brew >/dev/null 2>&1; then
@@ -328,7 +314,6 @@ find_brew_bin() {
 
   return 1
 }
-
 # 解析并返回后续流程需要的目标信息。
 find_fzf_bin() {
   if command -v fzf >/dev/null 2>&1; then
@@ -350,7 +335,6 @@ find_fzf_bin() {
 
   return 1
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_raw_github_access_or_exit() {
   info_echo "开始检查 raw.githubusercontent.com 网络连通性..."
@@ -365,7 +349,6 @@ ensure_raw_github_access_or_exit() {
   pause_for_enter "👉 网络未就绪。请按回车结束脚本..."
   exit 1
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_github_access_or_exit() {
   info_echo "开始检查 GitHub 网络连通性..."
@@ -380,7 +363,6 @@ ensure_github_access_or_exit() {
   pause_for_enter "👉 GitHub 不可访问。请按回车结束脚本..."
   exit 1
 }
-
 # 执行对应的环境配置或同步处理。
 setup_brew_shellenv() {
   local brew_bin="$1"
@@ -401,7 +383,6 @@ setup_brew_shellenv() {
   eval "$(${brew_bin} shellenv)"
   hash -r 2>/dev/null || true
 }
-
 # 执行对应的环境配置或同步处理。
 setup_fzf_shellenv() {
   if ! require_command brew; then
@@ -418,7 +399,6 @@ setup_fzf_shellenv() {
     success_echo "已确认 fzf shell 配置：${HOME}/.zshrc"
   fi
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_jenv_init() {
   append_comment_once "# jenv" "${HOME}/.zshrc"
@@ -426,14 +406,12 @@ ensure_jenv_init() {
   append_once 'eval "$(jenv init -)"' "${HOME}/.zshrc"
   success_echo "已确认 jenv 初始化配置：${HOME}/.zshrc"
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_rbenv_init() {
   append_comment_once "# rbenv" "${HOME}/.zshrc"
   append_once 'eval "$(rbenv init - zsh)"' "${HOME}/.zshrc"
   success_echo "已确认 rbenv 初始化配置：${HOME}/.zshrc"
 }
-
 # 封装 post_openjdk_hint 对应的独立处理逻辑。
 post_openjdk_hint() {
   warm_echo "openjdk 安装 / 更新完成后，如需让系统 java 指向 Homebrew openjdk，可按需执行："
@@ -441,7 +419,6 @@ post_openjdk_hint() {
   warm_echo "如果使用 jenv 管理 Java，推荐执行："
   warm_echo '  jenv add "$(brew --prefix)/opt/openjdk/libexec/openjdk.jdk/Contents/Home"'
 }
-
 # ---------- 内置自述 ----------
 jobs_install_show_readme_and_wait() {
   clear 2>/dev/null || true
@@ -530,7 +507,6 @@ EOFREADME
 
   pause_for_enter "👉 请确认没有误操作。按回车进入菜单准备流程，或按 Ctrl+C 取消..."
 }
-
 # ---------- 菜单前置依赖：Homebrew / fzf ----------
 install_homebrew_without_menu() {
   ensure_raw_github_access_or_exit
@@ -554,7 +530,6 @@ install_homebrew_without_menu() {
     exit 1
   fi
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_brew_for_menu() {
   local brew_bin=""
@@ -566,7 +541,6 @@ ensure_brew_for_menu() {
 
   install_homebrew_without_menu
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_fzf_for_menu() {
   local fzf_bin=""
@@ -600,7 +574,6 @@ ensure_fzf_for_menu() {
   pause_for_enter "👉 请按回车退出..."
   exit 1
 }
-
 # 封装 prepare_menu_runtime 对应的独立处理逻辑。
 prepare_menu_runtime() {
   highlight_echo "准备 fzf 菜单运行环境"
@@ -609,7 +582,6 @@ prepare_menu_runtime() {
   ensure_brew_for_menu
   ensure_fzf_for_menu
 }
-
 # ---------- Homebrew 自检 ----------
 require_brew_or_skip() {
   local brew_bin=""
@@ -622,19 +594,16 @@ require_brew_or_skip() {
   warn_echo "brew 不存在，当前部件无法继续。请先选择 Homebrew。"
   return 1
 }
-
 # 封装 brew_formula_installed 对应的独立处理逻辑。
 brew_formula_installed() {
   local pkg="$1"
   brew list --formula --versions "${pkg}" >/dev/null 2>&1
 }
-
 # 封装 brew_cask_installed 对应的独立处理逻辑。
 brew_cask_installed() {
   local pkg="$1"
   brew list --cask --versions "${pkg}" >/dev/null 2>&1
 }
-
 # ---------- 部件：Xcode Command Line Tools ----------
 component_clt() {
   progress_step "Xcode Command Line Tools"
@@ -661,7 +630,6 @@ component_clt() {
     warn_echo "如果系统弹出图形安装窗口，请完成安装后再次执行本脚本。"
   fi
 }
-
 # ---------- 部件：Xcode iOS 平台组件 ----------
 component_xcode_ios_platform() {
   progress_step "Xcode iOS 平台组件"
@@ -687,7 +655,6 @@ component_xcode_ios_platform() {
     run_cmd "下载 / 更新 iOS 模拟器平台" xcodebuild -downloadPlatform iOS -verbose
   fi
 }
-
 # ---------- 部件：Oh My Zsh ----------
 component_oh_my_zsh() {
   progress_step "Oh My Zsh"
@@ -715,7 +682,6 @@ component_oh_my_zsh() {
     warn_echo "Oh My Zsh 官方安装流程可能有交互输出，这是正常现象。"
   fi
 }
-
 # ---------- 部件：Homebrew ----------
 component_homebrew() {
   progress_step "Homebrew"
@@ -741,7 +707,6 @@ component_homebrew() {
     install_homebrew_without_menu
   fi
 }
-
 # ---------- 部件：Rosetta 2 ----------
 component_rosetta() {
   progress_step "Rosetta 2"
@@ -760,7 +725,6 @@ component_rosetta() {
     run_cmd "安装 Rosetta 2" /usr/sbin/softwareupdate --install-rosetta --agree-to-license
   fi
 }
-
 # ---------- 部件：brew formula ----------
 brew_formula_install_arg() {
   local formula_name="$1"
@@ -770,7 +734,6 @@ brew_formula_install_arg() {
     *) echo "${formula_name}" ;;
   esac
 }
-
 # 封装 brew_formula_tap_name 对应的独立处理逻辑。
 brew_formula_tap_name() {
   local formula_name="$1"
@@ -781,7 +744,6 @@ brew_formula_tap_name() {
     *) echo "" ;;
   esac
 }
-
 # 封装 brew_formula_after_install 对应的独立处理逻辑。
 brew_formula_after_install() {
   local formula_name="$1"
@@ -794,7 +756,6 @@ brew_formula_after_install() {
     *) return 0 ;;
   esac
 }
-
 # 封装 component_brew_formula 对应的独立处理逻辑。
 component_brew_formula() {
   local formula_name="$1"
@@ -838,7 +799,6 @@ component_brew_formula() {
 
   brew_formula_after_install "${formula_name}"
 }
-
 # ---------- 部件：brew cask ----------
 brew_cask_tap_name() {
   local cask_name="$1"
@@ -848,7 +808,6 @@ brew_cask_tap_name() {
     *) echo "" ;;
   esac
 }
-
 # 封装 brew_cask_after_install 对应的独立处理逻辑。
 brew_cask_after_install() {
   local cask_name="$1"
@@ -866,7 +825,6 @@ brew_cask_after_install() {
     *) return 0 ;;
   esac
 }
-
 # 封装 component_brew_cask 对应的独立处理逻辑。
 component_brew_cask() {
   local cask_name="$1"
@@ -916,7 +874,6 @@ component_brew_cask() {
     warn_echo "brew cask：${cask_name} 安装 / 更新失败，跳过后置处理。"
   fi
 }
-
 # ---------- 部件：npm quicktype ----------
 component_npm_quicktype() {
   progress_step "npm 全局包：quicktype"
@@ -948,7 +905,6 @@ component_npm_quicktype() {
     run_cmd "安装 npm 全局包 quicktype" sudo npm install -g quicktype
   fi
 }
-
 # ---------- 部件：npm OpenCLI ----------
 component_npm_opencli() {
   progress_step "npm 全局包：OpenCLI"
@@ -991,8 +947,6 @@ component_npm_opencli() {
     warn_echo "npm 安装完成后当前 PATH 仍找不到 opencli，建议重新打开终端或检查 npm global bin。"
   fi
 }
-
-
 # ---------- 部件：npm CodeGraph ----------
 component_npm_codegraph() {
   progress_step "npm 全局包：CodeGraph"
@@ -1031,7 +985,6 @@ component_npm_codegraph() {
     warn_echo "npm 安装完成后当前 PATH 仍找不到 codegraph，建议重新打开终端或检查 npm global bin。"
   fi
 }
-
 # ---------- 部件：gem cocoapods ----------
 component_gem_cocoapods() {
   progress_step "gem 包：cocoapods"
@@ -1063,7 +1016,6 @@ component_gem_cocoapods() {
     run_cmd "安装 gem 包 cocoapods" sudo gem install cocoapods
   fi
 }
-
 # ---------- 部件：Git LFS 初始化 ----------
 component_git_lfs_init() {
   progress_step "Git LFS 初始化"
@@ -1084,7 +1036,6 @@ component_git_lfs_init() {
     run_cmd "配置 Git http.postBuffer=524288000" git config --global http.postBuffer 524288000
   fi
 }
-
 # ---------- 部件：JobsKits 仓库 ----------
 clone_or_update_repo() {
   local repo_name="$1"
@@ -1106,7 +1057,6 @@ clone_or_update_repo() {
     run_sh "克隆仓库：${repo_name}" "git clone '${repo_url}' '${target_dir}'"
   fi
 }
-
 # 封装 component_jobs_repos 对应的独立处理逻辑。
 component_jobs_repos() {
   progress_step "JobsKits 仓库"
@@ -1124,7 +1074,7 @@ component_jobs_repos() {
   clone_or_update_repo "JobsSoftware.MacOS" "${JOBS_SOFTWARE_REPO}" "${software_dir}"
   clone_or_update_repo "JobsMacEnvVarConfig" "${JOBS_ENV_REPO}" "${env_dir}"
 
-  local install_script="${env_dir}/install.command"
+  local install_script="${env_dir}/install.command/install.command"
   if [[ -f "${install_script}" ]]; then
     if confirm_execute "是否为 JobsMacEnvVarConfig/install.command 添加可执行权限？" "执行"; then
       run_cmd "添加可执行权限：JobsMacEnvVarConfig/install.command" chmod +x "${install_script}"
@@ -1132,7 +1082,6 @@ component_jobs_repos() {
     warn_echo "不会执行 ${install_script}，避免 install.command 递归调用自身。"
   fi
 }
-
 # ---------- 部件：手动下载页面 ----------
 open_download_page() {
   local name="$1"
@@ -1147,7 +1096,6 @@ open_download_page() {
     run_cmd "打开 ${name} 下载页" open "${url}"
   fi
 }
-
 # 封装 component_manual_download_pages 对应的独立处理逻辑。
 component_manual_download_pages() {
   progress_step "手动下载页面"
@@ -1157,7 +1105,6 @@ component_manual_download_pages() {
   open_download_page "Python" "https://www.python.org/downloads/"
   open_download_page "Codex++" "https://github.com/BigPizzaV3/CodexPlusPlus"
 }
-
 # ---------- 菜单 ----------
 get_menu_items() {
   MENU_ITEMS=(
@@ -1188,7 +1135,6 @@ get_menu_items() {
     "手动下载页面"
   )
 }
-
 # 收集并校验用户输入，决定后续执行路径。
 choose_menu_items() {
   local fzf_bin=""
@@ -1234,7 +1180,6 @@ choose_menu_items() {
 
   return 0
 }
-
 # 执行已经拆分完成的独立业务步骤。
 run_selected_item() {
   local item="$1"
@@ -1257,7 +1202,6 @@ run_selected_item() {
     *) warn_echo "未知菜单项，已跳过：${item}" ;;
   esac
 }
-
 # ---------- 收尾 ----------
 finish_summary() {
   echo ""
@@ -1268,7 +1212,6 @@ finish_summary() {
   warm_echo "重点留意：CLT / Xcode / Oh My Zsh / Homebrew / GitHub 网络 / sudo 密码相关步骤。"
   print_divider
 }
-
 # ---------- 主流程 ----------
 install() {
   prepare_menu_runtime
@@ -1287,23 +1230,48 @@ install() {
 
   finish_summary
 }
-
 # 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 jobs_install_main() {
+  # 执行当前流程中的独立业务步骤：处理当前语句。
   : > "${LOG_FILE}"
 
+  # 展示脚本说明并等待用户确认影响范围。
   jobs_install_show_readme_and_wait
+  # 执行安装步骤，并保留命令失败信息供后续排查。
   install "$@"
 
+  # 执行当前流程中的独立业务步骤：pause_for_enter。
   pause_for_enter "👉 全部流程已执行完成。请按回车退出..."
 }
-
+# 打印脚本内置自述，并按运行入口决定是否等待用户确认。
+show_script_intro_and_wait() {
+  print -r -- '============================== 脚本内置自述 =============================='
+  print -r -- '脚本名称：install.command'
+  print -r -- '核心用途：执行“install”对应的自动化任务。'
+  print -r -- '影响范围：可能修改当前项目、用户环境或脚本指定的目标。'
+  print -r -- '取消方式：确认前按 Ctrl+C 终止，不会继续执行后续业务。'
+  print -r -- '============================================================================'
+  if [[ ! -t 0 ]]; then
+    print -u2 -r -- '当前没有可交互输入，请在终端中重新运行。'
+    return 1
+  fi
+  read -r "?👉 已了解脚本用途与影响，按回车继续；按 Ctrl+C 取消：" _
+}
 # 统一收口脚本入口，仅委托已经拆分完成的业务流程。
 main() {
-  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  # 展示脚本内置自述，并按运行入口完成防误触确认。
+  show_script_intro_and_wait
+  # 执行 jobs_install_main 对应的核心业务步骤。
   jobs_install_main "$@"
 }
-
-if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
-  main "$@"
-fi
+# 初始化脚本运行环境，并集中承载原有的顶层执行逻辑。
+initialize_script_module() {
+  set -u
+  set -o pipefail
+  setopt NO_NOMATCH
+  if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+    main "$@"
+  fi
+}
+# 加载模块时统一执行必要的初始化和入口分派。
+initialize_script_module "$@"

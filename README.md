@@ -22,7 +22,9 @@
 
 ```text
 .
-├── install.command                 # 主安装 / 同步脚本
+├── install.command/
+│   ├── install.command             # 主安装 / 同步脚本
+│   └── README.md                   # 安装入口说明
 ├── sync_env.txt                    # 声明式环境配置
 ├── icon.png                        # 项目图标
 ├── Sys/
@@ -105,8 +107,8 @@
 进入项目目录后执行：
 
 ```bash
-chmod +x install.command
-./install.command
+chmod +x install.command/install.command
+./install.command/install.command
 ```
 
 也可以在 **Finder** 中双击 `install.command` 执行。
@@ -983,7 +985,7 @@ JOBS_DART_CLI_COMPLETION_FILE="/Users/jobs/.dart-cli-completion/zsh-config.zsh"
 修改项目里的配置后，重新执行：
 
 ```bash
-./install.command
+./install.command/install.command
 ```
 
 脚本会把配置同步到：
@@ -1041,14 +1043,14 @@ Git 路径显示修正     -> zsh/custom/git_behavior.zsh
 请直接执行安装脚本，不要在路径前面多输入字符：
 
 ```zsh
-/Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfig/install.command
+/Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfigs/install.command/install.command
 ```
 
 如果提示权限不足，先执行：
 
 ```zsh
-chmod +x /Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfig/install.command
-/Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfig/install.command
+chmod +x /Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfigs/install.command/install.command
+/Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfigs/install.command/install.command
 ```
 
 安装完成后重新打开终端，或者执行：
@@ -1073,9 +1075,9 @@ source ~/.zshrc
 新版统一使用 `~/.JobsMacEnv/Scripts` 作为模块目录，`zsh/custom/local.zsh` 只负责加载模块。模块标准路径为 `Scripts/<脚本全名>/<脚本全名>`。安装脚本会在同步完成后执行模块自检；如果打开终端出现模块缺失提示，请重新执行：
 
 ```zsh
-cd /Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfig
-chmod +x install.command
-./install.command
+cd /Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfigs
+chmod +x install.command/install.command
+./install.command/install.command
 source ~/.zshrc
 ```
 

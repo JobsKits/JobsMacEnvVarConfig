@@ -1,5 +1,13 @@
 # code.command
 
+![Jobs出品，必属精品](https://picsum.photos/1500/400)
+
+[toc]
+
+---
+
+## 🔥 <font id=前言>前言</font>
+
 让终端可以直接使用 VS Code 的 `code` 命令，例如：
 
 ```zsh

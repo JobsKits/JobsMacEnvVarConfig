@@ -1,4 +1,9 @@
 #!/bin/zsh
+# 脚本自述：
+# - 脚本名称：simios.command
+# - 核心用途：执行“simios”对应的移动端项目自动化任务。
+# - 影响范围：可能修改项目依赖、生成文件、构建产物或开发工具配置。
+# - 运行提示：运行后会先打印内置自述；终端模式按回车确认后继续，按 Ctrl+C 可取消。
 # JobsMacEnv function module / executable script.
 # 作用：检测完整 Xcode 环境，然后下载 / 补齐 iOS Simulator Runtime。
 
@@ -7,46 +12,38 @@
 # - 作为 ~/.local/bin/simios 或 Scripts/simios.command/simios.command 直接执行时，自动进入主流程。
 
 _jobs_simios_module_file="${(%):-%N}"
-
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
 _jobs_simios_cecho() {
   local color="$1"
   shift
   printf "%b%s%b\n" "$color" "$*" "${JOBS_SIMIOS_C_RESET:-\033[0m}"
 }
-
 # 封装 _jobs_simios_line 对应的独立处理逻辑。
 _jobs_simios_line() {
   _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "────────────────────────────────────────"
 }
-
 # 封装 _jobs_simios_section 对应的独立处理逻辑。
 _jobs_simios_section() {
   echo ""
   _jobs_simios_cecho "$JOBS_SIMIOS_C_BOLD$JOBS_SIMIOS_C_CYAN" "▶ $1"
   _jobs_simios_line
 }
-
 # 封装 _jobs_simios_log 对应的独立处理逻辑。
 _jobs_simios_log() {
   _jobs_simios_cecho "$JOBS_SIMIOS_C_BLUE" "[simios] $1"
 }
-
 # 封装 _jobs_simios_ok 对应的独立处理逻辑。
 _jobs_simios_ok() {
   _jobs_simios_cecho "$JOBS_SIMIOS_C_GREEN" "[OK] $1"
 }
-
 # 封装 _jobs_simios_warn 对应的独立处理逻辑。
 _jobs_simios_warn() {
   _jobs_simios_cecho "$JOBS_SIMIOS_C_YELLOW" "[WARN] $1"
 }
-
 # 封装 _jobs_simios_err 对应的独立处理逻辑。
 _jobs_simios_err() {
   _jobs_simios_cecho "$JOBS_SIMIOS_C_RED" "[ERR] $1"
 }
-
 # 封装 _jobs_simios_pause_enter 对应的独立处理逻辑。
 _jobs_simios_pause_enter() {
   local message="${1:-按回车继续...}"
@@ -54,7 +51,6 @@ _jobs_simios_pause_enter() {
   local _input=""
   IFS= read -r _input
 }
-
 # 封装 _jobs_simios_ask_run 对应的独立处理逻辑。
 _jobs_simios_ask_run() {
   local message="$1"
@@ -63,7 +59,6 @@ _jobs_simios_ask_run() {
   IFS= read -r input
   [[ -n "$input" ]]
 }
-
 # 封装 _jobs_simios_run_root 对应的独立处理逻辑。
 _jobs_simios_run_root() {
   if [[ "$(id -u)" -eq 0 ]]; then
@@ -72,7 +67,6 @@ _jobs_simios_run_root() {
     sudo "$@"
   fi
 }
-
 # 展示脚本用途和影响范围，并在执行前等待用户确认。
 _jobs_simios_show_readme_and_wait() {
   clear || true
@@ -100,7 +94,6 @@ _jobs_simios_show_readme_and_wait() {
   echo ""
   _jobs_simios_pause_enter "按回车开始体检..."
 }
-
 # 封装 _jobs_simios_require_macos 对应的独立处理逻辑。
 _jobs_simios_require_macos() {
   _jobs_simios_section "系统检测"
@@ -112,7 +105,6 @@ _jobs_simios_require_macos() {
 
   _jobs_simios_ok "当前系统是 macOS。"
 }
-
 # 封装 _jobs_simios_collect_xcode_apps 对应的独立处理逻辑。
 _jobs_simios_collect_xcode_apps() {
   local -a found
@@ -133,7 +125,6 @@ _jobs_simios_collect_xcode_apps() {
     printf "%s\n" "${found[@]}" | awk '!seen[$0]++'
   fi
 }
-
 # 封装 _jobs_simios_choose_xcode_app 对应的独立处理逻辑。
 _jobs_simios_choose_xcode_app() {
   _jobs_simios_section "Xcode 检测"
@@ -167,7 +158,6 @@ _jobs_simios_choose_xcode_app() {
   JOBS_SIMIOS_XCODE_APP="$first_app"
   _jobs_simios_ok "检测到 Xcode：$JOBS_SIMIOS_XCODE_APP"
 }
-
 # 封装 _jobs_simios_maybe_check_xcode_update 对应的独立处理逻辑。
 _jobs_simios_maybe_check_xcode_update() {
   echo ""
@@ -184,7 +174,6 @@ _jobs_simios_maybe_check_xcode_update() {
     _jobs_simios_log "跳过 Xcode 升级检查。"
   fi
 }
-
 # 封装 _jobs_simios_prepare_developer_dir 对应的独立处理逻辑。
 _jobs_simios_prepare_developer_dir() {
   _jobs_simios_section "xcode-select / DEVELOPER_DIR 检测"
@@ -217,7 +206,6 @@ _jobs_simios_prepare_developer_dir() {
     fi
   fi
 }
-
 # 封装 _jobs_simios_show_xcode_version 对应的独立处理逻辑。
 _jobs_simios_show_xcode_version() {
   _jobs_simios_section "Xcode 版本"
@@ -226,7 +214,6 @@ _jobs_simios_show_xcode_version() {
     return 1
   }
 }
-
 # 封装 _jobs_simios_check_xcodebuild_support 对应的独立处理逻辑。
 _jobs_simios_check_xcodebuild_support() {
   _jobs_simios_section "xcodebuild 能力检测"
@@ -251,7 +238,6 @@ _jobs_simios_check_xcodebuild_support() {
 
   _jobs_simios_ok "verbose 参数使用：$JOBS_SIMIOS_VERBOSE_ARG"
 }
-
 # 封装 _jobs_simios_ensure_first_launch 对应的独立处理逻辑。
 _jobs_simios_ensure_first_launch() {
   _jobs_simios_section "Xcode 首次启动组件检测"
@@ -279,7 +265,6 @@ _jobs_simios_ensure_first_launch() {
     fi
   fi
 }
-
 # 封装 _jobs_simios_ensure_license 对应的独立处理逻辑。
 _jobs_simios_ensure_license() {
   _jobs_simios_section "Xcode License 检测"
@@ -301,7 +286,6 @@ _jobs_simios_ensure_license() {
     return 1
   fi
 }
-
 # 封装 _jobs_simios_check_disk_space 对应的独立处理逻辑。
 _jobs_simios_check_disk_space() {
   _jobs_simios_section "磁盘空间检测"
@@ -319,7 +303,6 @@ _jobs_simios_check_disk_space() {
     _jobs_simios_warn "当前可用空间约 ${free_gb}GB，iOS Simulator Runtime 下载很可能失败。"
   fi
 }
-
 # 封装 _jobs_simios_check_network 对应的独立处理逻辑。
 _jobs_simios_check_network() {
   _jobs_simios_section "网络连通检测"
@@ -336,7 +319,6 @@ _jobs_simios_check_network() {
     _jobs_simios_warn "这不是本地环境硬缺失，脚本不会自动改网络设置。"
   fi
 }
-
 # 封装 _jobs_simios_list_ios_runtimes 对应的独立处理逻辑。
 _jobs_simios_list_ios_runtimes() {
   if DEVELOPER_DIR="$JOBS_SIMIOS_DEVELOPER_DIR_SELECTED" xcrun simctl runtime list >/dev/null 2>&1; then
@@ -345,7 +327,6 @@ _jobs_simios_list_ios_runtimes() {
     DEVELOPER_DIR="$JOBS_SIMIOS_DEVELOPER_DIR_SELECTED" xcrun simctl list runtimes 2>/dev/null | grep -i "iOS" || true
   fi
 }
-
 # 封装 _jobs_simios_show_existing_runtimes 对应的独立处理逻辑。
 _jobs_simios_show_existing_runtimes() {
   _jobs_simios_section "现有 iOS Runtime"
@@ -360,7 +341,6 @@ _jobs_simios_show_existing_runtimes() {
     _jobs_simios_warn "未检测到 iOS Runtime，稍后建议执行下载。"
   fi
 }
-
 # 封装 _jobs_simios_run_download 对应的独立处理逻辑。
 _jobs_simios_run_download() {
   _jobs_simios_section "下载 / 补齐 iOS Simulator Runtime"
@@ -393,7 +373,6 @@ _jobs_simios_run_download() {
 
   _jobs_simios_ok "iOS Simulator Runtime 下载 / 补齐命令执行完成。"
 }
-
 # 封装 _jobs_simios_final_report 对应的独立处理逻辑。
 _jobs_simios_final_report() {
   _jobs_simios_section "完成报告"
@@ -406,48 +385,80 @@ _jobs_simios_final_report() {
   echo ""
   _jobs_simios_cecho "$JOBS_SIMIOS_C_GRAY" "如果 Xcode UI 里暂时看不到新 runtime，重启 Xcode 后再看。"
 }
-
 # 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 _jobs_simios_main() {
+  # 执行当前流程中的独立业务步骤：emulate。
   emulate -L zsh
+  # 执行当前流程中的独立业务步骤：set。
   set -e
+  # 执行当前流程中的独立业务步骤：set。
   set -o pipefail
+  # 执行当前流程中的独立业务步骤：setopt。
   setopt NULL_GLOB
 
+  # 初始化当前流程后续步骤需要使用的变量。
   JOBS_SIMIOS_C_RESET='\033[0m'
+  # 初始化当前流程后续步骤需要使用的变量。
   JOBS_SIMIOS_C_BOLD='\033[1m'
+  # 初始化当前流程后续步骤需要使用的变量。
   JOBS_SIMIOS_C_BLUE='\033[34m'
+  # 初始化当前流程后续步骤需要使用的变量。
   JOBS_SIMIOS_C_CYAN='\033[36m'
+  # 初始化当前流程后续步骤需要使用的变量。
   JOBS_SIMIOS_C_GREEN='\033[32m'
+  # 初始化当前流程后续步骤需要使用的变量。
   JOBS_SIMIOS_C_YELLOW='\033[33m'
+  # 初始化当前流程后续步骤需要使用的变量。
   JOBS_SIMIOS_C_MAGENTA='\033[35m'
+  # 初始化当前流程后续步骤需要使用的变量。
   JOBS_SIMIOS_C_RED='\033[31m'
+  # 初始化当前流程后续步骤需要使用的变量。
   JOBS_SIMIOS_C_GRAY='\033[90m'
 
+  # 初始化当前流程后续步骤需要使用的变量。
   JOBS_SIMIOS_XCODE_APP=""
+  # 初始化当前流程后续步骤需要使用的变量。
   JOBS_SIMIOS_DEVELOPER_DIR_SELECTED=""
+  # 初始化当前流程后续步骤需要使用的变量。
   JOBS_SIMIOS_XCODEBUILD_BIN=""
+  # 初始化当前流程后续步骤需要使用的变量。
   JOBS_SIMIOS_VERBOSE_ARG="-verbose"
+  # 初始化当前流程后续步骤需要使用的变量。
   JOBS_SIMIOS_LOG_DIR="${HOME}/Library/Logs/simios"
+  # 初始化当前流程后续步骤需要使用的变量。
   JOBS_SIMIOS_LOG_FILE="${JOBS_SIMIOS_LOG_DIR}/simios-$(date '+%Y%m%d-%H%M%S').log"
 
+  # 展示脚本说明并等待用户确认影响范围。
   _jobs_simios_show_readme_and_wait
+  # 检查当前步骤所需的环境、路径或输入条件。
   _jobs_simios_require_macos
+  # 执行当前流程中的独立业务步骤：_jobs_simios_choose_xcode_app。
   _jobs_simios_choose_xcode_app
+  # 检查当前步骤所需的环境、路径或输入条件。
   _jobs_simios_maybe_check_xcode_update
+  # 准备后续业务需要的配置、目录或运行上下文。
   _jobs_simios_prepare_developer_dir
+  # 执行当前流程中的独立业务步骤：_jobs_simios_show_xcode_version。
   _jobs_simios_show_xcode_version
+  # 检查当前步骤所需的环境、路径或输入条件。
   _jobs_simios_check_xcodebuild_support
+  # 检查当前步骤所需的环境、路径或输入条件。
   _jobs_simios_ensure_first_launch
+  # 检查当前步骤所需的环境、路径或输入条件。
   _jobs_simios_ensure_license
+  # 检查当前步骤所需的环境、路径或输入条件。
   _jobs_simios_check_disk_space
+  # 检查当前步骤所需的环境、路径或输入条件。
   _jobs_simios_check_network
+  # 执行当前流程中的独立业务步骤：_jobs_simios_show_existing_runtimes。
   _jobs_simios_show_existing_runtimes
+  # 执行当前流程中的独立业务步骤：_jobs_simios_run_download。
   _jobs_simios_run_download
+  # 执行当前流程中的独立业务步骤：_jobs_simios_final_report。
   _jobs_simios_final_report
+  # 执行当前流程中的独立业务步骤：_jobs_simios_pause_enter。
   _jobs_simios_pause_enter "按回车退出..."
 }
-
 # 终端入口：安装 JobsMacEnv 后可直接执行 simios
 simios() {
   _jobs_simios_main "$@"
@@ -455,17 +466,35 @@ simios() {
 
 _jobs_simios_module_file_abs="${_jobs_simios_module_file:A}"
 _jobs_simios_argv0_abs="${0:A}"
-
+# 打印脚本内置自述，并按运行入口决定是否等待用户确认。
+show_script_intro_and_wait() {
+  print -r -- '============================== 脚本内置自述 =============================='
+  print -r -- '脚本名称：simios.command'
+  print -r -- '核心用途：执行“simios”对应的自动化任务。'
+  print -r -- '影响范围：可能修改当前项目、用户环境或脚本指定的目标。'
+  print -r -- '取消方式：确认前按 Ctrl+C 终止，不会继续执行后续业务。'
+  print -r -- '============================================================================'
+  if [[ ! -t 0 ]]; then
+    print -u2 -r -- '当前没有可交互输入，请在终端中重新运行。'
+    return 1
+  fi
+  read -r "?👉 已了解脚本用途与影响，按回车继续；按 Ctrl+C 取消：" _
+}
 # 统一收口脚本入口，仅委托已经拆分完成的业务流程。
 main() {
-  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  # 展示脚本内置自述，并按运行入口完成防误触确认。
+  show_script_intro_and_wait
+  # 执行 _jobs_simios_main 对应的独立业务步骤。
   _jobs_simios_main "$@"
 }
-
-if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
-  if [[ "$_jobs_simios_module_file" == "$0" || "$_jobs_simios_module_file_abs" == "$_jobs_simios_argv0_abs" ]]; then
-    main "$@"
+# 初始化脚本运行环境，并集中承载原有的顶层执行逻辑。
+initialize_script_module() {
+  if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+    if [[ "$_jobs_simios_module_file" == "$0" || "$_jobs_simios_module_file_abs" == "$_jobs_simios_argv0_abs" ]]; then
+      main "$@"
+    fi
   fi
-fi
-
-unset _jobs_simios_module_file _jobs_simios_module_file_abs _jobs_simios_argv0_abs 2>/dev/null || true
+  unset _jobs_simios_module_file _jobs_simios_module_file_abs _jobs_simios_argv0_abs 2>/dev/null || true
+}
+# 加载模块时统一执行必要的初始化和入口分派。
+initialize_script_module "$@"

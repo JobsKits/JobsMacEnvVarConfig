@@ -1,16 +1,16 @@
 #!/bin/zsh
+# 脚本自述：
+# - 脚本名称：flat.command
+# - 核心用途：执行“flat”对应的自动化任务。
+# - 影响范围：可能修改当前项目、用户环境或脚本指定的目标。
+# - 运行提示：运行后会先打印内置自述；终端模式按回车确认后继续，按 Ctrl+C 可取消。
 
-set -u
-setopt NO_NOMATCH
 
 # ---------- 基础路径 ----------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "$0")"
 SCRIPT_BASENAME=$(basename "$0" | sed 's/\.[^.]*$//')
 LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
-
-: > "$LOG_FILE"
-
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
@@ -42,7 +42,6 @@ underline_echo() { log "\033[4m$1\033[0m"; }
 
 # ---------- 运行配置 ----------
 MODE="unquote"
-
 # ---------- 交互 ----------
 show_readme_and_wait() {
   clear
@@ -82,7 +81,6 @@ show_readme_and_wait() {
   local _answer=""
   IFS= read -r _answer
 }
-
 # 封装 pause_to_exit 对应的独立处理逻辑。
 pause_to_exit() {
   log ""
@@ -90,7 +88,6 @@ pause_to_exit() {
   local _answer=""
   IFS= read -r _answer
 }
-
 # 封装 print_usage 对应的独立处理逻辑。
 print_usage() {
   cat <<'USAGE' | tee -a "$LOG_FILE"
@@ -110,7 +107,6 @@ print_usage() {
   flat --plus "hello+world%21"
 USAGE
 }
-
 # ---------- 文本处理 ----------
 decode_text() {
   local mode="$1"
@@ -142,7 +138,6 @@ end
   error_echo "缺少 python3 或 ruby，无法解码。"
   return 1
 }
-
 # 封装 copy_clipboard 对应的独立处理逻辑。
 copy_clipboard() {
   local text="$1"
@@ -156,7 +151,6 @@ copy_clipboard() {
     warn_echo "未检测到 pbcopy，已跳过复制。"
   fi
 }
-
 # 封装 handle_one 对应的独立处理逻辑。
 handle_one() {
   local input="$1"
@@ -168,7 +162,6 @@ handle_one() {
   printf "%s\n" "$decoded" | tee -a "$LOG_FILE"
   copy_clipboard "$decoded"
 }
-
 # 封装 handle_arguments 对应的独立处理逻辑。
 handle_arguments() {
   while (( $# > 0 )); do
@@ -208,7 +201,6 @@ handle_arguments() {
 
   interactive_loop
 }
-
 # 封装 interactive_loop 对应的独立处理逻辑。
 interactive_loop() {
   local input=""
@@ -232,17 +224,37 @@ interactive_loop() {
     esac
   done
 }
-
-# ---------- 主流程统一收口 ----------
-run_main_flow() {
-  handle_arguments "$@"
-  gray_echo "日志路径：$LOG_FILE"
+# 打印脚本内置自述，并按运行入口决定是否等待用户确认。
+show_script_intro_and_wait() {
+  print -r -- '============================== 脚本内置自述 =============================='
+  print -r -- '脚本名称：flat.command'
+  print -r -- '核心用途：执行“flat”对应的自动化任务。'
+  print -r -- '影响范围：可能修改当前项目、用户环境或脚本指定的目标。'
+  print -r -- '取消方式：确认前按 Ctrl+C 终止，不会继续执行后续业务。'
+  print -r -- '============================================================================'
+  if [[ ! -t 0 ]]; then
+    print -u2 -r -- '当前没有可交互输入，请在终端中重新运行。'
+    return 1
+  fi
+  read -r "?👉 已了解脚本用途与影响，按回车继续；按 Ctrl+C 取消：" _
 }
-
-# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+# 编排脚本的高层业务流程。
+# 初始化脚本运行环境，并集中承载原有的顶层执行逻辑。
+initialize_script_runtime() {
+  set -u
+  setopt NO_NOMATCH
+  : > "$LOG_FILE"
+}
+# 编排脚本的高层业务流程。
 main() {
-  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
-  run_main_flow "$@"
+  # 展示脚本内置自述，并按运行入口完成防误触确认。
+  show_script_intro_and_wait
+  # 初始化 Shell 选项、日志、依赖和入口运行状态。
+  initialize_script_runtime
+  # 执行 handle_arguments 对应的独立业务步骤。
+  handle_arguments "$@"
+  # 执行 gray_echo 对应的独立业务步骤。
+  gray_echo "日志路径：$LOG_FILE"
 }
 
 main "$@"

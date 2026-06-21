@@ -1,7 +1,10 @@
 #!/bin/zsh
+# 脚本自述：
+# - 脚本名称：i.command
+# - 核心用途：执行“i”对应的自动化任务。
+# - 影响范围：可能修改当前项目、用户环境或脚本指定的目标。
+# - 运行提示：运行后会先打印内置自述；终端模式按回车确认后继续，按 Ctrl+C 可取消。
 
-set -o pipefail
-setopt NO_NOMATCH
 
 # ---------- 基础路径 ----------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
@@ -9,9 +12,6 @@ SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "$0")"
 SCRIPT_BASENAME=$(basename "$0" | sed 's/\.[^.]*$//')
 LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 ENV_HOME="${JOBS_MAC_ENV_HOME:-$HOME/.JobsMacEnv}"
-
-: > "$LOG_FILE"
-
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
@@ -26,7 +26,6 @@ error_echo()     { log "[1;31m✖ $1[0m"; }
 gray_echo()      { log "[0;90m$1[0m"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "[1m$1[0m"; }
-
 # 展示脚本用途和影响范围，并在执行前等待用户确认。
 jobs_i_show_readme_and_wait() {
   clear 2>/dev/null || true
@@ -62,7 +61,6 @@ EOFREADME
     IFS= read -r _answer
   fi
 }
-
 # 封装 jobs_i_source_lib 对应的独立处理逻辑。
 jobs_i_source_lib() {
   local lib_name="$1"
@@ -83,26 +81,47 @@ jobs_i_source_lib() {
   error_echo "请重新执行 JobsMacEnv 安装脚本。"
   return 1
 }
-
-jobs_i_source_lib "jobs_session_lib.zsh" || { return 1 2>/dev/null || exit 1; }
-
 # 封装 i 对应的独立处理逻辑。
 i() {
   jobs_session_i_impl "$@"
 }
-
 # 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 jobs_i_main() {
+  # 展示脚本说明并等待用户确认影响范围。
   jobs_i_show_readme_and_wait
+  # 执行当前流程中的独立业务步骤：i。
   i "$@"
 }
-
+# 打印脚本内置自述，并按运行入口决定是否等待用户确认。
+show_script_intro_and_wait() {
+  print -r -- '============================== 脚本内置自述 =============================='
+  print -r -- '脚本名称：i.command'
+  print -r -- '核心用途：执行“i”对应的自动化任务。'
+  print -r -- '影响范围：可能修改当前项目、用户环境或脚本指定的目标。'
+  print -r -- '取消方式：确认前按 Ctrl+C 终止，不会继续执行后续业务。'
+  print -r -- '============================================================================'
+  if [[ ! -t 0 ]]; then
+    print -u2 -r -- '当前没有可交互输入，请在终端中重新运行。'
+    return 1
+  fi
+  read -r "?👉 已了解脚本用途与影响，按回车继续；按 Ctrl+C 取消：" _
+}
 # 统一收口脚本入口，仅委托已经拆分完成的业务流程。
 main() {
-  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  # 展示脚本内置自述，并按运行入口完成防误触确认。
+  show_script_intro_and_wait
+  # 执行 jobs_i_main 对应的独立业务步骤。
   jobs_i_main "$@"
 }
-
-if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
-  main "$@"
-fi
+# 初始化脚本运行环境，并集中承载原有的顶层执行逻辑。
+initialize_script_module() {
+  set -o pipefail
+  setopt NO_NOMATCH
+  : > "$LOG_FILE"
+  jobs_i_source_lib "jobs_session_lib.zsh" || { return 1 2>/dev/null || exit 1; }
+  if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+    main "$@"
+  fi
+}
+# 加载模块时统一执行必要的初始化和入口分派。
+initialize_script_module "$@"

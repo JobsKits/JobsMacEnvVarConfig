@@ -1,7 +1,10 @@
 #!/bin/zsh
+# 脚本自述：
+# - 脚本名称：list.command
+# - 核心用途：执行“list”对应的自动化任务。
+# - 影响范围：可能修改当前项目、用户环境或脚本指定的目标。
+# - 运行提示：运行后会先打印内置自述；终端模式按回车确认后继续，按 Ctrl+C 可取消。
 
-set -o pipefail
-setopt NO_NOMATCH
 
 # ---------- 基础路径 ----------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
@@ -10,16 +13,9 @@ SCRIPT_BASENAME=$(basename "$0" | sed 's/\.[^.]*$//')
 LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 ENV_HOME="${JOBS_MAC_ENV_HOME:-$HOME/.JobsMacEnv}"
 
-if [[ -d "${SCRIPT_DIR}/../m5c.command" || -d "${SCRIPT_DIR}/../flat.command" ]]; then
-  SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-else
-  SCRIPTS_ROOT="${ENV_HOME}/Scripts"
-fi
 
 FZF_BIN=""
 MODULES_LOADED="false"
-: > "$LOG_FILE"
-
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
@@ -40,12 +36,10 @@ error_echo()     { log "\033[1;31m✖ $1\033[0m"; }
 gray_echo()      { log "\033[0;90m$1\033[0m"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
 bold_echo()      { log "\033[1m$1\033[0m"; }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_dir() { [[ -d "$1" ]] || mkdir -p "$1"; }
 # 解析并返回后续流程需要的目标信息。
 get_cpu_arch() { uname -m; }
-
 # 解析并返回后续流程需要的目标信息。
 find_brew_bin() {
   if command -v brew >/dev/null 2>&1; then
@@ -63,7 +57,6 @@ find_brew_bin() {
 
   return 1
 }
-
 # 封装 profile_file_for_shell 对应的独立处理逻辑。
 profile_file_for_shell() {
   case "${SHELL##*/}" in
@@ -72,7 +65,6 @@ profile_file_for_shell() {
     *)    print -r -- "$HOME/.profile" ;;
   esac
 }
-
 # 封装 inject_shellenv_block 对应的独立处理逻辑。
 inject_shellenv_block() {
   local profile_file="$1"
@@ -95,7 +87,6 @@ inject_shellenv_block() {
 
   eval "$shellenv"
 }
-
 # 收集并校验用户输入，决定后续执行路径。
 prompt_enter_skip_any_run() {
   local title="$1"
@@ -110,7 +101,6 @@ prompt_enter_skip_any_run() {
 
   [[ -n "$answer" ]]
 }
-
 # 解析并返回后续流程需要的目标信息。
 resolve_script_file() {
   local script_name="$1"
@@ -129,7 +119,6 @@ resolve_script_file() {
 
   return 1
 }
-
 # 解析并返回后续流程需要的目标信息。
 resolve_module_file() {
   local module_name="$1"
@@ -148,7 +137,6 @@ resolve_module_file() {
 
   return 1
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_homebrew() {
   local arch="$(get_cpu_arch)"
@@ -179,7 +167,6 @@ ensure_homebrew() {
   shellenv_cmd="eval \"\$(${brew_bin} shellenv)\""
   inject_shellenv_block "$profile_file" "$shellenv_cmd"
 }
-
 # 解析并返回后续流程需要的目标信息。
 find_fzf_bin() {
   if command -v fzf >/dev/null 2>&1; then
@@ -197,12 +184,10 @@ find_fzf_bin() {
 
   return 1
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 is_fzf_installed_by_brew() {
   brew list --formula fzf >/dev/null 2>&1
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_fzf() {
   local fzf_bin=""
@@ -224,8 +209,6 @@ ensure_fzf() {
 
   FZF_BIN="$fzf_bin"
 }
-
-
 # ---------- JobsMacEnv 函数模块加载 ----------
 load_function_modules() {
   [[ "$MODULES_LOADED" == "true" ]] && return 0
@@ -253,7 +236,6 @@ load_function_modules() {
 
   MODULES_LOADED="true"
 }
-
 # 封装 build_menu_items 对应的独立处理逻辑。
 build_menu_items() {
   cat <<'MENU'
@@ -310,7 +292,6 @@ Flutter Doctor	check	执行项目相关检查 / flutter doctor	script	check.comm
 退出菜单	quit	关闭 JobsMacEnv 功能菜单	builtin	quit
 MENU
 }
-
 # 封装 display_width 对应的独立处理逻辑。
 display_width() {
   local text="$1"
@@ -327,7 +308,6 @@ display_width() {
 
   print -r -- $(( chars + (bytes - chars) / 2 ))
 }
-
 # 封装 pad_right_visual 对应的独立处理逻辑。
 pad_right_visual() {
   local text="$1"
@@ -341,7 +321,6 @@ pad_right_visual() {
 
   printf "%s%*s" "$text" "$pad_count" ""
 }
-
 # 封装 build_fzf_items 对应的独立处理逻辑。
 build_fzf_items() {
   local title=""
@@ -366,12 +345,10 @@ build_fzf_items() {
       "$title" "$command_name" "$description" "$run_type" "$target_name" "$display_line"
   done
 }
-
 # 封装 fzf_supports_info_command 对应的独立处理逻辑。
 fzf_supports_info_command() {
   "$FZF_BIN" --help 2>/dev/null | grep -q -- '--info-command'
 }
-
 # 封装 print_command_table 对应的独立处理逻辑。
 print_command_table() {
   bold_echo "JobsMacEnv 功能菜单"
@@ -384,7 +361,6 @@ print_command_table() {
     printf "%-22s %s\n" "$command_name" "$description" | tee -a "$LOG_FILE"
   done
 }
-
 # 执行已经拆分完成的独立业务步骤。
 run_script_feature() {
   local script_name="$1"
@@ -399,7 +375,6 @@ run_script_feature() {
   note_echo "执行：$script_file"
   "$script_file"
 }
-
 # 执行已经拆分完成的独立业务步骤。
 run_to_format_feature() {
   local target_ext="$1"
@@ -419,7 +394,6 @@ run_to_format_feature() {
   note_echo "执行格式转换：to ${target_ext}"
   "$script_file" "$target_ext"
 }
-
 # 执行已经拆分完成的独立业务步骤。
 run_function_feature() {
   local function_name="$1"
@@ -435,7 +409,6 @@ run_function_feature() {
   note_echo "执行自定义命令：$function_name"
   "$function_name"
 }
-
 # 执行已经拆分完成的独立业务步骤。
 run_feature() {
   local command_name="$1"
@@ -462,7 +435,6 @@ run_feature() {
       ;;
   esac
 }
-
 # 封装 show_text_menu 对应的独立处理逻辑。
 show_text_menu() {
   print_command_table
@@ -470,7 +442,6 @@ show_text_menu() {
   warn_echo "fzf 不可用，已仅展示自定义命令清单。"
   gray_echo "日志路径：$LOG_FILE"
 }
-
 # 封装 show_menu 对应的独立处理逻辑。
 show_menu() {
   local selected=""
@@ -521,33 +492,73 @@ show_menu() {
     IFS= read -r _answer
   done
 }
-
-# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
-run_main_flow() {
+# 打印脚本内置自述，并按运行入口决定是否等待用户确认。
+show_script_intro_and_wait() {
+  print -r -- '============================== 脚本内置自述 =============================='
+  print -r -- '脚本名称：list.command'
+  print -r -- '核心用途：执行“list”对应的自动化任务。'
+  print -r -- '影响范围：可能修改当前项目、用户环境或脚本指定的目标。'
+  print -r -- '取消方式：确认前按 Ctrl+C 终止，不会继续执行后续业务。'
+  print -r -- '============================================================================'
+  if [[ ! -t 0 ]]; then
+    print -u2 -r -- '当前没有可交互输入，请在终端中重新运行。'
+    return 1
+  fi
+  read -r "?👉 已了解脚本用途与影响，按回车继续；按 Ctrl+C 取消：" _
+}
+# 执行入口下沉后的完整业务流程和控制逻辑。
+run_main_business_flow() {
+  # 根据当前条件选择对应的执行分支。
   if [[ "${1:-}" == "--plain" || "${1:-}" == "-p" ]]; then
+    # 执行当前流程中的独立业务步骤：print_command_table。
     print_command_table
+    # 执行当前流程中的独立业务步骤：gray_echo。
     gray_echo "日志路径：$LOG_FILE"
+    # 执行当前流程中的独立业务步骤：return。
     return 0
   fi
 
+  # 检查当前步骤所需的环境、路径或输入条件。
   ensure_homebrew || {
+    # 执行当前流程中的独立业务步骤：show_text_menu。
     show_text_menu
+    # 执行当前流程中的独立业务步骤：return。
     return 0
   }
 
+  # 检查当前步骤所需的环境、路径或输入条件。
   ensure_fzf || {
+    # 执行当前流程中的独立业务步骤：show_text_menu。
     show_text_menu
+    # 执行当前流程中的独立业务步骤：return。
     return 0
   }
 
+  # 执行当前流程中的独立业务步骤：show_menu。
   show_menu
+  # 执行当前流程中的独立业务步骤：gray_echo。
   gray_echo "日志路径：$LOG_FILE"
 }
-
-# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+# 编排脚本的高层业务流程。
+# 初始化脚本运行环境，并集中承载原有的顶层执行逻辑。
+initialize_script_runtime() {
+  set -o pipefail
+  setopt NO_NOMATCH
+  if [[ -d "${SCRIPT_DIR}/../m5c.command" || -d "${SCRIPT_DIR}/../flat.command" ]]; then
+    SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+  else
+    SCRIPTS_ROOT="${ENV_HOME}/Scripts"
+  fi
+  : > "$LOG_FILE"
+}
+# 编排脚本的高层业务流程。
 main() {
-  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
-  run_main_flow "$@"
+  # 展示脚本内置自述，并按运行入口完成防误触确认。
+  show_script_intro_and_wait
+  # 初始化 Shell 选项、日志、依赖和入口运行状态。
+  initialize_script_runtime
+  # 执行入口下沉后的完整业务流程。
+  run_main_business_flow "$@"
 }
 
 main "$@"

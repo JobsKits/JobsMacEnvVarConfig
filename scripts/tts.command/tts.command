@@ -1,13 +1,16 @@
 #!/bin/zsh
+# 脚本自述：
+# - 脚本名称：tts.command
+# - 核心用途：执行“tts”对应的自动化任务。
+# - 影响范围：可能修改当前项目、用户环境或脚本指定的目标。
+# - 运行提示：运行后会先打印内置自述；终端模式按回车确认后继续，按 Ctrl+C 可取消。
 
-setopt NO_NOMATCH
 
 # ---------- 基础路径 ----------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "$0")"
 SCRIPT_BASENAME=$(basename "$0" | sed 's/\.[^.]*$//')
 LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
-: > "$LOG_FILE"
 
 SUPERTONIC_VENV_DIR="${SUPERTONIC_VENV_DIR:-${HOME}/Desktop/supertonic-venv}"
 SUPERTONIC_HOST="${SUPERTONIC_HOST:-127.0.0.1}"
@@ -48,7 +51,6 @@ TTS_SELECTED_ENGINE=""
 SERVER_URL="http://${SUPERTONIC_HOST}:${SUPERTONIC_PORT}"
 SERVER_LOG="/tmp/${SCRIPT_BASENAME}.server.log"
 SERVER_PID_FILE="/tmp/${SCRIPT_BASENAME}.server.pid"
-
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
@@ -77,9 +79,7 @@ gray_echo()      { log "\033[0;90m$1\033[0m"; }
 bold_echo()      { log "\033[1m$1\033[0m"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }
-
 # ---------- 通用交互 ----------
-
 # 解析并返回后续流程需要的目标信息。
 find_fzf_bin() {
   if command -v fzf >/dev/null 2>&1; then
@@ -98,7 +98,6 @@ find_fzf_bin() {
 
   return 1
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_fzf_for_engine_menu() {
   if FZF_BIN="$(find_fzf_bin 2>/dev/null)"; then
@@ -118,7 +117,6 @@ ensure_fzf_for_engine_menu() {
 
   return 1
 }
-
 # 收集并校验用户输入，决定后续执行路径。
 select_tts_engine_text_fallback() {
   local answer=""
@@ -138,7 +136,6 @@ select_tts_engine_text_fallback() {
     *) warn_echo "未知选择，默认使用 MOSS-TTS-Nano。"; TTS_SELECTED_ENGINE="moss"; return 0 ;;
   esac
 }
-
 # 收集并校验用户输入，决定后续执行路径。
 select_tts_engine() {
   local selected=""
@@ -176,7 +173,6 @@ ENGINE_MENU_EOF
 
   select_tts_engine_text_fallback
 }
-
 # 封装 print_engine_banner 对应的独立处理逻辑。
 print_engine_banner() {
   local engine="$1"
@@ -194,7 +190,6 @@ print_engine_banner() {
   esac
   echo ""
 }
-
 # 展示脚本用途和影响范围，并在执行前等待用户确认。
 show_readme_and_wait() {
   clear
@@ -225,7 +220,6 @@ show_readme_and_wait() {
   echo ""
   read -r "?👉 按回车进入朗读；按 Ctrl+C 取消：" _
 }
-
 # 收集并校验用户输入，决定后续执行路径。
 ask_enter_to_run() {
   local message="$1"
@@ -233,7 +227,6 @@ ask_enter_to_run() {
   read -r "?${message}（直接回车执行；输入任意字符后回车跳过）：" answer
   [[ -z "$answer" ]]
 }
-
 # 封装 strip_outer_quotes 对应的独立处理逻辑。
 strip_outer_quotes() {
   local value="$1"
@@ -245,17 +238,14 @@ strip_outer_quotes() {
   value="${value%\'}"
   print -r -- "$value"
 }
-
 # 封装 python_bin 对应的独立处理逻辑。
 python_bin() {
   print -r -- "${SUPERTONIC_VENV_DIR}/bin/python"
 }
-
 # 封装 supertonic_bin 对应的独立处理逻辑。
 supertonic_bin() {
   print -r -- "${SUPERTONIC_VENV_DIR}/bin/supertonic"
 }
-
 # 封装 require_command 对应的独立处理逻辑。
 require_command() {
   local cmd="$1"
@@ -267,7 +257,6 @@ require_command() {
   fi
   success_echo "已检测到 ${cmd}：$(command -v "$cmd")"
 }
-
 # ---------- 环境检查 ----------
 install_or_repair_environment() {
   local py3=""
@@ -297,7 +286,6 @@ install_or_repair_environment() {
   "$py" -m pip install 'supertonic[serve]' >> "$LOG_FILE" 2>&1 || return 1
   success_echo "Supertonic 依赖已安装 / 补齐。"
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_environment() {
   require_command "curl" "macOS 通常自带 curl，如果缺失请检查系统环境。" || return 1
@@ -337,12 +325,10 @@ PY
 
   success_echo "Supertonic 虚拟环境可用：${SUPERTONIC_VENV_DIR}"
 }
-
 # ---------- 服务管理 ----------
 is_server_alive() {
   curl -fsS "${SERVER_URL}/docs" >/dev/null 2>&1
 }
-
 # 封装 start_server_if_needed 对应的独立处理逻辑。
 start_server_if_needed() {
   if is_server_alive; then
@@ -383,7 +369,6 @@ start_server_if_needed() {
   tail -n 80 "$SERVER_LOG" 2>/dev/null | tee -a "$LOG_FILE"
   return 1
 }
-
 # 封装 stop_started_server 对应的独立处理逻辑。
 stop_started_server() {
   if [[ ! -f "$SERVER_PID_FILE" ]]; then
@@ -406,7 +391,6 @@ stop_started_server() {
     warn_echo "记录的服务进程已不存在：PID ${pid}"
   fi
 }
-
 # ---------- 中文 fallback ----------
 contains_chinese() {
   local text="$1"
@@ -417,7 +401,6 @@ import sys
 print("yes" if re.search(r"[\u4e00-\u9fff]", sys.argv[1]) else "no")
 PY
 }
-
 # 封装 list_macos_chinese_voices 对应的独立处理逻辑。
 list_macos_chinese_voices() {
   if ! command -v say >/dev/null 2>&1; then
@@ -427,7 +410,6 @@ list_macos_chinese_voices() {
   note_echo "本机可疑中文语音如下；如果为空，请去系统设置里下载中文朗读声音。"
   say -v '?' 2>/dev/null | grep -Ei 'zh_|chinese|mandarin|cantonese|tingting|mei-?jia|sin-?ji|yu-?shu|li-?mu' | tee -a "$LOG_FILE" || true
 }
-
 # 封装 pick_macos_chinese_voice 对应的独立处理逻辑。
 pick_macos_chinese_voice() {
   if [[ -n "$SUPERTONIC_ZH_VOICE" ]]; then
@@ -455,7 +437,6 @@ pick_macos_chinese_voice() {
 
   return 1
 }
-
 # 封装 speak_chinese_with_macos_say 对应的独立处理逻辑。
 speak_chinese_with_macos_say() {
   local raw_text="$1"
@@ -495,7 +476,6 @@ speak_chinese_with_macos_say() {
     open "$output_file"
   fi
 }
-
 # ---------- 语音生成 ----------
 detect_lang() {
   local text="$1"
@@ -515,7 +495,6 @@ else:
     print("en")
 PY
 }
-
 # 封装 build_payload 对应的独立处理逻辑。
 build_payload() {
   local text="$1"
@@ -537,7 +516,6 @@ payload = {
 print(json.dumps(payload, ensure_ascii=False))
 PY
 }
-
 # 封装 speak_text 对应的独立处理逻辑。
 speak_text() {
   local raw_text="$1"
@@ -586,18 +564,14 @@ speak_text() {
     open "$output_file"
   fi
 }
-
-
 # ---------- MOSS-TTS-Nano 引擎 ----------
 moss_python_bin() {
   print -r -- "${MOSS_TTS_NANO_VENV_DIR}/bin/python"
 }
-
 # 封装 moss_cli_bin 对应的独立处理逻辑。
 moss_cli_bin() {
   print -r -- "${MOSS_TTS_NANO_VENV_DIR}/bin/moss-tts-nano"
 }
-
 # 封装 moss_install_or_repair_environment 对应的独立处理逻辑。
 moss_install_or_repair_environment() {
   local py3=""
@@ -672,7 +646,6 @@ MOSS_PYVER_EOF
   (cd "$MOSS_TTS_NANO_HOME" && "$py" -m pip install -e .) >> "$LOG_FILE" 2>&1 || return 1
   success_echo "MOSS-TTS-Nano 依赖已安装 / 补齐。"
 }
-
 # 封装 moss_ensure_environment 对应的独立处理逻辑。
 moss_ensure_environment() {
   local cli="$(moss_cli_bin)"
@@ -704,7 +677,6 @@ moss_ensure_environment() {
 
   success_echo "MOSS-TTS-Nano 环境可用：${MOSS_TTS_NANO_HOME}"
 }
-
 # 封装 moss_detect_lang 对应的独立处理逻辑。
 moss_detect_lang() {
   local text="$1"
@@ -725,7 +697,6 @@ else:
     print("en")
 MOSS_LANG_EOF
 }
-
 # 封装 moss_speak_text 对应的独立处理逻辑。
 moss_speak_text() {
   local raw_text="$1"
@@ -791,7 +762,6 @@ moss_speak_text() {
     open "$output_file"
   fi
 }
-
 # 展示脚本用途和影响范围，并在执行前等待用户确认。
 moss_show_readme_and_wait() {
   clear
@@ -817,7 +787,6 @@ moss_show_readme_and_wait() {
   echo ""
   read -r "?👉 按回车进入朗读；按 Ctrl+C 取消：" _
 }
-
 # 封装 moss_show_runtime_config 对应的独立处理逻辑。
 moss_show_runtime_config() {
   echo ""
@@ -832,7 +801,6 @@ moss_show_runtime_config() {
   highlight_echo "========================================================================="
   echo ""
 }
-
 # 封装 moss_show_help 对应的独立处理逻辑。
 moss_show_help() {
   cat <<'MOSS_HELP_EOF' | tee -a "$LOG_FILE"
@@ -845,7 +813,6 @@ moss_show_help() {
   :quit                     退出脚本
 MOSS_HELP_EOF
 }
-
 # 封装 moss_interactive_loop 对应的独立处理逻辑。
 moss_interactive_loop() {
   moss_show_runtime_config
@@ -892,31 +859,33 @@ moss_interactive_loop() {
     echo ""
   done
 }
-
 # 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 moss_main() {
+  # 根据当前条件选择对应的执行分支。
   if [[ "$#" -gt 0 ]]; then
+    # 检查当前步骤所需的环境、路径或输入条件。
     moss_ensure_environment || exit 1
+    # 执行当前流程中的独立业务步骤：moss_speak_text。
     moss_speak_text "$*"
+    # 执行当前流程中的独立业务步骤：return。
     return $?
   fi
 
+  # 展示脚本说明并等待用户确认影响范围。
   moss_show_readme_and_wait
+  # 检查当前步骤所需的环境、路径或输入条件。
   moss_ensure_environment || exit 1
+  # 执行当前流程中的独立业务步骤：moss_interactive_loop。
   moss_interactive_loop
 }
-
-
 # ---------- VoxCPM2 引擎 ----------
 voxcpm_python_bin() {
   print -r -- "${VOXCPM_VENV_DIR}/bin/python"
 }
-
 # 封装 voxcpm_cli_bin 对应的独立处理逻辑。
 voxcpm_cli_bin() {
   print -r -- "${VOXCPM_VENV_DIR}/bin/voxcpm"
 }
-
 # 封装 voxcpm_install_or_repair_environment 对应的独立处理逻辑。
 voxcpm_install_or_repair_environment() {
   local py3=""
@@ -976,7 +945,6 @@ VOXCPM_IMPORT_EOF
 
   success_echo "VoxCPM 依赖已安装 / 补齐。"
 }
-
 # 封装 voxcpm_ensure_environment 对应的独立处理逻辑。
 voxcpm_ensure_environment() {
   local cli="$(voxcpm_cli_bin)"
@@ -1015,7 +983,6 @@ VOXCPM_CHECK_EOF
 
   success_echo "VoxCPM 虚拟环境可用：${VOXCPM_VENV_DIR}"
 }
-
 # 封装 voxcpm_speak_text 对应的独立处理逻辑。
 voxcpm_speak_text() {
   local raw_text="$1"
@@ -1096,7 +1063,6 @@ voxcpm_speak_text() {
     open "$output_file"
   fi
 }
-
 # 展示脚本用途和影响范围，并在执行前等待用户确认。
 voxcpm_show_readme_and_wait() {
   clear
@@ -1126,7 +1092,6 @@ voxcpm_show_readme_and_wait() {
   echo ""
   read -r "?👉 按回车进入朗读；按 Ctrl+C 取消：" _
 }
-
 # 封装 voxcpm_show_runtime_config 对应的独立处理逻辑。
 voxcpm_show_runtime_config() {
   echo ""
@@ -1145,7 +1110,6 @@ voxcpm_show_runtime_config() {
   highlight_echo "========================================================================="
   echo ""
 }
-
 # 封装 voxcpm_show_help 对应的独立处理逻辑。
 voxcpm_show_help() {
   cat <<'VOXCPM_HELP_EOF' | tee -a "$LOG_FILE"
@@ -1163,7 +1127,6 @@ voxcpm_show_help() {
   :quit                           退出脚本
 VOXCPM_HELP_EOF
 }
-
 # 封装 voxcpm_interactive_loop 对应的独立处理逻辑。
 voxcpm_interactive_loop() {
   voxcpm_show_runtime_config
@@ -1260,20 +1223,25 @@ voxcpm_interactive_loop() {
     echo ""
   done
 }
-
 # 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 voxcpm_main() {
+  # 根据当前条件选择对应的执行分支。
   if [[ "$#" -gt 0 ]]; then
+    # 检查当前步骤所需的环境、路径或输入条件。
     voxcpm_ensure_environment || exit 1
+    # 执行当前流程中的独立业务步骤：voxcpm_speak_text。
     voxcpm_speak_text "$*"
+    # 执行当前流程中的独立业务步骤：return。
     return $?
   fi
 
+  # 展示脚本说明并等待用户确认影响范围。
   voxcpm_show_readme_and_wait
+  # 检查当前步骤所需的环境、路径或输入条件。
   voxcpm_ensure_environment || exit 1
+  # 执行当前流程中的独立业务步骤：voxcpm_interactive_loop。
   voxcpm_interactive_loop
 }
-
 # ---------- 菜单与交互 ----------
 show_supported_languages() {
   cat <<'EOF' | tee -a "$LOG_FILE"
@@ -1291,7 +1259,6 @@ show_supported_languages() {
 注意：官方公开语言列表没有 zh / 中文。中文建议用 auto 或 na，但效果不保证。
 EOF
 }
-
 # 封装 show_runtime_config 对应的独立处理逻辑。
 show_runtime_config() {
   echo ""
@@ -1311,7 +1278,6 @@ show_runtime_config() {
   highlight_echo "======================================================================="
   echo ""
 }
-
 # 封装 show_help 对应的独立处理逻辑。
 show_help() {
   cat <<'EOF' | tee -a "$LOG_FILE"
@@ -1328,7 +1294,6 @@ show_help() {
   :quit              退出
 EOF
 }
-
 # 封装 interactive_loop 对应的独立处理逻辑。
 interactive_loop() {
   show_runtime_config
@@ -1403,22 +1368,29 @@ interactive_loop() {
     echo ""
   done
 }
-
 # 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 supertonic_main() {
+  # 根据当前条件选择对应的执行分支。
   if [[ "$#" -gt 0 ]]; then
+    # 检查当前步骤所需的环境、路径或输入条件。
     ensure_environment || exit 1
+    # 执行当前流程中的独立业务步骤：start_server_if_needed。
     start_server_if_needed || exit 1
+    # 执行当前流程中的独立业务步骤：speak_text。
     speak_text "$*"
+    # 执行当前流程中的独立业务步骤：return。
     return $?
   fi
 
+  # 展示脚本说明并等待用户确认影响范围。
   show_readme_and_wait
+  # 检查当前步骤所需的环境、路径或输入条件。
   ensure_environment || exit 1
+  # 执行当前流程中的独立业务步骤：start_server_if_needed。
   start_server_if_needed || exit 1
+  # 执行当前流程中的独立业务步骤：interactive_loop。
   interactive_loop
 }
-
 # 封装 parse_engine_args 对应的独立处理逻辑。
 parse_engine_args() {
   local next_is_engine="false"
@@ -1456,48 +1428,92 @@ parse_engine_args() {
 
   printf '%s\n' "${cleaned[@]}"
 }
-
-# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
-run_main_flow() {
+# 打印脚本内置自述，并按运行入口决定是否等待用户确认。
+show_script_intro_and_wait() {
+  print -r -- '============================== 脚本内置自述 =============================='
+  print -r -- '脚本名称：tts.command'
+  print -r -- '核心用途：执行“tts”对应的自动化任务。'
+  print -r -- '影响范围：可能修改当前项目、用户环境或脚本指定的目标。'
+  print -r -- '取消方式：确认前按 Ctrl+C 终止，不会继续执行后续业务。'
+  print -r -- '============================================================================'
+  if [[ ! -t 0 ]]; then
+    print -u2 -r -- '当前没有可交互输入，请在终端中重新运行。'
+    return 1
+  fi
+  read -r "?👉 已了解脚本用途与影响，按回车继续；按 Ctrl+C 取消：" _
+}
+# 执行入口下沉后的完整业务流程和控制逻辑。
+run_main_business_flow() {
+  # 初始化当前流程后续步骤需要使用的变量。
   local parsed=""
+  # 初始化当前流程后续步骤需要使用的变量。
   local engine=""
+  # 初始化当前流程后续步骤需要使用的变量。
   local args=()
 
+  # 初始化当前流程后续步骤需要使用的变量。
   parsed="$(parse_engine_args "$@")"
+  # 根据当前条件选择对应的执行分支。
   if [[ -n "$parsed" ]]; then
+    # 循环处理用户输入或当前批次中的全部目标。
     while IFS= read -r item; do
+      # 执行当前流程中的独立业务步骤：处理当前语句。
       [[ -n "$item" ]] && args+=("$item")
     done <<< "$parsed"
   fi
 
+  # 根据当前条件选择对应的执行分支。
   if ! select_tts_engine; then
+    # 执行当前流程中的独立业务步骤：info_echo。
     info_echo "已取消 TTS 引擎选择。"
+    # 执行当前流程中的独立业务步骤：return。
     return 0
   fi
+  # 初始化当前流程后续步骤需要使用的变量。
   engine="$TTS_SELECTED_ENGINE"
+  # 执行当前流程中的独立业务步骤：print_engine_banner。
   print_engine_banner "$engine"
 
+  # 根据当前条件选择对应的执行分支。
   case "$engine" in
+    # 执行当前流程中的独立业务步骤：moss。
     moss)
+      # 执行当前流程中的独立业务步骤：moss_main。
       moss_main "${args[@]}"
       ;;
+    # 执行当前流程中的独立业务步骤：voxcpm。
     voxcpm)
+      # 执行当前流程中的独立业务步骤：voxcpm_main。
       voxcpm_main "${args[@]}"
       ;;
+    # 执行当前流程中的独立业务步骤：supertonic。
     supertonic)
+      # 执行当前流程中的独立业务步骤：supertonic_main。
       supertonic_main "${args[@]}"
       ;;
+    # 执行当前流程中的独立业务步骤：处理当前语句。
     *)
+      # 执行当前流程中的独立业务步骤：error_echo。
       error_echo "未知 TTS 引擎：${engine}"
+      # 执行当前流程中的独立业务步骤：return。
       return 1
       ;;
   esac
 }
-
-# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+# 编排脚本的高层业务流程。
+# 初始化脚本运行环境，并集中承载原有的顶层执行逻辑。
+initialize_script_runtime() {
+  setopt NO_NOMATCH
+  : > "$LOG_FILE"
+}
+# 编排脚本的高层业务流程。
 main() {
-  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
-  run_main_flow "$@"
+  # 展示脚本内置自述，并按运行入口完成防误触确认。
+  show_script_intro_and_wait
+  # 初始化 Shell 选项、日志、依赖和入口运行状态。
+  initialize_script_runtime
+  # 执行入口下沉后的完整业务流程。
+  run_main_business_flow "$@"
 }
 
 main "$@"

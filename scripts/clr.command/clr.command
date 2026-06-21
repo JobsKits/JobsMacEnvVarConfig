@@ -1,16 +1,16 @@
 #!/bin/zsh
+# 脚本自述：
+# - 脚本名称：clr.command
+# - 核心用途：执行“clr”对应的自动化任务。
+# - 影响范围：可能修改当前项目、用户环境或脚本指定的目标。
+# - 运行提示：运行后会先打印内置自述；终端模式按回车确认后继续，按 Ctrl+C 可取消。
 
-set -o pipefail
-setopt NO_NOMATCH
 
 # ---------- 基础路径 ----------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "$0")"
 SCRIPT_BASENAME=$(basename "$0" | sed 's/\.[^.]*$//')
 LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
-
-: > "$LOG_FILE"
-
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
@@ -50,7 +50,6 @@ CLR_REVEAL_EXTENSION=0
 CLR_FORCE_EXTENSION=0
 CLR_LEGACY_UI=0
 CLR_MANUAL_EXTENSION_ID=""
-
 # ---------- 内置自述 ----------
 jobs_clr_show_readme_and_wait() {
   clear 2>/dev/null || true
@@ -104,7 +103,6 @@ EOFREADME
     IFS= read -r _answer
   fi
 }
-
 # 封装 jobs_clr_usage 对应的独立处理逻辑。
 jobs_clr_usage() {
   cat <<'EOFUSAGE'
@@ -123,7 +121,6 @@ usage: clr [--install-extension] [--open-only] [--open] [--yes] [--legacy-ui] [-
   --help, -h           显示帮助
 EOFUSAGE
 }
-
 # 封装 jobs_clr_parse_args 对应的独立处理逻辑。
 jobs_clr_parse_args() {
   while (( $# > 0 )); do
@@ -172,7 +169,6 @@ jobs_clr_parse_args() {
 
   return 0
 }
-
 # 封装 jobs_clr_confirm 对应的独立处理逻辑。
 jobs_clr_confirm() {
   if (( CLR_ASSUME_YES )); then
@@ -201,7 +197,6 @@ jobs_clr_confirm() {
   warn_echo "已取消清理。"
   return 1
 }
-
 # 封装 jobs_clr_open_chrome_url_new_tab 对应的独立处理逻辑。
 jobs_clr_open_chrome_url_new_tab() {
   local url="$1"
@@ -238,7 +233,6 @@ EOFAPPLESCRIPT
 
   return 1
 }
-
 # 封装 jobs_clr_open_downloads_page 对应的独立处理逻辑。
 jobs_clr_open_downloads_page() {
   note_echo "在 Chrome 新标签页打开下载记录页：${CLR_DOWNLOADS_URL}"
@@ -250,7 +244,6 @@ jobs_clr_open_downloads_page() {
   error_echo "无法打开 Google Chrome。请确认已安装 Chrome。"
   return 1
 }
-
 # 封装 jobs_clr_write_extension_files 对应的独立处理逻辑。
 jobs_clr_write_extension_files() {
   mkdir -p "$CLR_EXTENSION_DIR" || return 1
@@ -436,7 +429,6 @@ EOFEXTREADME
 
   return 0
 }
-
 # 封装 jobs_clr_reveal_extension_dir 对应的独立处理逻辑。
 jobs_clr_reveal_extension_dir() {
   jobs_clr_write_extension_files || return 1
@@ -445,7 +437,6 @@ jobs_clr_reveal_extension_dir() {
   info_echo "扩展目录路径已复制到剪贴板。"
   open -R "$CLR_EXTENSION_DIR" >/dev/null 2>&1 || true
 }
-
 # 封装 jobs_clr_install_extension_flow 对应的独立处理逻辑。
 jobs_clr_install_extension_flow() {
   jobs_clr_write_extension_files || {
@@ -475,13 +466,11 @@ jobs_clr_install_extension_flow() {
   jobs_clr_open_chrome_url_new_tab "chrome://extensions/" >/dev/null 2>&1 || open -a "Google Chrome" "chrome://extensions/" >/dev/null 2>&1 || true
   return 0
 }
-
 # 封装 jobs_clr_is_valid_extension_id 对应的独立处理逻辑。
 jobs_clr_is_valid_extension_id() {
   local candidate="$1"
   [[ "$candidate" =~ '^[a-p]{32}$' ]]
 }
-
 # 封装 jobs_clr_save_extension_id 对应的独立处理逻辑。
 jobs_clr_save_extension_id() {
   local candidate="$1"
@@ -494,7 +483,6 @@ jobs_clr_save_extension_id() {
   success_echo "已保存 clr Chrome 扩展 ID：${candidate}"
   return 0
 }
-
 # 封装 jobs_clr_lookup_extension_id_in_chrome 对应的独立处理逻辑。
 jobs_clr_lookup_extension_id_in_chrome() {
   local candidate="$1"
@@ -556,7 +544,6 @@ print('\t'.join(rows[0]))
 sys.exit(0 if rows[0][0] == 'enabled' else 2)
 EOFPY
 }
-
 # 封装 jobs_clr_read_saved_extension_id 对应的独立处理逻辑。
 jobs_clr_read_saved_extension_id() {
   [[ -f "$CLR_EXTENSION_ID_FILE" ]] || return 1
@@ -596,7 +583,6 @@ jobs_clr_read_saved_extension_id() {
   rm -f "$CLR_EXTENSION_ID_FILE" 2>/dev/null || true
   return 1
 }
-
 # 封装 jobs_clr_find_extension_id 对应的独立处理逻辑。
 jobs_clr_find_extension_id() {
   if [[ -n "$CLR_MANUAL_EXTENSION_ID" ]]; then
@@ -748,7 +734,6 @@ jobs_clr_extension_installed() {
 
   return 1
 }
-
 # 封装 jobs_clr_clear_by_extension 对应的独立处理逻辑。
 jobs_clr_clear_by_extension() {
   jobs_clr_write_extension_files || return 1
@@ -772,7 +757,6 @@ jobs_clr_clear_by_extension() {
   error_echo "无法打开扩展清理页。"
   return 1
 }
-
 # 封装 jobs_clr_legacy_ui_click 对应的独立处理逻辑。
 jobs_clr_legacy_ui_click() {
   warn_echo "正在执行旧版 UI 自动点击兜底。这个方式不保证成功。"
@@ -816,87 +800,146 @@ EOFAPPLESCRIPT
   warn_echo "旧版 UI 触发失败：$osa_output"
   return 1
 }
-
 # 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 jobs_clr_main() {
+  # 初始化当前流程后续步骤需要使用的变量。
   local parse_status=0
+  # 执行当前流程中的独立业务步骤：jobs_clr_parse_args。
   jobs_clr_parse_args "$@"
+  # 初始化当前流程后续步骤需要使用的变量。
   parse_status=$?
 
+  # 根据当前条件选择对应的执行分支。
   if (( parse_status == 2 )); then
+    # 执行当前流程中的独立业务步骤：return。
     return 0
   fi
 
+  # 根据当前条件选择对应的执行分支。
   if (( parse_status != 0 )); then
+    # 执行当前流程中的独立业务步骤：return。
     return "$parse_status"
   fi
 
+  # 展示脚本说明并等待用户确认影响范围。
   jobs_clr_show_readme_and_wait
 
+  # 根据当前条件选择对应的执行分支。
   if (( CLR_REVEAL_EXTENSION )); then
+    # 执行当前流程中的独立业务步骤：jobs_clr_reveal_extension_dir。
     jobs_clr_reveal_extension_dir
+    # 执行当前流程中的独立业务步骤：return。
     return $?
   fi
 
+  # 根据当前条件选择对应的执行分支。
   if (( CLR_INSTALL_EXTENSION )); then
+    # 执行安装步骤，并保留命令失败信息供后续排查。
     jobs_clr_install_extension_flow
+    # 执行当前流程中的独立业务步骤：return。
     return $?
   fi
 
+  # 根据当前条件选择对应的执行分支。
   if (( CLR_OPEN_ONLY )); then
+    # 执行当前流程中的独立业务步骤：jobs_clr_open_downloads_page。
     jobs_clr_open_downloads_page
+    # 执行当前流程中的独立业务步骤：return。
     return $?
   fi
 
+  # 根据当前条件选择对应的执行分支。
   if ! jobs_clr_confirm; then
+    # 执行当前流程中的独立业务步骤：return。
     return 1
   fi
 
+  # 执行当前流程中的独立业务步骤：print_divider。
   print_divider
 
+  # 初始化当前流程后续步骤需要使用的变量。
   local exit_code=1
+  # 根据当前条件选择对应的执行分支。
   if (( CLR_LEGACY_UI )); then
+    # 执行当前流程中的独立业务步骤：jobs_clr_legacy_ui_click。
     jobs_clr_legacy_ui_click
+    # 初始化当前流程后续步骤需要使用的变量。
     exit_code=$?
   else
+    # 执行当前流程中的独立业务步骤：jobs_clr_clear_by_extension。
     jobs_clr_clear_by_extension
+    # 初始化当前流程后续步骤需要使用的变量。
     exit_code=$?
   fi
 
+  # 根据当前条件选择对应的执行分支。
   if (( CLR_OPEN_AFTER )); then
+    # 执行当前流程中的独立业务步骤：jobs_clr_open_downloads_page。
     jobs_clr_open_downloads_page
   fi
 
+  # 执行当前流程中的独立业务步骤：print_divider。
   print_divider
+  # 根据当前条件选择对应的执行分支。
   case "$exit_code" in
+    # 执行当前流程中的独立业务步骤：处理当前语句。
     0)
+      # 输出当前流程的完成状态、摘要和日志位置。
       success_echo "Chrome 下载历史清理动作已触发。"
+      # 执行当前流程中的独立业务步骤：warm_echo。
       warm_echo "真实下载文件没有被删除。"
       ;;
+    # 执行当前流程中的独立业务步骤：处理当前语句。
     2)
+      # 执行当前流程中的独立业务步骤：warn_echo。
       warn_echo "第一次需要先加载本地 Chrome 扩展。加载后重新执行：clr"
       ;;
+    # 执行当前流程中的独立业务步骤：处理当前语句。
     *)
+      # 执行当前流程中的独立业务步骤：error_echo。
       error_echo "Chrome 下载历史未清理。请看上面的失败原因。"
       ;;
   esac
 
+  # 执行当前流程中的独立业务步骤：gray_echo。
   gray_echo "日志路径：$LOG_FILE"
+  # 执行当前流程中的独立业务步骤：return。
   return $exit_code
 }
-
 # 封装 clr 对应的独立处理逻辑。
 clr() {
   emulate -L zsh
   jobs_clr_main "$@"
 }
-
+# 打印脚本内置自述，并按运行入口决定是否等待用户确认。
+show_script_intro_and_wait() {
+  print -r -- '============================== 脚本内置自述 =============================='
+  print -r -- '脚本名称：clr.command'
+  print -r -- '核心用途：执行“clr”对应的自动化任务。'
+  print -r -- '影响范围：可能修改当前项目、用户环境或脚本指定的目标。'
+  print -r -- '取消方式：确认前按 Ctrl+C 终止，不会继续执行后续业务。'
+  print -r -- '============================================================================'
+  if [[ ! -t 0 ]]; then
+    print -u2 -r -- '当前没有可交互输入，请在终端中重新运行。'
+    return 1
+  fi
+  read -r "?👉 已了解脚本用途与影响，按回车继续；按 Ctrl+C 取消：" _
+}
 # 统一收口脚本入口，仅委托已经拆分完成的业务流程。
 main() {
-  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  # 展示脚本内置自述，并按运行入口完成防误触确认。
+  show_script_intro_and_wait
+  # 执行 jobs_clr_main 对应的独立业务步骤。
   jobs_clr_main "$@"
 }
-
-if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
-  main "$@"
-fi
+# 初始化脚本运行环境，并集中承载原有的顶层执行逻辑。
+initialize_script_module() {
+  set -o pipefail
+  setopt NO_NOMATCH
+  : > "$LOG_FILE"
+  if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+    main "$@"
+  fi
+}
+# 加载模块时统一执行必要的初始化和入口分派。
+initialize_script_module "$@"

@@ -1,16 +1,16 @@
 #!/bin/zsh
+# 脚本自述：
+# - 脚本名称：shell.command
+# - 核心用途：执行“shell”对应的本机环境配置任务。
+# - 影响范围：可能安装、更新或修改当前用户的工具链与配置文件。
+# - 运行提示：运行后会先打印内置自述；终端模式按回车确认后继续，按 Ctrl+C 可取消。
 
-set -o pipefail
-setopt NO_NOMATCH
 
 # ---------- 基础路径 ----------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "$0")"
 SCRIPT_BASENAME=$(basename "$0" | sed 's/\.[^.]*$//')
 LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
-
-: > "$LOG_FILE"
-
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
@@ -39,7 +39,6 @@ gray_echo()      { log "\033[0;90m$1\033[0m"; }
 bold_echo()      { log "\033[1m$1\033[0m"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }
-
 # ---------- 内置自述 ----------
 jobs_shell_show_readme_and_wait() {
   clear 2>/dev/null || true
@@ -77,12 +76,10 @@ EOFREADME
     IFS= read -r _answer
   fi
 }
-
 # ---------- 通用工具 ----------
 jobs_shell_has() {
   command -v "$1" >/dev/null 2>&1
 }
-
 # 封装 jobs_shell_collect_candidates 对应的独立处理逻辑。
 jobs_shell_collect_candidates() {
   local candidates=()
@@ -124,14 +121,12 @@ jobs_shell_collect_candidates() {
     [[ -x "$item" ]] && print -r -- "$item"
   done
 }
-
 # 封装 jobs_shell_is_in_etc_shells 对应的独立处理逻辑。
 jobs_shell_is_in_etc_shells() {
   local shell_path="$1"
   [[ -f /etc/shells ]] || return 1
   grep -Fxq "$shell_path" /etc/shells
 }
-
 # 封装 jobs_shell_choose_with_fzf 对应的独立处理逻辑。
 jobs_shell_choose_with_fzf() {
   local current_shell="${SHELL:-}"
@@ -154,7 +149,6 @@ jobs_shell_choose_with_fzf() {
     --header=$'选择默认登录 shell；Esc 取消。' \
   | awk -F '\t' '{print $1}'
 }
-
 # 封装 jobs_shell_choose_with_text_menu 对应的独立处理逻辑。
 jobs_shell_choose_with_text_menu() {
   local candidates=()
@@ -197,7 +191,6 @@ jobs_shell_choose_with_text_menu() {
 
   JOBS_SHELL_SELECTED="${candidates[$answer]}"
 }
-
 # 封装 jobs_shell_choose 对应的独立处理逻辑。
 jobs_shell_choose() {
   JOBS_SHELL_SELECTED=""
@@ -211,7 +204,6 @@ jobs_shell_choose() {
 
   [[ -n "$JOBS_SHELL_SELECTED" ]]
 }
-
 # 封装 jobs_shell_ensure_registered 对应的独立处理逻辑。
 jobs_shell_ensure_registered() {
   local selected_shell="$1"
@@ -234,7 +226,6 @@ jobs_shell_ensure_registered() {
   print -r -- "$selected_shell" | sudo tee -a /etc/shells >/dev/null
   success_echo "已写入 /etc/shells：$selected_shell"
 }
-
 # 封装 jobs_shell_switch 对应的独立处理逻辑。
 jobs_shell_switch() {
   local selected_shell="$1"
@@ -260,7 +251,6 @@ jobs_shell_switch() {
   success_echo "默认 shell 已切换为：$selected_shell"
   note_echo "请新开一个终端窗口验证：echo \$SHELL"
 }
-
 # ---------- 命令实现 ----------
 shell() {
   emulate -L zsh
@@ -274,20 +264,44 @@ shell() {
   selected_shell="$JOBS_SHELL_SELECTED"
   jobs_shell_switch "$selected_shell"
 }
-
 # ---------- 主流程统一收口 ----------
 jobs_shell_main() {
+  # 展示脚本说明并等待用户确认影响范围。
   jobs_shell_show_readme_and_wait
+  # 执行当前流程中的独立业务步骤：shell。
   shell "$@"
+  # 执行当前流程中的独立业务步骤：gray_echo。
   gray_echo "日志路径：$LOG_FILE"
 }
-
+# 打印脚本内置自述，并按运行入口决定是否等待用户确认。
+show_script_intro_and_wait() {
+  print -r -- '============================== 脚本内置自述 =============================='
+  print -r -- '脚本名称：shell.command'
+  print -r -- '核心用途：执行“shell”对应的自动化任务。'
+  print -r -- '影响范围：可能修改当前项目、用户环境或脚本指定的目标。'
+  print -r -- '取消方式：确认前按 Ctrl+C 终止，不会继续执行后续业务。'
+  print -r -- '============================================================================'
+  if [[ ! -t 0 ]]; then
+    print -u2 -r -- '当前没有可交互输入，请在终端中重新运行。'
+    return 1
+  fi
+  read -r "?👉 已了解脚本用途与影响，按回车继续；按 Ctrl+C 取消：" _
+}
 # 统一收口脚本入口，仅委托已经拆分完成的业务流程。
 main() {
-  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  # 展示脚本内置自述，并按运行入口完成防误触确认。
+  show_script_intro_and_wait
+  # 执行 jobs_shell_main 对应的独立业务步骤。
   jobs_shell_main "$@"
 }
-
-if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
-  main "$@"
-fi
+# 初始化脚本运行环境，并集中承载原有的顶层执行逻辑。
+initialize_script_module() {
+  set -o pipefail
+  setopt NO_NOMATCH
+  : > "$LOG_FILE"
+  if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+    main "$@"
+  fi
+}
+# 加载模块时统一执行必要的初始化和入口分派。
+initialize_script_module "$@"

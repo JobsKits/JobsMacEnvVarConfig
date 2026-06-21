@@ -1,7 +1,11 @@
 #!/bin/zsh
+# 脚本自述：
+# - 脚本名称：entrypoints.command
+# - 核心用途：执行“entrypoints”对应的自动化任务。
+# - 影响范围：可能修改当前项目、用户环境或脚本指定的目标。
+# - 运行提示：运行后会先打印内置自述；终端模式按回车确认后继续，按 Ctrl+C 可取消。
 # JobsMacEnv executable command wrappers.
 # 这里只注册终端短命令；真实实现统一放在 Scripts/<命令>.command/<命令>.command。
-
 # 封装 _jobs_resolve_scripts_command 对应的独立处理逻辑。
 _jobs_resolve_scripts_command() {
   emulate -L zsh
@@ -25,7 +29,6 @@ _jobs_resolve_scripts_command() {
 
   return 1
 }
-
 # 封装 _jobs_run_scripts_command 对应的独立处理逻辑。
 _jobs_run_scripts_command() {
   emulate -L zsh
@@ -42,7 +45,6 @@ _jobs_run_scripts_command() {
 
   "$script" "$@"
 }
-
 # 封装 _jobs_restore_stateful_wrapper 对应的独立处理逻辑。
 _jobs_restore_stateful_wrapper() {
   emulate -L zsh
@@ -51,7 +53,6 @@ _jobs_restore_stateful_wrapper() {
   local main_function="$2"
   eval "${command_name}() { _jobs_source_and_run_scripts_command ${command_name} ${main_function} \"\$@\"; }"
 }
-
 # 封装 _jobs_source_and_run_scripts_command 对应的独立处理逻辑。
 _jobs_source_and_run_scripts_command() {
   emulate -L zsh
@@ -95,7 +96,6 @@ _jobs_source_and_run_scripts_command() {
   _jobs_restore_stateful_wrapper "$command_name" "$main_function"
   return $status
 }
-
 # list：打开 JobsMacEnv 功能菜单。
 list() { _jobs_run_scripts_command list "$@"; }
 # m5c：m5c

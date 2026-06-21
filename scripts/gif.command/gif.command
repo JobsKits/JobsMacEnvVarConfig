@@ -1,15 +1,15 @@
 #!/bin/zsh
+# 脚本自述：
+# - 脚本名称：gif.command
+# - 核心用途：执行“gif”对应的自动化任务。
+# - 影响范围：可能修改当前项目、用户环境或脚本指定的目标。
+# - 运行提示：运行后会先打印内置自述；终端模式按回车确认后继续，按 Ctrl+C 可取消。
 
-set -u
-set -o pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "$0")"
 SCRIPT_BASENAME=$(basename "$0" | sed 's/\.[^.]*$//')
 LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
-
-: > "$LOG_FILE"
-
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
@@ -79,7 +79,6 @@ AGG_BIN=""
 FFMPEG_BIN=""
 SCREENCAPTURE_BIN=""
 SETTINGS_MENU="false"
-
 # 封装 show_usage 对应的独立处理逻辑。
 show_usage() {
   cat <<'EOF_USAGE'
@@ -120,7 +119,6 @@ clear_terminal_soft() {
   command clear 2>/dev/null || true
   printf '\033[3J\033[H\033[2J'
 }
-
 # 展示脚本用途和影响范围，并在执行前等待用户确认。
 show_intro_if_double_clicked() {
   local current_name="$(basename -- "$SCRIPT_PATH")"
@@ -141,19 +139,16 @@ show_intro_if_double_clicked() {
   local _answer=""
   IFS= read -r _answer
 }
-
 # 解析并返回后续流程需要的目标信息。
 get_cpu_arch() {
   uname -m
 }
-
 # 封装 trim_text 对应的独立处理逻辑。
 trim_text() {
   local value="$1"
   value="$(printf "%s" "$value" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
   printf "%s" "$value"
 }
-
 # 封装 normalize_dragged_path 对应的独立处理逻辑。
 normalize_dragged_path() {
   local raw="$1"
@@ -176,32 +171,26 @@ normalize_dragged_path() {
 
   printf "%s" "$raw"
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 is_positive_int() {
   [[ "$1" =~ '^[0-9]+$' ]] && [[ "$1" -gt 0 ]]
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 is_nonnegative_int() {
   [[ "$1" =~ '^[0-9]+$' ]]
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 is_positive_number() {
   [[ "$1" =~ '^[0-9]+([.][0-9]+)?$' ]]
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 is_bool_text() {
   [[ "$1" == "true" || "$1" == "false" ]]
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 is_theme_text() {
   [[ "$1" =~ '^[A-Za-z0-9,_#.-]+$' ]]
 }
-
 # 封装 load_config 对应的独立处理逻辑。
 load_config() {
   [[ -f "$CONFIG_FILE" ]] || return 0
@@ -212,12 +201,10 @@ load_config() {
 
   warn_echo "历史配置读取失败，已使用默认配置：$CONFIG_FILE"
 }
-
 # 封装 quote_value 对应的独立处理逻辑。
 quote_value() {
   printf "%q" "$1"
 }
-
 # 封装 save_config 对应的独立处理逻辑。
 save_config() {
   mkdir -p "$CONFIG_DIR"
@@ -245,7 +232,6 @@ save_config() {
     printf "GIF_SCREEN_GIF_WIDTH=%s\n" "$(quote_value "$GIF_SCREEN_GIF_WIDTH")"
   } > "$CONFIG_FILE"
 }
-
 # 封装 refresh_brew_shellenv 对应的独立处理逻辑。
 refresh_brew_shellenv() {
   local brew_bin=""
@@ -262,7 +248,6 @@ refresh_brew_shellenv() {
   eval "$("$brew_bin" shellenv)"
   return 0
 }
-
 # 封装 inject_shellenv_block 对应的独立处理逻辑。
 inject_shellenv_block() {
   local profile_file="$1"
@@ -292,7 +277,6 @@ inject_shellenv_block() {
 
   success_echo "已写入 Homebrew shellenv：$profile_file"
 }
-
 # 收集并校验用户输入，决定后续执行路径。
 prompt_homebrew_update() {
   info_echo "Homebrew 已安装。是否执行更新？"
@@ -315,7 +299,6 @@ prompt_homebrew_update() {
   brew -v      || { warn_echo "打印 brew 版本失败，可忽略"; }
   success_echo "Homebrew 已更新"
 }
-
 # 执行对应的环境配置或同步处理。
 install_homebrew() {
   local allow_update="${1:-false}"
@@ -359,7 +342,6 @@ install_homebrew() {
   [[ "$allow_update" == "true" ]] || return 0
   prompt_homebrew_update
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_dependencies() {
   local allow_update="${1:-false}"
@@ -436,7 +418,6 @@ assert_writable_dir() {
   rm -f "$test_file"
   return 0
 }
-
 # 封装 make_unique_output_dir 对应的独立处理逻辑。
 make_unique_output_dir() {
   local parent="$1"
@@ -453,7 +434,6 @@ make_unique_output_dir() {
   mkdir -p "$candidate"
   printf "%s" "$candidate"
 }
-
 # 封装 set_output_files 对应的独立处理逻辑。
 set_output_files() {
   OUTPUT_DIR="$1"
@@ -463,7 +443,6 @@ set_output_files() {
   SCREEN_MOV_FILE="$OUTPUT_DIR/session.mov"
   META_FILE="$OUTPUT_DIR/README.md"
 }
-
 # 封装 prepare_default_output_path 对应的独立处理逻辑。
 prepare_default_output_path() {
   local timestamp="$(date '+%Y.%m.%d %H:%M:%S')"
@@ -480,7 +459,6 @@ prepare_default_output_path() {
   GIF_OUTPUT_PARENT="$candidate"
   set_output_files "$(make_unique_output_dir "$GIF_OUTPUT_PARENT" "$timestamp")"
 }
-
 # 收集并校验用户输入，决定后续执行路径。
 prompt_launch_mode() {
   local input=""
@@ -508,7 +486,6 @@ prompt_launch_mode() {
     note_echo "进入设置菜单。"
   fi
 }
-
 # 收集并校验用户输入，决定后续执行路径。
 prompt_record_mode() {
   local input=""
@@ -585,7 +562,6 @@ prompt_output_path() {
     warn_echo "请重新输入一个可用目录，或直接回车使用桌面。"
   done
 }
-
 # 封装 apply_quality_preset 对应的独立处理逻辑。
 apply_quality_preset() {
   local preset="$1"
@@ -647,7 +623,6 @@ apply_quality_preset() {
       ;;
   esac
 }
-
 # 收集并校验用户输入，决定后续执行路径。
 prompt_custom_value() {
   local var_name="$1"
@@ -699,7 +674,6 @@ prompt_custom_value() {
     return 0
   done
 }
-
 # 收集并校验用户输入，决定后续执行路径。
 prompt_custom_quality() {
   info_echo "自定义品质；每一项直接回车代表保留当前值。"
@@ -723,7 +697,6 @@ prompt_custom_quality() {
   prompt_custom_value GIF_SCREEN_GIF_WIDTH "全屏 GIF 宽度像素，输入 0 表示不缩放" nonnegative_int
   prompt_custom_value GIF_CLEAR_AFTER_FINISH "结束后清屏 true/false" bool
 }
-
 # 收集并校验用户输入，决定后续执行路径。
 prompt_quality() {
   local input=""
@@ -777,7 +750,6 @@ prompt_quality() {
     esac
   done
 }
-
 # 封装 write_metadata 对应的独立处理逻辑。
 write_metadata() {
   [[ -n "$META_FILE" ]] || return 0
@@ -859,7 +831,6 @@ write_latest_path() {
     printf "SCREEN_MOV_FILE=%s\n" "$SCREEN_MOV_FILE"
   } > "$LATEST_FILE"
 }
-
 # 解析并返回后续流程需要的目标信息。
 find_tool() {
   local name="$1"
@@ -870,7 +841,6 @@ find_tool() {
   [[ -x "$value" ]] || return 1
   printf "%s" "$value"
 }
-
 # 解析并返回后续流程需要的目标信息。
 find_system_tool() {
   local name="$1"
@@ -881,14 +851,12 @@ find_system_tool() {
   [[ -x "$value" ]] || return 1
   printf "%s" "$value"
 }
-
 # 封装 agg_supports 对应的独立处理逻辑。
 agg_supports() {
   local agg_bin="$1"
   local option="$2"
   "$agg_bin" --help 2>&1 | grep -Fq -- "$option"
 }
-
 # 封装 build_agg_args 对应的独立处理逻辑。
 build_agg_args() {
   local agg_bin="$1"
@@ -914,7 +882,6 @@ build_agg_args() {
 
   print -rl -- "${result[@]}"
 }
-
 # 封装 convert_to_gif 对应的独立处理逻辑。
 convert_to_gif() {
   [[ -s "$CAST_FILE" ]] || {
@@ -965,7 +932,6 @@ convert_to_gif() {
   success_echo "GIF 已生成：$GIF_FILE"
   return 0
 }
-
 # 封装 convert_to_mp4 对应的独立处理逻辑。
 convert_to_mp4() {
   [[ "$GIF_VIDEO_ENABLED" == "true" ]] || return 0
@@ -1016,8 +982,6 @@ convert_to_mp4() {
   success_echo "MP4 已生成：$VIDEO_FILE"
   return 0
 }
-
-
 # 封装 build_screen_gif_filter 对应的独立处理逻辑。
 build_screen_gif_filter() {
   local fps_value="$GIF_SCREEN_FPS"
@@ -1032,7 +996,6 @@ build_screen_gif_filter() {
     printf "fps=%s,scale=%s:-1:flags=lanczos" "$fps_value" "$width_value"
   fi
 }
-
 # 封装 convert_screen_mov_to_mp4 对应的独立处理逻辑。
 convert_screen_mov_to_mp4() {
   [[ "$GIF_VIDEO_ENABLED" == "true" ]] || return 0
@@ -1077,7 +1040,6 @@ convert_screen_mov_to_mp4() {
   success_echo "MP4 已生成：$VIDEO_FILE"
   return 0
 }
-
 # 封装 convert_screen_video_to_gif 对应的独立处理逻辑。
 convert_screen_video_to_gif() {
   local source_video="$VIDEO_FILE"
@@ -1134,7 +1096,6 @@ convert_screen_video_to_gif() {
   success_echo "GIF 已生成：$GIF_FILE"
   return 0
 }
-
 # 封装 notify_macos 对应的独立处理逻辑。
 notify_macos() {
   local title="$1"
@@ -1143,7 +1104,6 @@ notify_macos() {
   command -v osascript >/dev/null 2>&1 || return 0
   /usr/bin/osascript -e "display notification \"${message}\" with title \"${title}\"" >/dev/null 2>&1 || true
 }
-
 # 封装 finish_recording 对应的独立处理逻辑。
 finish_recording() {
   local result=0
@@ -1221,7 +1181,6 @@ if [[ "${JOBS_GIF_RECORDING:-}" == "1" ]]; then
 fi
 EOF_ZSHRC
 }
-
 # 封装 start_terminal_recording 对应的独立处理逻辑。
 start_terminal_recording() {
   local record_shell="/bin/zsh"
@@ -1245,7 +1204,6 @@ start_terminal_recording() {
     echo "[gif] asciinema rec 已结束或被 Ctrl-C 中断，继续执行转码" >> "$LOG_FILE"
   fi
 }
-
 # 封装 start_screen_recording 对应的独立处理逻辑。
 start_screen_recording() {
   local screencapture_bin="${SCREENCAPTURE_BIN:-}"
@@ -1284,7 +1242,6 @@ start_screen_recording() {
     echo "[gif] screencapture 已结束或被 Ctrl-C 中断，继续执行转码" >> "$LOG_FILE"
   fi
 }
-
 # 封装 start_recording 对应的独立处理逻辑。
 start_recording() {
   if [[ "$GIF_RECORD_MODE" == "screen" ]]; then
@@ -1337,51 +1294,97 @@ repair_from_path() {
   ensure_dependencies false "$GIF_RECORD_MODE"
   finish_recording
 }
-# 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
-run_main_flow() {
+# 打印脚本内置自述，并按运行入口决定是否等待用户确认。
+show_script_intro_and_wait() {
+  print -r -- '============================== 脚本内置自述 =============================='
+  print -r -- '脚本名称：gif.command'
+  print -r -- '核心用途：执行“gif”对应的自动化任务。'
+  print -r -- '影响范围：可能修改当前项目、用户环境或脚本指定的目标。'
+  print -r -- '取消方式：确认前按 Ctrl+C 终止，不会继续执行后续业务。'
+  print -r -- '============================================================================'
+  if [[ ! -t 0 ]]; then
+    print -u2 -r -- '当前没有可交互输入，请在终端中重新运行。'
+    return 1
+  fi
+  read -r "?👉 已了解脚本用途与影响，按回车继续；按 Ctrl+C 取消：" _
+}
+# 执行入口下沉后的完整业务流程和控制逻辑。
+run_main_business_flow() {
+  # 根据当前条件选择对应的执行分支。
   case "${1:-}" in
     -h|--help|help)
+      # 执行当前流程中的独立业务步骤：show_usage。
       show_usage
+      # 执行当前流程中的独立业务步骤：return。
       return 0
       ;;
     --repair|repair)
+      # 根据当前条件选择对应的执行分支。
       if [[ -z "${2:-}" ]]; then
+        # 执行当前流程中的独立业务步骤：error_echo。
         error_echo "缺少 repair 目标：输出目录或 session.cast"
+        # 输出当前步骤的提示或执行进度。
         echo "用法：gif --repair <输出目录或 session.cast>"
+        # 执行当前流程中的独立业务步骤：return。
         return 1
       fi
+      # 执行当前流程中的独立业务步骤：repair_from_path。
       repair_from_path "$2"
+      # 执行当前流程中的独立业务步骤：return。
       return $?
       ;;
   esac
 
+  # 展示脚本说明并等待用户确认影响范围。
   show_intro_if_double_clicked
+  # 准备后续业务需要的配置、目录或运行上下文。
   load_config
+  # 执行当前流程中的独立业务步骤：prompt_launch_mode。
   prompt_launch_mode
 
+  # 根据当前条件选择对应的执行分支。
   if [[ "$SETTINGS_MENU" == "true" ]]; then
+    # 执行当前流程中的独立业务步骤：prompt_record_mode。
     prompt_record_mode
+    # 执行当前流程中的独立业务步骤：prompt_output_path。
     prompt_output_path
+    # 执行当前流程中的独立业务步骤：prompt_quality。
     prompt_quality
+    # 准备后续业务需要的配置、目录或运行上下文。
     save_config
   else
     # 直接回车启动时，默认永远录制当前终端，避免上次选择全屏后误录整个屏幕。
     GIF_RECORD_MODE="terminal"
+    # 准备后续业务需要的配置、目录或运行上下文。
     prepare_default_output_path
   fi
 
+  # 检查当前步骤所需的环境、路径或输入条件。
   ensure_dependencies "$SETTINGS_MENU" "$GIF_RECORD_MODE"
 
+  # 执行当前流程中的独立业务步骤：write_metadata。
   write_metadata
+  # 执行当前流程中的独立业务步骤：write_latest_path。
   write_latest_path
+  # 执行当前流程中的独立业务步骤：start_recording。
   start_recording
   finish_recording || return 1
 }
-
-# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+# 编排脚本的高层业务流程。
+# 初始化脚本运行环境，并集中承载原有的顶层执行逻辑。
+initialize_script_runtime() {
+  set -u
+  set -o pipefail
+  : > "$LOG_FILE"
+}
+# 编排脚本的高层业务流程。
 main() {
-  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
-  run_main_flow "$@"
+  # 展示脚本内置自述，并按运行入口完成防误触确认。
+  show_script_intro_and_wait
+  # 初始化 Shell 选项、日志、依赖和入口运行状态。
+  initialize_script_runtime
+  # 执行入口下沉后的完整业务流程。
+  run_main_business_flow "$@"
 }
 
 main "$@"

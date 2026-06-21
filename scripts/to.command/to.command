@@ -1,7 +1,10 @@
 #!/bin/zsh
+# 脚本自述：
+# - 脚本名称：to.command
+# - 核心用途：执行“to”对应的自动化任务。
+# - 影响范围：可能修改当前项目、用户环境或脚本指定的目标。
+# - 运行提示：运行后会先打印内置自述；终端模式按回车确认后继续，按 Ctrl+C 可取消。
 
-set -o pipefail
-setopt NO_NOMATCH
 
 # ---------- 基础路径 ----------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
@@ -9,9 +12,7 @@ SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "$0")"
 SCRIPT_BASENAME=$(basename "$0" | sed 's/\.[^.]*$//')
 LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 
-: > "$LOG_FILE"
 FFMPEG_BIN=""
-
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
@@ -40,7 +41,6 @@ gray_echo()      { log "\033[0;90m$1\033[0m"; }
 bold_echo()      { log "\033[1m$1\033[0m"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "\033[4m$1\033[0m"; }
-
 # ---------- 通用交互 ----------
 ask_any_to_run() {
   emulate -L zsh
@@ -51,7 +51,6 @@ ask_any_to_run() {
   read -r "?${message}（直接回车跳过；输入任意字符后回车执行）：" answer
   [[ -n "$answer" ]]
 }
-
 # 封装 strip_outer_quotes 对应的独立处理逻辑。
 strip_outer_quotes() {
   emulate -L zsh
@@ -77,7 +76,6 @@ strip_outer_quotes() {
 
   print -r -- "$value"
 }
-
 # 展示脚本用途和影响范围，并在执行前等待用户确认。
 show_readme_and_wait() {
   emulate -L zsh
@@ -97,7 +95,6 @@ show_readme_and_wait() {
   echo ""
   read -r "?👉 已阅读自述文件，按回车继续执行；按 Ctrl+C 取消：" _
 }
-
 # ---------- 依赖检查 ----------
 find_brew_bin() {
   emulate -L zsh
@@ -117,7 +114,6 @@ find_brew_bin() {
 
   return 1
 }
-
 # 解析并返回后续流程需要的目标信息。
 find_ffmpeg_bin() {
   emulate -L zsh
@@ -137,7 +133,6 @@ find_ffmpeg_bin() {
 
   return 1
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_ffmpeg() {
   emulate -L zsh
@@ -172,7 +167,6 @@ ensure_ffmpeg() {
   error_echo "FFmpeg 安装后仍不可用，请检查 PATH。"
   return 1
 }
-
 # ---------- 转换配置 ----------
 normalize_ext() {
   emulate -L zsh
@@ -182,7 +176,6 @@ normalize_ext() {
   ext="${ext:l}"
   print -r -- "$ext"
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 is_format_shortcut() {
   emulate -L zsh
@@ -197,7 +190,6 @@ is_format_shortcut() {
 
   return 1
 }
-
 # 封装 next_output_path 对应的独立处理逻辑。
 next_output_path() {
   emulate -L zsh
@@ -215,7 +207,6 @@ next_output_path() {
 
   print -r -- "$output"
 }
-
 # 封装 print_usage 对应的独立处理逻辑。
 print_usage() {
   cat <<'EOFUSAGE' | tee -a "$LOG_FILE"
@@ -248,7 +239,6 @@ to - FFmpeg 通用媒体格式转换
 ============================================================
 EOFUSAGE
 }
-
 # 封装 read_target_ext 对应的独立处理逻辑。
 read_target_ext() {
   emulate -L zsh
@@ -261,7 +251,6 @@ read_target_ext() {
 
   print -r -- "$target_ext"
 }
-
 # 封装 read_input_paths 对应的独立处理逻辑。
 read_input_paths() {
   emulate -L zsh
@@ -313,7 +302,6 @@ read_input_paths() {
     return 0
   done
 }
-
 # 收集并校验用户输入，决定后续执行路径。
 prompt_output_stem() {
   emulate -L zsh
@@ -341,7 +329,6 @@ prompt_output_stem() {
 
   print -r -- "$output_stem"
 }
-
 # ---------- FFmpeg 执行 ----------
 run_and_log() {
   emulate -L zsh
@@ -349,7 +336,6 @@ run_and_log() {
   "$@" 2>&1 | tee -a "$LOG_FILE"
   return ${pipestatus[1]}
 }
-
 # 执行已经拆分完成的独立业务步骤。
 run_ffmpeg_convert() {
   emulate -L zsh
@@ -408,7 +394,6 @@ run_ffmpeg_convert() {
       ;;
   esac
 }
-
 # 封装 convert_one 对应的独立处理逻辑。
 convert_one() {
   emulate -L zsh
@@ -458,7 +443,6 @@ convert_one() {
   fi
   return "$status"
 }
-
 # 封装 convert_many 对应的独立处理逻辑。
 convert_many() {
   emulate -L zsh
@@ -488,50 +472,91 @@ convert_many() {
   gray_echo "日志路径：$LOG_FILE"
   return "$failed"
 }
-
 # ---------- 主流程统一收口 ----------
 jobs_to_main() {
+  # 执行当前流程中的独立业务步骤：emulate。
   emulate -L zsh
 
+  # 初始化当前流程后续步骤需要使用的变量。
   local target_ext=""
+  # 执行当前流程中的独立业务步骤：local。
   local -a inputs
 
+  # 根据当前条件选择对应的执行分支。
   if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    # 执行当前流程中的独立业务步骤：print_usage。
     print_usage
+    # 执行当前流程中的独立业务步骤：return。
     return 0
   fi
 
+  # 根据当前条件选择对应的执行分支。
   if is_format_shortcut "$SCRIPT_BASENAME" && [[ "$SCRIPT_BASENAME" != "to" ]]; then
+    # 初始化当前流程后续步骤需要使用的变量。
     target_ext="$(normalize_ext "$SCRIPT_BASENAME")"
+    # 执行当前流程中的独立业务步骤：shift。
     shift 0
   elif (( $# > 0 )); then
+    # 初始化当前流程后续步骤需要使用的变量。
     target_ext="$(normalize_ext "$1")"
+    # 执行当前流程中的独立业务步骤：shift。
     shift
   else
+    # 展示脚本说明并等待用户确认影响范围。
     show_readme_and_wait
+    # 初始化当前流程后续步骤需要使用的变量。
     target_ext="$(read_target_ext)"
   fi
 
+  # 根据当前条件选择对应的执行分支。
   if (( $# > 0 )); then
+    # 初始化当前流程后续步骤需要使用的变量。
     inputs=("$@")
   else
+    # 初始化当前流程后续步骤需要使用的变量。
     inputs=("${(@f)$(read_input_paths)}")
   fi
 
+  # 根据当前条件选择对应的执行分支。
   if (( ${#inputs[@]} == 0 )); then
+    # 执行当前流程中的独立业务步骤：error_echo。
     error_echo "没有拿到源文件路径。"
+    # 执行当前流程中的独立业务步骤：return。
     return 1
   fi
 
+  # 执行当前流程中的独立业务步骤：convert_many。
   convert_many "$target_ext" "${inputs[@]}"
 }
-
+# 打印脚本内置自述，并按运行入口决定是否等待用户确认。
+show_script_intro_and_wait() {
+  print -r -- '============================== 脚本内置自述 =============================='
+  print -r -- '脚本名称：to.command'
+  print -r -- '核心用途：执行“to”对应的自动化任务。'
+  print -r -- '影响范围：可能修改当前项目、用户环境或脚本指定的目标。'
+  print -r -- '取消方式：确认前按 Ctrl+C 终止，不会继续执行后续业务。'
+  print -r -- '============================================================================'
+  if [[ ! -t 0 ]]; then
+    print -u2 -r -- '当前没有可交互输入，请在终端中重新运行。'
+    return 1
+  fi
+  read -r "?👉 已了解脚本用途与影响，按回车继续；按 Ctrl+C 取消：" _
+}
 # 统一收口脚本入口，仅委托已经拆分完成的业务流程。
 main() {
-  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  # 展示脚本内置自述，并按运行入口完成防误触确认。
+  show_script_intro_and_wait
+  # 执行 jobs_to_main 对应的独立业务步骤。
   jobs_to_main "$@"
 }
-
-if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
-  main "$@"
-fi
+# 初始化脚本运行环境，并集中承载原有的顶层执行逻辑。
+initialize_script_module() {
+  set -o pipefail
+  setopt NO_NOMATCH
+  : > "$LOG_FILE"
+  if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+    main "$@"
+  fi
+}
+# 加载模块时统一执行必要的初始化和入口分派。
+initialize_script_module "$@"

@@ -1,16 +1,16 @@
 #!/bin/zsh
+# 脚本自述：
+# - 脚本名称：ts.command
+# - 核心用途：执行“ts”对应的自动化任务。
+# - 影响范围：可能修改当前项目、用户环境或脚本指定的目标。
+# - 运行提示：运行后会先打印内置自述；终端模式按回车确认后继续，按 Ctrl+C 可取消。
 
-set -o pipefail
-setopt NO_NOMATCH
 
 # ---------- 基础路径 ----------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "$0")"
 SCRIPT_BASENAME=$(basename "$0" | sed 's/\.[^.]*$//')
 LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
-
-: > "$LOG_FILE"
-
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
@@ -39,7 +39,6 @@ gray_echo()      { log "[0;90m$1[0m"; }
 bold_echo()      { log "[1m$1[0m"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
 underline_echo() { log "[4m$1[0m"; }
-
 # ---------- 内置自述 ----------
 jobs_ts_show_readme_and_wait() {
   clear 2>/dev/null || true
@@ -75,15 +74,12 @@ EOFREADME
     IFS= read -r _answer
   fi
 }
-
-
 # ---------- 命令实现 ----------
 # ================================== 时间戳转换 ==================================
 # ts
 # 交互式输入 Unix 时间戳，并输出完整时间：年、月、日、时、分、秒、周几、时区。
 # 时区选择：直接回车使用当前系统时区；输入任意字符后用 fzf 选择其他时区。
 # 自动识别常见时间戳精度：秒 / 毫秒 / 微秒 / 纳秒。
-unalias ts 2>/dev/null
 # 封装 ts 对应的独立处理逻辑。
 ts() {
   emulate -L zsh
@@ -95,7 +91,6 @@ ts() {
     print -P "%F{red}❌ 未检测到 python3，无法转换时间戳%f"
     return 1
   fi
-
   # 封装 _jobs_ts_read_line 对应的独立处理逻辑。
   _jobs_ts_read_line() {
     emulate -L zsh
@@ -293,19 +288,43 @@ except Exception as exc:
     sys.exit(1)
 PY
 }
-
 # ---------- 主流程统一收口 ----------
 jobs_ts_main() {
+  # 展示脚本说明并等待用户确认影响范围。
   jobs_ts_show_readme_and_wait
+  # 执行当前流程中的独立业务步骤：ts。
   ts "$@"
 }
-
+# 打印脚本内置自述，并按运行入口决定是否等待用户确认。
+show_script_intro_and_wait() {
+  print -r -- '============================== 脚本内置自述 =============================='
+  print -r -- '脚本名称：ts.command'
+  print -r -- '核心用途：执行“ts”对应的自动化任务。'
+  print -r -- '影响范围：可能修改当前项目、用户环境或脚本指定的目标。'
+  print -r -- '取消方式：确认前按 Ctrl+C 终止，不会继续执行后续业务。'
+  print -r -- '============================================================================'
+  if [[ ! -t 0 ]]; then
+    print -u2 -r -- '当前没有可交互输入，请在终端中重新运行。'
+    return 1
+  fi
+  read -r "?👉 已了解脚本用途与影响，按回车继续；按 Ctrl+C 取消：" _
+}
 # 统一收口脚本入口，仅委托已经拆分完成的业务流程。
 main() {
-  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  # 展示脚本内置自述，并按运行入口完成防误触确认。
+  show_script_intro_and_wait
+  # 执行 jobs_ts_main 对应的独立业务步骤。
   jobs_ts_main "$@"
 }
-
-if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
-  main "$@"
-fi
+# 初始化脚本运行环境，并集中承载原有的顶层执行逻辑。
+initialize_script_module() {
+  set -o pipefail
+  setopt NO_NOMATCH
+  : > "$LOG_FILE"
+  unalias ts 2>/dev/null
+  if [[ "${JOBS_MAC_ENV_SOURCE_MODE:-}" != "1" ]]; then
+    main "$@"
+  fi
+}
+# 加载模块时统一执行必要的初始化和入口分派。
+initialize_script_module "$@"

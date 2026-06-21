@@ -1,13 +1,14 @@
 #!/bin/zsh
+# 脚本自述：
+# - 脚本名称：code.command
+# - 核心用途：执行“code”对应的自动化任务。
+# - 影响范围：可能修改当前项目、用户环境或脚本指定的目标。
+# - 运行提示：运行后会先打印内置自述；终端模式按回车确认后继续，按 Ctrl+C 可取消。
 # JobsMacEnv VS Code CLI wrapper.
 # 用途：即使 VS Code 没有执行“Shell Command: Install 'code' command in PATH”，也能在终端使用：code .
 
-emulate -L zsh
-set -o pipefail
-setopt NO_NOMATCH
 
 jobs_code_self_path="${0:A}"
-
 # 封装 jobs_code_exec_if_valid 对应的独立处理逻辑。
 jobs_code_exec_if_valid() {
   local candidate="$1"
@@ -22,7 +23,6 @@ jobs_code_exec_if_valid() {
 
   exec "$candidate" "$@"
 }
-
 # 封装 jobs_code_resolve_from_app 对应的独立处理逻辑。
 jobs_code_resolve_from_app() {
   local app_path="$1"
@@ -41,49 +41,67 @@ jobs_code_resolve_from_app() {
 
   return 1
 }
-
 # 编排完整业务流程，复杂步骤继续下沉到职责明确的函数。
 jobs_code_main() {
+  # 初始化当前流程后续步骤需要使用的变量。
   local candidate=""
+  # 初始化当前流程后续步骤需要使用的变量。
   local app_path=""
 
   # 1. 优先查找 VS Code App 内置的官方 CLI。
   local fixed_candidates=(
     "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+    # 执行当前流程中的独立业务步骤：处理当前语句。
     "$HOME/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+    # 执行当前流程中的独立业务步骤：处理当前语句。
     "/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code-insiders"
+    # 执行当前流程中的独立业务步骤：处理当前语句。
     "$HOME/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code-insiders"
   )
 
+  # 循环处理用户输入或当前批次中的全部目标。
   for candidate in "${fixed_candidates[@]}"; do
+    # 执行当前流程中的独立业务步骤：jobs_code_exec_if_valid。
     jobs_code_exec_if_valid "$candidate" "$@" || true
   done
 
   # 2. 兼容用户之后又安装了官方 code 软链接的情况。
   local link_candidates=(
     "/usr/local/bin/code"
+    # 执行当前流程中的独立业务步骤：处理当前语句。
     "/opt/homebrew/bin/code"
   )
 
+  # 循环处理用户输入或当前批次中的全部目标。
   for candidate in "${link_candidates[@]}"; do
+    # 执行当前流程中的独立业务步骤：jobs_code_exec_if_valid。
     jobs_code_exec_if_valid "$candidate" "$@" || true
   done
 
   # 3. Spotlight 兜底：如果 VS Code 被放在非标准目录，尝试通过 Bundle ID 查找。
   if command -v mdfind >/dev/null 2>&1; then
+    # 初始化当前流程后续步骤需要使用的变量。
     app_path="$(mdfind 'kMDItemCFBundleIdentifier == "com.microsoft.VSCode"' 2>/dev/null | head -n 1)"
+    # 根据当前条件选择对应的执行分支。
     if [[ -n "$app_path" ]]; then
+      # 初始化当前流程后续步骤需要使用的变量。
       candidate="$(jobs_code_resolve_from_app "$app_path" 2>/dev/null || true)"
+      # 执行当前流程中的独立业务步骤：jobs_code_exec_if_valid。
       jobs_code_exec_if_valid "$candidate" "$@" || true
     fi
 
+    # 初始化当前流程后续步骤需要使用的变量。
     app_path="$(mdfind 'kMDItemCFBundleIdentifier == "com.microsoft.VSCodeInsiders"' 2>/dev/null | head -n 1)"
+    # 根据当前条件选择对应的执行分支。
     if [[ -n "$app_path" ]]; then
+      # 初始化当前流程后续步骤需要使用的变量。
       candidate="$(jobs_code_resolve_from_app "$app_path" 2>/dev/null || true)"
+      # 执行当前流程中的独立业务步骤：jobs_code_exec_if_valid。
       jobs_code_exec_if_valid "$candidate" "$@" || true
     fi
   fi
 
+  # 执行当前流程中的独立业务步骤：cat。
   cat >&2 <<'EOFERR'
 code: 未找到 VS Code 的命令行入口。
 
@@ -98,12 +116,37 @@ code: 未找到 VS Code 的命令行入口。
   2. 重新执行 JobsMacEnvVarConfigs/install.command；
   3. 或在 VS Code 中执行：Command Palette → Shell Command: Install 'code' command in PATH。
 EOFERR
+  # 执行当前流程中的独立业务步骤：return。
   return 127
 }
-
+# 打印脚本内置自述，并按运行入口决定是否等待用户确认。
+show_script_intro_and_wait() {
+  print -r -- '============================== 脚本内置自述 =============================='
+  print -r -- '脚本名称：code.command'
+  print -r -- '核心用途：执行“code”对应的自动化任务。'
+  print -r -- '影响范围：可能修改当前项目、用户环境或脚本指定的目标。'
+  print -r -- '取消方式：确认前按 Ctrl+C 终止，不会继续执行后续业务。'
+  print -r -- '============================================================================'
+  if [[ ! -t 0 ]]; then
+    print -u2 -r -- '当前没有可交互输入，请在终端中重新运行。'
+    return 1
+  fi
+  read -r "?👉 已了解脚本用途与影响，按回车继续；按 Ctrl+C 取消：" _
+}
 # 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+# 初始化脚本运行环境，并集中承载原有的顶层执行逻辑。
+initialize_script_runtime() {
+  emulate -L zsh
+  set -o pipefail
+  setopt NO_NOMATCH
+}
+# 编排脚本的高层业务流程。
 main() {
-  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
+  # 展示脚本内置自述，并按运行入口完成防误触确认。
+  show_script_intro_and_wait
+  # 初始化 Shell 选项、日志、依赖和入口运行状态。
+  initialize_script_runtime
+  # 执行 jobs_code_main 对应的独立业务步骤。
   jobs_code_main "$@"
 }
 

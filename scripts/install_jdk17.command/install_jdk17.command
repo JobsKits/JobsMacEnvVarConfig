@@ -1,6 +1,10 @@
 #!/bin/zsh
+# 脚本自述：
+# - 脚本名称：install_jdk17.command
+# - 核心用途：执行“install_jdk17”对应的本机环境配置任务。
+# - 影响范围：可能安装、更新或修改当前用户的工具链与配置文件。
+# - 运行提示：运行后会先打印内置自述；终端模式按回车确认后继续，按 Ctrl+C 可取消。
 
-set -euo pipefail
 
 # ============================================================
 # JDK 17 安装脚本
@@ -14,7 +18,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "$0")"
 SCRIPT_BASENAME=$(basename "$0" | sed 's/\.[^.]*$//')
 LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
-
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
 # 按当前输出级别记录终端信息，并同步写入脚本日志。
@@ -47,7 +50,6 @@ underline_echo() { log "\033[4m$1\033[0m"; }
 # ---------- 常量 ----------
 readonly JDK_VERSION="17"
 typeset -r -a JAVA_CANDIDATES=("temurin@17" "zulu@17" "openjdk@17")
-
 # ---------- 基础工具 ----------
 press_enter_to_continue() {
   local prompt="${1:-按 Enter 继续...}"
@@ -56,7 +58,6 @@ press_enter_to_continue() {
   local _answer
   IFS= read -r _answer
 }
-
 # 展示脚本用途和影响范围，并在执行前等待用户确认。
 show_readme() {
   clear
@@ -77,12 +78,10 @@ show_readme() {
   press_enter_to_continue "确认要继续，请按 Enter..."
   clear
 }
-
 # 解析并返回后续流程需要的目标信息。
 get_cpu_arch() {
   uname -m
 }
-
 # 解析并返回后续流程需要的目标信息。
 get_profile_file() {
   case "${SHELL##*/}" in
@@ -91,13 +90,11 @@ get_profile_file() {
     *)    echo "$HOME/.profile" ;;
   esac
 }
-
 # 检查当前运行条件是否满足后续流程要求。
 ensure_file_exists() {
   local file_path="$1"
   [[ -f "$file_path" ]] || touch "$file_path"
 }
-
 # ---------- Homebrew ----------
 find_brew_bin() {
   if command -v brew >/dev/null 2>&1; then
@@ -115,7 +112,6 @@ find_brew_bin() {
 
   return 1
 }
-
 # 封装 inject_shellenv_block 对应的独立处理逻辑。
 inject_shellenv_block() {
   local profile_file="$1"
@@ -144,7 +140,6 @@ inject_shellenv_block() {
   eval "$($brew_bin shellenv)"
   success_echo "Homebrew 环境变量已在当前会话生效"
 }
-
 # 执行对应的环境配置或同步处理。
 install_homebrew_if_needed() {
   local arch shell_path profile_file brew_bin
@@ -201,18 +196,15 @@ install_homebrew_if_needed() {
   inject_shellenv_block "$profile_file" "$brew_bin"
   success_echo "Homebrew 安装完成"
 }
-
 # ---------- JDK 检测 ----------
 has_java17() {
   [[ -x /usr/libexec/java_home ]] || return 1
   /usr/libexec/java_home -v "$JDK_VERSION" >/dev/null 2>&1
 }
-
 # 解析并返回后续流程需要的目标信息。
 get_java17_home() {
   /usr/libexec/java_home -v "$JDK_VERSION" 2>/dev/null || true
 }
-
 # 封装 print_java17_info 对应的独立处理逻辑。
 print_java17_info() {
   local java_home
@@ -226,7 +218,6 @@ print_java17_info() {
     "$java_home/bin/java" -version 2>&1 | tee -a "$LOG_FILE" || true
   fi
 }
-
 # ---------- JDK 安装 ----------
 install_jdk_candidate() {
   local candidate="$1"
@@ -239,7 +230,6 @@ install_jdk_candidate() {
     brew install --cask "$candidate"
   fi
 }
-
 # 封装 link_openjdk17_for_java_home 对应的独立处理逻辑。
 link_openjdk17_for_java_home() {
   local brew_prefix openjdk_home link_path
@@ -261,7 +251,6 @@ link_openjdk17_for_java_home() {
   sudo ln -sfn "$openjdk_home" "$link_path" || return 1
   success_echo "已创建 openjdk@17 系统软链接"
 }
-
 # 执行对应的环境配置或同步处理。
 install_jdk17_if_needed() {
   if has_java17; then
@@ -293,29 +282,54 @@ install_jdk17_if_needed() {
   err_echo "建议手动执行：brew install --cask temurin@17"
   return 1
 }
-
 # ---------- 收尾 ----------
 finish_script() {
   echo ""
   gray_echo "日志文件：$LOG_FILE"
 }
-
-# ---------- 主流程入口 ----------
-run_main_flow() {
+# 打印脚本内置自述，并按运行入口决定是否等待用户确认。
+show_script_intro_and_wait() {
+  print -r -- '============================== 脚本内置自述 =============================='
+  print -r -- '脚本名称：install_jdk17.command'
+  print -r -- '核心用途：执行“install_jdk17”对应的自动化任务。'
+  print -r -- '影响范围：可能修改当前项目、用户环境或脚本指定的目标。'
+  print -r -- '取消方式：确认前按 Ctrl+C 终止，不会继续执行后续业务。'
+  print -r -- '============================================================================'
+  if [[ ! -t 0 ]]; then
+    print -u2 -r -- '当前没有可交互输入，请在终端中重新运行。'
+    return 1
+  fi
+  read -r "?👉 已了解脚本用途与影响，按回车继续；按 Ctrl+C 取消：" _
+}
+# 执行入口下沉后的完整业务流程和控制逻辑。
+run_main_business_flow() {
+  # 执行当前流程中的独立业务步骤：处理当前语句。
   : > "$LOG_FILE"
 
+  # 展示脚本说明并等待用户确认影响范围。
   show_readme
+  # 执行安装步骤，并保留命令失败信息供后续排查。
   install_homebrew_if_needed
+  # 执行安装步骤，并保留命令失败信息供后续排查。
   install_jdk17_if_needed
   finish_script
 
+  # 输出当前流程的完成状态、摘要和日志位置。
   success_echo "JDK $JDK_VERSION 检查 / 安装流程结束"
 }
-
-# 统一收口脚本入口，仅委托已经拆分完成的业务流程。
+# 编排脚本的高层业务流程。
+# 初始化脚本运行环境，并集中承载原有的顶层执行逻辑。
+initialize_script_runtime() {
+  set -euo pipefail
+}
+# 编排脚本的高层业务流程。
 main() {
-  # 主入口只负责委托完整业务流程，复杂逻辑统一下沉。
-  run_main_flow "$@"
+  # 展示脚本内置自述，并按运行入口完成防误触确认。
+  show_script_intro_and_wait
+  # 初始化 Shell 选项、日志、依赖和入口运行状态。
+  initialize_script_runtime
+  # 执行入口下沉后的完整业务流程。
+  run_main_business_flow "$@"
 }
 
 main "$@"
