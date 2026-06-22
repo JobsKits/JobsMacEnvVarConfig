@@ -64,6 +64,7 @@ readonly -a BREW_FORMULAE=(
   pnpm
   python
   python3
+  pyside
   fastlane
   mysql
   hugo
@@ -74,6 +75,7 @@ readonly -a BREW_FORMULAE=(
   go-task
   uv
   fzf
+  glow
   lazygit
   onlyoffice
   dufs

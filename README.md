@@ -64,6 +64,9 @@
 │   ├── flat.command/
 │   │   ├── flat.command  # URL 编码去乱码 / 解码工具
 │   │   └── README.md
+│   ├── dq.command/
+│   │   ├── dq.command              # 解除 macOS quarantine 隔离标记
+│   │   └── README.md
 │   ├── df.command/
 │   │   ├── df.command             # dufs + Caddy 局域网目录共享入口
 │   │   └── README.md
@@ -97,6 +100,7 @@
 │   ├── list.command/list.command
 │   ├── m5c.command/m5c.command
 │   ├── flat.command/flat.command
+│   ├── dq.command/dq.command
 │   ├── df.command/df.command
 │   └── *.command/*.command
 └── zsh/
@@ -264,6 +268,7 @@ export JOBS_ALIAS_DRAG_AUTO_RESOLVE=true
 | m5c | MD5 文件一致性比较工具，支持输入或拖入两个文件路径 |
 | flat | URL 编码去乱码 / 解码工具，支持普通 URL Decode 和 `--plus` 表单编码模式 |
 | clr | 清空 Google Chrome 下载记录，不删除真实下载文件 |
+| dq | 解除指定文件或 App 的 macOS quarantine 隔离标记 |
 
 ## 七、常用能力 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
@@ -482,6 +487,31 @@ clr --ui-only
 - `--yes` 适合自动化调用，会跳过回车确认。
 - `--js-only` 只尝试 Chrome JavaScript 点击。
 - `--ui-only` 只尝试 macOS 辅助功能 UI 点击。
+
+#### 3.4.1 `dq`：解除 macOS quarantine 隔离标记
+
+来源文件：
+
+```text
+Scripts/dq.command/dq.command
+```
+
+用法：
+
+```zsh
+dq
+dq "/Users/jobs/Downloads/Otty (1).dmg"
+dq /Users/jobs/Downloads/Otty\ \(1\).dmg
+dq --open /Applications/Otty.app
+dq --dry-run ~/Downloads/Otty.dmg
+```
+
+行为：
+
+- 只对传入路径执行 `xattr -dr com.apple.quarantine`。
+- 直接输入 `dq` 时，会循环询问文件路径；可以手动输入或从 Finder 拖入。
+- 不执行 `spctl --master-disable`，不全局关闭 Gatekeeper。
+- 支持拖入路径、带空格路径、DMG、zip、App 和目录。
 
 #### 3.5 `zz <路径>`：跳转到真实目录
 
@@ -1018,6 +1048,7 @@ gif 终端 / 全屏录制入口 -> Scripts/gif.command/gif.command / ~/.local/bi
 simios iOS 模拟器补齐入口 -> Scripts/simios.command/simios.command / ~/.local/bin/simios
 m5c MD5 文件比较入口 -> Scripts/m5c.command/m5c.command / ~/.local/bin/m5c
 flat URL 编码去乱码入口 -> Scripts/flat.command/flat.command / ~/.local/bin/flat
+dq macOS quarantine 隔离解除入口 -> Scripts/dq.command/dq.command / ~/.local/bin/dq
 df 局域网目录共享入口 -> Scripts/df.command/df.command / ~/.local/bin/df
 clr Chrome 下载记录清理入口 -> Scripts/clr.command/clr.command / ~/.local/bin/clr
 终端默认行为         -> zsh/custom/shell_behavior.zsh

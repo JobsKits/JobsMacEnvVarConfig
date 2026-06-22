@@ -507,6 +507,7 @@ verify_scripts_modules() {
     pods.command
     clean.command
     clr.command
+    dq.command
     df.command
     cor.command
     decode.command
@@ -959,7 +960,7 @@ install_general_bin_entries() {
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" clean.command clean
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" clr.command clr
   remove_obsolete_bin_entry "$target_bin_dir" dlclear
-  remove_obsolete_bin_entry "$target_bin_dir" dq
+  install_bin_entry "$target_scripts_dir" "$target_bin_dir" dq.command dq
   install_bin_entry "$target_scripts_dir" "$target_bin_dir" df.command df
 
   local old_long_entry="$target_bin_dir/dequarantine"

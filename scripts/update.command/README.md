@@ -150,6 +150,7 @@ readonly -a BREW_FORMULAE=(
   pnpm
   python
   python3
+  pyside
   fastlane
   mysql
   hugo
@@ -182,6 +183,7 @@ readonly -a BREW_FORMULAE=(
 | [**pnpm**](https://pnpm.io/) | Node.js 包管理器 |
 | [**python**](https://www.python.org/) | Python 运行环境 |
 | [**python3**](https://www.python.org/) | Python 3 运行环境 |
+| [**pyside**](https://formulae.brew.sh/formula/pyside) | Qt 官方 Python 绑定；代码中使用 `PySide6` 导入 |
 | [**fastlane**](https://fastlane.tools/) | 移动端自动化发布工具 |
 | [**mysql**](https://www.mysql.com/) | MySQL 数据库 |
 | [**hugo**](https://gohugo.io/) | 静态站点生成器 |

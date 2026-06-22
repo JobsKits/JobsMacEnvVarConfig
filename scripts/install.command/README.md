@@ -81,6 +81,7 @@
     pnpm
     python
     python3
+    pyside
     fastlane
     mysql
     hugo
@@ -91,6 +92,7 @@
     go-task
     uv
     fzf
+    glow
     lazygit
     onlyoffice
     dufs
@@ -184,6 +186,7 @@
 - [**pnpm**](https://pnpm.io)
 - [**Python**](https://www.python.org)
 - `python3`
+- [**PySide6**](https://doc.qt.io/qtforpython-6/)：Qt 官方 Python 绑定，Homebrew formula 名为 `pyside`。
 - [**fastlane**](https://fastlane.tools)
 - [**MySQL**](https://www.mysql.com)
 - [**Hugo**](https://gohugo.io)
@@ -194,6 +197,7 @@
 - [**go-task**](https://taskfile.dev)
 - [**uv**](https://docs.astral.sh/uv/)
 - [**fzf**](https://github.com/junegunn/fzf)
+- [**Glow**](https://github.com/charmbracelet/glow)：终端 Markdown 阅读器，对应 `brew install glow`。
 - [**lazygit**](https://github.com/jesseduffield/lazygit)
 - [**ONLYOFFICE**](https://www.onlyoffice.com)
 - [**dufs**](https://github.com/sigoden/dufs)
@@ -292,6 +296,7 @@
   brew formula：pnpm
   brew formula：python
   brew formula：python3
+  brew formula：pyside
   brew formula：fastlane
   brew formula：mysql
   brew formula：hugo
@@ -302,6 +307,7 @@
   brew formula：go-task
   brew formula：uv
   brew formula：fzf
+  brew formula：glow
   brew formula：lazygit
   brew formula：onlyoffice
   brew formula：dufs

@@ -55,6 +55,7 @@ readonly -a BREW_FORMULAE=(
   pnpm
   python
   python3
+  pyside
   fastlane
   mysql
   hugo
