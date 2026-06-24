@@ -66,13 +66,15 @@ JOBS_MAC_ENV_SKIP_README=1 ./update.command
   - 对应更新：执行 `~/.oh-my-zsh/tools/upgrade.sh`
 - [**Homebrew**](https://brew.sh/)
   - 对应更新：执行 `brew update`、`brew upgrade`、`brew upgrade --cask`、`brew cleanup`、`brew doctor`、`brew -v`
+  - 容错处理：`brew update` 遇到 `formulae.brew.sh/api` 或 `.jws.json` 下载失败时，自动使用 `HOMEBREW_NO_INSTALL_FROM_API=1 brew update` 降级重试
+  - 信任处理：全局 `brew upgrade` 前会先处理脚本维护的第三方 tap，避免 Homebrew 扫描阶段提前跳过 `fvm` 等非官方 formula
   - `brew cask`：由 `BREW_CASKS` 自动生成逐项升级入口
   - `brew formula`：由 `BREW_FORMULAE` 自动生成逐项升级入口
   - `github-store`：升级前确认 `OpenHub-Store/tap`，升级后对 `/Applications/GitHub-Store.app` 执行 `xattr -dr com.apple.quarantine`
 - [**Rosetta 2**](https://support.apple.com/en-us/102527)
   - 对应更新：检查安装状态；Rosetta 2 通常跟随 [**macOS**](https://www.apple.com/macos/) 系统更新维护
 - [**FVM**](https://fvm.app/) / [**Flutter**](https://flutter.dev/)
-  - 对应更新：升级 FVM，优先执行外部 `flutter upgrade` / `flutter doctor -v`，否则回退到 `fvm flutter doctor -v`
+  - 对应更新：FVM 复用统一的 `brew formula` 升级逻辑，先处理 `leoafarias/fvm` tap 信任与确认，再执行外部 `flutter upgrade` / `flutter doctor -v`；否则回退到 `fvm flutter doctor -v`
 - [**Node.js**](https://nodejs.org/) / [**Corepack**](https://nodejs.org/api/corepack.html) / [**npm**](https://www.npmjs.com/) / [**pnpm**](https://pnpm.io/)
   - 对应更新：兼容 [**nvm**](https://github.com/nvm-sh/nvm) LTS 维护，启用 `corepack`，升级 `npm`
 - `npm` 全局包：[**quicktype**](https://quicktype.io/)
@@ -211,7 +213,7 @@ install.command 增加 brew cask / formula 后，update.command 的同名数组�
 
 少数特殊 `formula` 的更新后置动作已经适配：
 
-- [**fvm**](https://fvm.app/)：自动确认 `leoafarias/fvm` tap
+- [**fvm**](https://fvm.app/)：自动确认 `leoafarias/fvm` tap；如果当前 Homebrew 开启 tap trust 策略，会先执行 `brew trust --tap leoafarias/fvm`
 - [**go-task**](https://taskfile.dev/)：自动确认 `go-task/tap`，并使用 `go-task/tap/go-task` 升级
 - [**rbenv**](https://github.com/rbenv/rbenv)：升级后刷新 `rbenv` 初始化配置
 - [**jenv**](https://www.jenv.be/)：升级后刷新 `jenv` 初始化配置
@@ -266,6 +268,8 @@ codegraph index --force
 sudo softwareupdate --install --all
 sudo xcodebuild -license accept
 xcodebuild -downloadPlatform iOS -verbose
+HOMEBREW_NO_INSTALL_FROM_API=1 brew update
+brew trust --tap leoafarias/fvm
 brew upgrade / brew upgrade --cask
 xattr -dr com.apple.quarantine /Applications/GitHub-Store.app
 gem update / npm install -g npm@latest

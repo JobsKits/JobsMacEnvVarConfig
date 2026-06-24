@@ -190,6 +190,43 @@ jobs_update_run_sh() {
 
   return $exit_code
 }
+# 执行 brew update，遇到 Homebrew API 下载失败时自动降级为本地 tap 更新。
+jobs_update_run_brew_update() {
+  local output_file=""
+  output_file="$(mktemp -t jobs_update_brew_update.XXXXXX)"
+
+  note_echo "brew update（更新软件列表）"
+  debug_echo "执行命令：brew update"
+
+  brew update 2>&1 | tee -a "$LOG_FILE" | tee "$output_file"
+  local exit_code=${pipestatus[1]}
+
+  if (( exit_code == 0 )); then
+    success_echo "brew update（更新软件列表）：完成"
+    rm -f "$output_file"
+    return 0
+  fi
+
+  if grep -Eq "formulae\\.brew\\.sh/api|Failed to download .*\\.jws\\.json" "$output_file"; then
+    warn_echo "brew update API 数据下载失败，将使用 HOMEBREW_NO_INSTALL_FROM_API=1 降级重试。"
+    warm_echo "说明：该模式会跳过 formulae.brew.sh API JSON 下载，改用本地 tap 更新，通常更慢但更稳。"
+    debug_echo "执行命令：HOMEBREW_NO_INSTALL_FROM_API=1 brew update"
+
+    env HOMEBREW_NO_INSTALL_FROM_API=1 brew update 2>&1 | tee -a "$LOG_FILE"
+    exit_code=${pipestatus[1]}
+
+    if (( exit_code == 0 )); then
+      success_echo "brew update（降级重试）：完成"
+    else
+      warn_echo "brew update（降级重试）：失败（exit code: ${exit_code}）"
+    fi
+  else
+    warn_echo "brew update（更新软件列表）：失败（exit code: ${exit_code}）"
+  fi
+
+  rm -f "$output_file"
+  return $exit_code
+}
 # 封装 append_once 对应的独立处理逻辑。
 append_once() {
   local line="$1"
@@ -406,6 +443,8 @@ update.command - macOS 开发环境升级维护
   - 输入任意字符后回车：跳过当前项
   - 单项失败：记录警告，继续后续项
   - 工具不存在：提示回到 install.command 补装，不在 update 中静默安装
+  - Homebrew：brew update 遇到 formulae.brew.sh API 下载失败时，会自动使用 HOMEBREW_NO_INSTALL_FROM_API=1 降级重试
+  - 第三方 tap：检测到 Homebrew tap trust 策略时，会先信任脚本维护的指定 tap 后再执行升级
 
 当前 BREW_CASKS：
 EOFREADME
@@ -506,7 +545,8 @@ jobs_update_homebrew() {
     return 0
   fi
 
-  jobs_update_run_cmd "brew update（更新软件列表）" brew update || true
+  jobs_update_trust_configured_brew_taps
+  jobs_update_run_brew_update || true
   jobs_update_run_cmd "brew upgrade（升级已安装 formula）" brew upgrade || true
   jobs_update_run_cmd "brew upgrade --cask（升级已安装 cask）" brew upgrade --cask || true
   jobs_update_run_cmd "brew cleanup（清理旧版本缓存）" brew cleanup || true
@@ -531,6 +571,49 @@ brew_formula_tap_name() {
     go-task) echo "go-task/tap" ;;
     *) echo "" ;;
   esac
+}
+# 按当前 Homebrew 信任策略确认第三方 tap，避免已开启 tap trust 时直接拒绝加载。
+brew_trust_tap_if_required() {
+  local tap_name="$1"
+
+  [[ -n "$tap_name" ]] || return 0
+
+  if [[ -z "${HOMEBREW_REQUIRE_TAP_TRUST:-}" ]] && brew config 2>/dev/null | grep -Fq "HOMEBREW_REQUIRE_TAP_TRUST: set"; then
+    export HOMEBREW_REQUIRE_TAP_TRUST=1
+  fi
+
+  if [[ -z "${HOMEBREW_REQUIRE_TAP_TRUST:-}" ]]; then
+    return 0
+  fi
+
+  if brew trust --json=v1 2>/dev/null | grep -Fq "\"${tap_name}\""; then
+    success_echo "Homebrew Tap 已信任：${tap_name}"
+    return 0
+  fi
+
+  jobs_update_run_cmd "信任 Homebrew Tap：${tap_name}" brew trust --tap "$tap_name" || true
+}
+# 在全局 brew upgrade 前信任脚本维护的第三方 tap，避免扫描阶段先跳过第三方 formula/cask。
+jobs_update_trust_configured_brew_taps() {
+  local pkg=""
+  local tap_name=""
+  local trusted_taps=()
+
+  for pkg in "${BREW_FORMULAE[@]}"; do
+    tap_name="$(brew_formula_tap_name "$pkg")"
+    [[ -n "$tap_name" ]] || continue
+    (( ${trusted_taps[(Ie)$tap_name]} > 0 )) && continue
+    trusted_taps+=("$tap_name")
+    brew_trust_tap_if_required "$tap_name"
+  done
+
+  for pkg in "${BREW_CASKS[@]}"; do
+    tap_name="$(brew_cask_tap_name "$pkg")"
+    [[ -n "$tap_name" ]] || continue
+    (( ${trusted_taps[(Ie)$tap_name]} > 0 )) && continue
+    trusted_taps+=("$tap_name")
+    brew_trust_tap_if_required "$tap_name"
+  done
 }
 # 封装 brew_formula_after_update 对应的独立处理逻辑。
 brew_formula_after_update() {
@@ -603,6 +686,7 @@ jobs_update_brew_formula_one() {
   fi
 
   if [[ -n "$tap_name" ]]; then
+    brew_trust_tap_if_required "$tap_name"
     jobs_update_run_cmd "确认 Homebrew Tap：${tap_name}" brew tap "$tap_name" || true
   fi
 
@@ -629,6 +713,7 @@ jobs_update_brew_cask_one() {
 
   tap_name="$(brew_cask_tap_name "$cask_name")"
   if [[ -n "$tap_name" ]]; then
+    brew_trust_tap_if_required "$tap_name"
     jobs_update_run_cmd "确认 Homebrew Tap：${tap_name}" brew tap "$tap_name" || true
   fi
 
@@ -655,7 +740,7 @@ jobs_update_fvm_flutter() {
   local external_flutter=""
 
   if jobs_update_has brew && brew list --formula fvm >/dev/null 2>&1; then
-    jobs_update_run_cmd "升级 FVM（Homebrew）" brew upgrade fvm || true
+    jobs_update_brew_formula_one fvm
   elif jobs_update_has dart; then
     jobs_update_run_cmd "升级 FVM（Dart pub global）" dart pub global activate fvm || true
   else

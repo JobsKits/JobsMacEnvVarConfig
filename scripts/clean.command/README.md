@@ -13,6 +13,8 @@
 
 清空 zsh 历史和 `zsh_sessions` 残留；检测到 Homebrew 时顺手执行 `brew cleanup`。
 
+如果当前 Homebrew 开启 tap trust 策略，脚本会在清理前自动信任已安装的 `leoafarias/fvm` tap，避免 `brew cleanup` 反复输出 `Skipping fvm: tap formula is not trusted` 警告。
+
 该脚本适合 `.command` 双击运行，也可以在终端中执行。启动后的说明展示、依赖检查和核心流程都写在脚本内部。
 
 ## 二、运行

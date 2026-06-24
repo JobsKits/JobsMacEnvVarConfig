@@ -75,14 +75,28 @@ EOFREADME
   fi
 }
 # ---------- 命令实现 ----------
+# 按 Homebrew 当前策略信任 FVM tap，避免 cleanup 扫描阶段反复提示未信任。
+jobs_clean_trust_fvm_tap_if_required() {
+  emulate -L zsh
+
+  [[ -n "${HOMEBREW_REQUIRE_TAP_TRUST:-}" ]] || brew config 2>/dev/null | grep -Fq "HOMEBREW_REQUIRE_TAP_TRUST: set" || return 0
+  brew tap 2>/dev/null | grep -Fxq "leoafarias/fvm" || return 0
+  brew trust --json=v1 2>/dev/null | grep -Fq '"leoafarias/fvm"' && return 0
+
+  if brew trust --tap leoafarias/fvm >/dev/null 2>&1; then
+    print -P "%F{green}✔ Homebrew Tap 已信任：leoafarias/fvm%f"
+  fi
+}
 # 顺手清理 Homebrew 旧版本包和缓存；Homebrew 不存在或清理失败都不阻断 clean。
 jobs_clean_homebrew_cleanup() {
   emulate -L zsh
 
   command -v brew >/dev/null 2>&1 || return 0
 
+  jobs_clean_trust_fvm_tap_if_required
+
   print -P "%F{blue}ℹ 正在执行 brew cleanup...%f"
-  if brew cleanup; then
+  if brew cleanup 2> >(grep -Fv "Warning: Skipping fvm: tap formula is not trusted" >&2); then
     print -P "%F{green}✔ Homebrew 垃圾清理完成%f"
   else
     print -P "%F{yellow}⚠ brew cleanup 执行失败，已忽略，继续 clean%f"
