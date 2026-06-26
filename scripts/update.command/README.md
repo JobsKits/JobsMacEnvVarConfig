@@ -35,6 +35,16 @@ update.command
 update.command [参数...]
 ```
 
+托管模式用于确认当前就是要完整升级，适合放着跑：
+
+```zsh
+./update.command -t
+update.command -t
+update.command --unattended
+```
+
+托管模式会跳过脚本自述确认、自动执行所有更新项、启动时执行一次 `sudo -v` 让用户输入管理员密码，并在脚本运行期间保活 sudo 凭证。遇到 [**Homebrew**](https://brew.sh/) `Do you want to proceed with the upgrade? [y/n]` 这类已知确认点时，会定点输入 `y`。
+
 ## 二、交互规则 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
 `update` 本身就是升级入口，所以普通更新项采用：
@@ -47,6 +57,16 @@ update.command [参数...]
 单个更新项失败不会阻断后续更新项，只会写入日志并继续后续流程。
 
 工具不存在时，`update.command` 默认只提示，不静默安装。需要补装请回到 `install.command`。
+
+托管模式参数：
+
+```zsh
+-t
+--trust
+--unattended
+```
+
+托管模式等价于逐项选择执行，不等价于关闭外部工具的所有安全提示。系统弹窗、图形化授权、网络失败重试、第三方安装器额外交互仍可能需要人工处理。
 
 脚本内置自述可通过环境变量跳过：
 
@@ -68,6 +88,7 @@ JOBS_MAC_ENV_SKIP_README=1 ./update.command
   - 对应更新：执行 `brew update`、`brew upgrade`、`brew upgrade --cask`、`brew cleanup`、`brew doctor`、`brew -v`
   - 容错处理：`brew update` 遇到 `formulae.brew.sh/api` 或 `.jws.json` 下载失败时，自动使用 `HOMEBREW_NO_INSTALL_FROM_API=1 brew update` 降级重试
   - 信任处理：全局 `brew upgrade` 前会先处理脚本维护的第三方 tap，避免 Homebrew 扫描阶段提前跳过 `fvm` 等非官方 formula
+  - 托管处理：`-t` 模式下会对 `brew upgrade` / `brew upgrade --cask` 的 `[y/n]` 确认自动输入 `y`
   - `brew cask`：由 `BREW_CASKS` 自动生成逐项升级入口
   - `brew formula`：由 `BREW_FORMULAE` 自动生成逐项升级入口
   - `github-store`：升级前确认 `OpenHub-Store/tap`，升级后对 `/Applications/GitHub-Store.app` 执行 `xattr -dr com.apple.quarantine`
@@ -213,7 +234,7 @@ install.command 增加 brew cask / formula 后，update.command 的同名数组�
 
 少数特殊 `formula` 的更新后置动作已经适配：
 
-- [**fvm**](https://fvm.app/)：自动确认 `leoafarias/fvm` tap；如果当前 Homebrew 开启 tap trust 策略，会先执行 `brew trust --tap leoafarias/fvm`
+- [**fvm**](https://fvm.app/)：自动确认 `leoafarias/fvm` tap；如果当前 Homebrew 开启 tap trust 策略，会先执行 `brew trust leoafarias/fvm`
 - [**go-task**](https://taskfile.dev/)：自动确认 `go-task/tap`，并使用 `go-task/tap/go-task` 升级
 - [**rbenv**](https://github.com/rbenv/rbenv)：升级后刷新 `rbenv` 初始化配置
 - [**jenv**](https://www.jenv.be/)：升级后刷新 `jenv` 初始化配置

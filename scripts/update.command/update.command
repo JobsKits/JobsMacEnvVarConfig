@@ -23,6 +23,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "$0")"
 SCRIPT_BASENAME=$(basename "$0" | sed 's/\.[^.]*$//')
 LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
+JOBS_UPDATE_TRUST_MODE=0
+JOBS_UPDATE_SUDO_KEEPALIVE_PID=""
 
 
 # ---------- 全局配置：必须与 install.command 保持同源 ----------
@@ -107,6 +109,68 @@ print_divider() {
 jobs_update_has() {
   command -v "$1" >/dev/null 2>&1
 }
+# 打印 update.command 的参数说明。
+jobs_update_show_usage() {
+  cat <<'EOFUSAGE'
+用法：
+  update.command
+  update.command -t
+
+参数：
+  -t, --trust, --unattended  托管模式：跳过脚本确认、自动执行全部更新项、sudo 只预认证一次，并为已知确认点自动输入 y。
+  -h, --help                显示本说明。
+EOFUSAGE
+}
+# 解析 update.command 的运行参数。
+jobs_update_parse_args() {
+  local arg=""
+
+  for arg in "$@"; do
+    case "$arg" in
+      -t|--trust|--unattended)
+        JOBS_UPDATE_TRUST_MODE=1
+        ;;
+      -h|--help)
+        jobs_update_show_usage
+        return 2
+        ;;
+      *)
+        error_echo "未知参数：${arg}"
+        jobs_update_show_usage
+        return 1
+        ;;
+    esac
+  done
+}
+# 清理托管模式下的 sudo 凭证保活后台任务。
+jobs_update_cleanup_sudo_keepalive() {
+  if [[ -n "${JOBS_UPDATE_SUDO_KEEPALIVE_PID:-}" ]]; then
+    kill "$JOBS_UPDATE_SUDO_KEEPALIVE_PID" >/dev/null 2>&1 || true
+    JOBS_UPDATE_SUDO_KEEPALIVE_PID=""
+  fi
+}
+# 托管模式启动时预先获取 sudo 凭证，并在脚本运行期间保活。
+jobs_update_prepare_unattended_mode() {
+  if (( JOBS_UPDATE_TRUST_MODE != 1 )); then
+    return 0
+  fi
+
+  echo ""
+  warn_echo "已启用托管模式：将自动执行全部更新项，并为已知确认点自动输入 y。"
+  warm_echo "请先输入一次管理员密码，脚本会在本次运行期间保活 sudo 凭证。"
+
+  if ! sudo -v; then
+    error_echo "sudo 预认证失败，托管模式无法继续。"
+    return 1
+  fi
+
+  while true; do
+    sudo -n -v >/dev/null 2>&1 || exit 0
+    sleep 60
+  done &
+  JOBS_UPDATE_SUDO_KEEPALIVE_PID="$!"
+  trap jobs_update_cleanup_sudo_keepalive EXIT INT TERM
+}
 # 封装 jobs_update_prompt_run 对应的独立处理逻辑。
 jobs_update_prompt_run() {
   local title="$1"
@@ -117,6 +181,11 @@ jobs_update_prompt_run() {
   warn_echo "强提示：${title}"
   warm_echo "回车=执行升级 / 刷新；输入任意字符后回车=跳过"
   gray_echo "${detail}"
+
+  if (( JOBS_UPDATE_TRUST_MODE == 1 )); then
+    note_echo "托管模式：自动执行 ${title}"
+    return 0
+  fi
 
   if [[ ! -t 0 ]]; then
     warn_echo "当前不是交互式终端，已跳过：${title}"
@@ -190,6 +259,25 @@ jobs_update_run_sh() {
 
   return $exit_code
 }
+# 对已知会询问 y/n 的命令定点输入 y，避免托管模式中途卡住。
+jobs_update_run_cmd_with_yes() {
+  local desc="$1"
+  shift
+
+  note_echo "$desc"
+  debug_echo "执行命令：printf 'y\\n' | $*"
+
+  printf 'y\n' | "$@" 2>&1 | tee -a "$LOG_FILE"
+  local exit_code=${pipestatus[2]}
+
+  if (( exit_code == 0 )); then
+    success_echo "$desc：完成"
+  else
+    warn_echo "$desc：失败（exit code: ${exit_code}）"
+  fi
+
+  return $exit_code
+}
 # 执行 brew update，遇到 Homebrew API 下载失败时自动降级为本地 tap 更新。
 jobs_update_run_brew_update() {
   local output_file=""
@@ -226,6 +314,24 @@ jobs_update_run_brew_update() {
 
   rm -f "$output_file"
   return $exit_code
+}
+# 执行 brew upgrade，托管模式下自动确认 Homebrew 的 y/n 提示。
+jobs_update_run_brew_upgrade() {
+  if (( JOBS_UPDATE_TRUST_MODE == 1 )); then
+    jobs_update_run_cmd_with_yes "brew upgrade（升级已安装 formula）" brew upgrade
+    return $?
+  fi
+
+  jobs_update_run_cmd "brew upgrade（升级已安装 formula）" brew upgrade
+}
+# 执行 brew cask 全局升级，托管模式下自动确认 Homebrew 的 y/n 提示。
+jobs_update_run_brew_cask_upgrade() {
+  if (( JOBS_UPDATE_TRUST_MODE == 1 )); then
+    jobs_update_run_cmd_with_yes "brew upgrade --cask（升级已安装 cask）" brew upgrade --cask
+    return $?
+  fi
+
+  jobs_update_run_cmd "brew upgrade --cask（升级已安装 cask）" brew upgrade --cask
 }
 # 封装 append_once 对应的独立处理逻辑。
 append_once() {
@@ -406,6 +512,11 @@ jobs_update_find_external_command() {
 }
 # ---------- 内置自述 ----------
 jobs_update_show_readme_and_wait() {
+  if (( JOBS_UPDATE_TRUST_MODE == 1 )); then
+    note_echo "托管模式：已跳过完整自述确认。"
+    return 0
+  fi
+
   clear 2>/dev/null || true
 
   {
@@ -547,8 +658,8 @@ jobs_update_homebrew() {
 
   jobs_update_trust_configured_brew_taps
   jobs_update_run_brew_update || true
-  jobs_update_run_cmd "brew upgrade（升级已安装 formula）" brew upgrade || true
-  jobs_update_run_cmd "brew upgrade --cask（升级已安装 cask）" brew upgrade --cask || true
+  jobs_update_run_brew_upgrade || true
+  jobs_update_run_brew_cask_upgrade || true
   jobs_update_run_cmd "brew cleanup（清理旧版本缓存）" brew cleanup || true
   jobs_update_run_cmd "brew doctor（检查 Homebrew 健康状态）" brew doctor || true
   jobs_update_run_cmd "brew -v（输出 Homebrew 版本）" brew -v || true
@@ -578,20 +689,16 @@ brew_trust_tap_if_required() {
 
   [[ -n "$tap_name" ]] || return 0
 
-  if [[ -z "${HOMEBREW_REQUIRE_TAP_TRUST:-}" ]] && brew config 2>/dev/null | grep -Fq "HOMEBREW_REQUIRE_TAP_TRUST: set"; then
-    export HOMEBREW_REQUIRE_TAP_TRUST=1
-  fi
-
-  if [[ -z "${HOMEBREW_REQUIRE_TAP_TRUST:-}" ]]; then
+  if ! brew help trust >/dev/null 2>&1; then
     return 0
   fi
 
-  if brew trust --json=v1 2>/dev/null | grep -Fq "\"${tap_name}\""; then
+  if brew trust --json=v1 2>/dev/null | grep -Fq "\"${tap_name:l}\""; then
     success_echo "Homebrew Tap 已信任：${tap_name}"
     return 0
   fi
 
-  jobs_update_run_cmd "信任 Homebrew Tap：${tap_name}" brew trust --tap "$tap_name" || true
+  jobs_update_run_cmd "信任 Homebrew Tap：${tap_name}" brew trust "$tap_name" || true
 }
 # 在全局 brew upgrade 前信任脚本维护的第三方 tap，避免扫描阶段先跳过第三方 formula/cask。
 jobs_update_trust_configured_brew_taps() {
@@ -1093,6 +1200,11 @@ jobs_update_main() {
 }
 # 打印脚本内置自述，并按运行入口决定是否等待用户确认。
 show_script_intro_and_wait() {
+  if (( JOBS_UPDATE_TRUST_MODE == 1 )); then
+    note_echo "托管模式：已跳过脚本内置自述确认。"
+    return 0
+  fi
+
   print -r -- '============================== 脚本内置自述 =============================='
   print -r -- '脚本名称：update.command'
   print -r -- '核心用途：执行“update”对应的自动化任务。'
@@ -1107,10 +1219,16 @@ show_script_intro_and_wait() {
 }
 # 统一收口脚本入口，仅委托已经拆分完成的业务流程。
 main() {
-  # 展示脚本内置自述，并按运行入口完成防误触确认。
-  show_script_intro_and_wait
-  # 执行 jobs_update_main 对应的核心业务步骤。
-  jobs_update_main "$@"
+  jobs_update_parse_args "$@" # 解析运行参数，识别托管模式或帮助请求。
+  local parse_exit_code=$?
+  if (( parse_exit_code == 2 )); then
+    return 0
+  elif (( parse_exit_code != 0 )); then
+    return $parse_exit_code
+  fi
+  jobs_update_prepare_unattended_mode || return $? # 托管模式下预先获取并保活 sudo 凭证。
+  show_script_intro_and_wait || return $? # 展示脚本内置自述，并按运行入口完成防误触确认。
+  jobs_update_main "$@" || return $? # 执行 jobs_update_main 对应的核心业务步骤。
 }
 # 初始化脚本运行环境，并集中承载原有的顶层执行逻辑。
 initialize_script_module() {
