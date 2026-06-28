@@ -32,7 +32,7 @@
 ### 2.1、终端短命令
 
 ```zsh
-mp4 /Users/jobs/Desktop/input.webm
+mp4 ~/Desktop/input.webm
 ```
 
 也可以先只输入目标格式，再回车拖入文件：
@@ -76,7 +76,7 @@ goodbye-happiness.mp4
 ### 2.2、通用命令
 
 ```zsh
-to mp4 /Users/jobs/Desktop/input.webm
+to mp4 ~/Desktop/input.webm
 ```
 
 也可以一次传入多个文件：
@@ -178,14 +178,14 @@ flowchart TD
 
 ## 六、日志文件 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
-日志会写入 `/tmp/命令名.log`。
+日志会写入 `$TMPDIR/命令名.log`。
 
 常见示例：
 
 ```text
-/tmp/to.log
-/tmp/mp4.log
-/tmp/mov.log
+$TMPDIR/to.log
+$TMPDIR/mp4.log
+$TMPDIR/mov.log
 ```
 
 ## 七、风险说明 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>

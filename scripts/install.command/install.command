@@ -223,6 +223,58 @@ require_command() {
   local cmd="$1"
   command -v "${cmd}" >/dev/null 2>&1
 }
+# 执行 Flutter doctor，并在检测到 Android license 未确认时引导接受许可。
+run_flutter_doctor_and_android_licenses() {
+  local label="$1"
+  shift
+
+  local -a flutter_base_cmd=("$@")
+  if (( ${#flutter_base_cmd[@]} == 0 )); then
+    warn_echo "未提供 Flutter 命令，跳过 Flutter doctor。"
+    return 0
+  fi
+
+  hash -r 2>/dev/null || true
+
+  local command_name="${flutter_base_cmd[1]}"
+  if ! require_command "${command_name}" && [[ ! -x "${command_name}" ]]; then
+    warn_echo "未检测到 ${command_name}，跳过 ${label} doctor。"
+    return 0
+  fi
+
+  local doctor_output_file=""
+  doctor_output_file="$(mktemp -t jobs_install_flutter_doctor.XXXXXX)"
+  local -a doctor_cmd=("${flutter_base_cmd[@]}" doctor -v)
+  local -a license_cmd=("${flutter_base_cmd[@]}" doctor --android-licenses)
+
+  note_echo "${label} doctor -v"
+  debug_echo "执行命令：${doctor_cmd[*]}"
+  "${doctor_cmd[@]}" 2>&1 | tee -a "$LOG_FILE" | tee "$doctor_output_file"
+  local doctor_exit_code=${pipestatus[1]}
+
+  if (( doctor_exit_code == 0 )); then
+    success_echo "${label} doctor -v：完成"
+  else
+    warn_echo "${label} doctor -v：返回非 0（${doctor_exit_code}），继续检查 Android license 提示。"
+  fi
+
+  if grep -Eq "Android license status unknown|flutter doctor --android-licenses" "$doctor_output_file"; then
+    warn_echo "检测到 Android license status unknown，将执行：${license_cmd[*]}"
+
+    if grep -Fq "cmdline-tools component is missing" "$doctor_output_file"; then
+      warm_echo "doctor 同时提示 Android cmdline-tools 缺失；若许可接受失败，请先在 Android Studio 安装 Command-line Tools。"
+    fi
+
+    if [[ -t 0 ]]; then
+      run_cmd "接受 Android SDK licenses" "${license_cmd[@]}" || true
+    else
+      warn_echo "当前不是交互式终端，已跳过 Android SDK licenses 接受步骤。"
+    fi
+  fi
+
+  rm -f "$doctor_output_file"
+  return 0
+}
 # 解析并返回后续流程需要的目标信息。
 get_node_major_version() {
   if ! require_command node; then
@@ -815,6 +867,9 @@ brew_cask_after_install() {
   local cask_name="$1"
 
   case "${cask_name}" in
+    flutter)
+      run_flutter_doctor_and_android_licenses "Flutter" flutter
+      ;;
     github-store)
       local app_path="/Applications/GitHub-Store.app"
 

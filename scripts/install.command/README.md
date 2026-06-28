@@ -33,7 +33,7 @@
   gem 包
   ```
 
-- 注意：`install` 这个命令名与系统 `/usr/bin/install` 存在冲突风险。
+- 注意：`install` 这个命令名与系统 `$SYSTEM_USR_DIR/bin/install` 存在冲突风险。
   建议保留 `.command` 后缀，或放在明确的工具目录中调用。
 
 ## 二、运行
@@ -168,7 +168,7 @@
   ```zsh
   brew tap OpenHub-Store/tap
   brew install --cask github-store
-  xattr -dr com.apple.quarantine /Applications/GitHub-Store.app
+  xattr -dr com.apple.quarantine $APPLICATIONS_DIR/GitHub-Store.app
   ```
 
 ## 五、当前 brew formula
@@ -216,7 +216,7 @@
   安装 / 更新后会自动执行一次去隔离：
 
   ```zsh
-  xattr -dr com.apple.quarantine /Applications/GitHub-Store.app
+  xattr -dr com.apple.quarantine $APPLICATIONS_DIR/GitHub-Store.app
   ```
 
 - [**fvm**](https://fvm.app)
@@ -549,7 +549,7 @@
 - 日志路径：
 
   ```zsh
-  /tmp/install.log
+  $TMPDIR/install.log
   ```
 
 ## 十七、流程图

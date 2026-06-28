@@ -30,7 +30,7 @@ shell [参数...]
 
 ## 三、交互规则
 
-优先读取 `/etc/shells`，同时补充 Homebrew 常见 zsh / bash / fish 路径。执行 `chsh` 时可能要求输入当前用户密码。
+优先读取 `$SYSTEM_CONFIG_DIR/shells`，同时补充 Homebrew 常见 zsh / bash / fish 路径。执行 `chsh` 时可能要求输入当前用户密码。
 
 ## 四、结构约定
 
@@ -45,7 +45,7 @@ flowchart TD
     A([启动 shell.command])
     B[打印脚本内置自述并等待回车]
     A --> B
-    C[扫描 /etc/shells 和 Homebrew 常见 shell 路径]
+    C[扫描 $SYSTEM_CONFIG_DIR/shells 和 Homebrew 常见 shell 路径]
     B --> C
     D[优先用 fzf 选择目标 shell]
     C --> D
@@ -59,10 +59,10 @@ flowchart TD
 
 ## 六、日志文件
 
-运行日志默认写入 `/tmp`，文件名通常来自脚本名去掉扩展名：
+运行日志默认写入 `$TMPDIR`，文件名通常来自脚本名去掉扩展名：
 
 ```shell
-/tmp/shell.log
+$TMPDIR/shell.log
 ```
 
 <a id="🔚" href="#前言" style="font-size:17px; color:green; font-weight:bold;">我是有底线的➤点我回到首页</a>

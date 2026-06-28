@@ -500,9 +500,9 @@ Scripts/dq.command/dq.command
 
 ```zsh
 dq
-dq "/Users/jobs/Downloads/Otty (1).dmg"
-dq /Users/jobs/Downloads/Otty\ \(1\).dmg
-dq --open /Applications/Otty.app
+dq "~/Downloads/Otty (1).dmg"
+dq ~/Downloads/Otty\ \(1\).dmg
+dq --open $APPLICATIONS_DIR/Otty.app
 dq --dry-run ~/Downloads/Otty.dmg
 ```
 
@@ -542,8 +542,8 @@ zz <路径>
 
 ```zsh
 zz ~/Desktop
-zz /Applications/Xcode.app
-zz /Users/jobs/Downloads/demo.command
+zz $APPLICATIONS_DIR/Xcode.app
+zz ~/Downloads/demo.command
 ```
 
 适合场景：拖文件、拖目录、点到 Finder 替身、遇到软链接时，不用手动 `cd`、`dirname`、`realpath`。
@@ -628,12 +628,12 @@ shell
 行为：
 
 - 运行时扫描当前电脑已有的可用 shell，不写死固定列表。
-- 优先读取 `/etc/shells`，这是 macOS `chsh` 官方认可的 shell 来源。
-- 继续扫描 `PATH`、`/opt/homebrew/bin`、`/usr/local/bin`、`/opt/local/bin`、`/bin`、`/usr/bin`，补充 `zsh`、`bash`、`fish`、`nu`、`pwsh`、`tcsh`、`csh`、`ksh`、`dash`、`elvish`、`xonsh` 等可执行文件。
+- 优先读取 `$SYSTEM_CONFIG_DIR/shells`，这是 macOS `chsh` 官方认可的 shell 来源。
+- 继续扫描 `PATH`、`$(brew --prefix)/bin`、`$(brew --prefix)/bin`、`$MACPORTS_PREFIX/bin`、`$SYSTEM_BIN_DIR`、`$SYSTEM_USR_DIR/bin`，补充 `zsh`、`bash`、`fish`、`nu`、`pwsh`、`tcsh`、`csh`、`ksh`、`dash`、`elvish`、`xonsh` 等可执行文件。
 - 如果检测到 `~/.oh-my-zsh` 或当前 `ZSH` 变量，会额外列出 `ohmyzsh / zsh + Oh My Zsh`。
 - fzf 列表标题是 `目前可用的终端 / Shell：↑↓ 选择，Enter 切换，Esc 取消`。
 - 选中后执行 `chsh -s <shell路径>`，修改当前 macOS 用户的默认登录 shell。
-- 如果目标 shell 不在 `/etc/shells`，会提示是否用 `sudo` 追加。不同意就取消，不会强行切换。
+- 如果目标 shell 不在 `$SYSTEM_CONFIG_DIR/shells`，会提示是否用 `sudo` 追加。不同意就取消，不会强行切换。
 
 依赖：
 
@@ -644,30 +644,37 @@ brew install fzf
 重要说明：
 
 - `ohmyzsh` 不是一个独立登录 shell，它是 zsh 的配置框架。选择 `ohmyzsh / zsh + Oh My Zsh` 时，实际切换的仍然是 `zsh` 路径。
-- `nu` / Nushell 如果是 Homebrew 安装，常见路径是 `/opt/homebrew/bin/nu` 或 `/usr/local/bin/nu`。只要扫描到可执行文件，就会进列表；但作为默认登录 shell 前，macOS 仍要求它在 `/etc/shells` 里。
+- `nu` / Nushell 如果是 Homebrew 安装，常见路径是 `$(brew --prefix)/bin/nu` 或 `$(brew --prefix)/bin/nu`。只要扫描到可执行文件，就会进列表；但作为默认登录 shell 前，macOS 仍要求它在 `$SYSTEM_CONFIG_DIR/shells` 里。
 - 切换完成后，需要重新打开终端窗口才会完整生效。
 
-#### 3.8 `download <url>`：用 yt-dlp 下载并自动带浏览器 cookies
+#### 3.8 `download <url>`：媒体下载，yt-dlp 优先并可兜底 cobalt
 
 来源文件：
 
 ```text
-zsh/custom/local.zsh
+scripts/download.command/download.command
 ```
 
 用法：
 
 ```zsh
 download "https://www.youtube.com/shorts/xxxx?feature=share"
+download --backend auto "https://example.com/video"
+download --backend yt-dlp "https://example.com/video" -o "%(title)s.%(ext)s"
+download --backend cobalt "https://example.com/video"
+download --cobalt "https://example.com/video"
 ```
 
 行为：
 
-- 检查本机是否安装 `yt-dlp`。
+- 默认后端为 `auto`，先检查并调用 `yt-dlp`。
 - 自动检测 macOS 默认浏览器。
 - 支持识别 Chrome、Chrome Canary、Edge、Firefox、Safari。
 - 调用 `yt-dlp --cookies-from-browser <browser> <url>` 下载。
 - 默认浏览器识别失败时，回退使用 `chrome`。
+- 如果 `yt-dlp` 失败，且已经配置 `JOBS_DOWNLOAD_COBALT_API`，自动切换到 [**cobalt**](https://github.com/imputnet/cobalt) API 兜底。
+- `--backend cobalt` / `--cobalt` 可强制只使用 cobalt 后端。
+- cobalt `picker` 多图、多视频场景默认全部保存，减少交互卡壳。
 
 依赖：
 
@@ -675,7 +682,14 @@ download "https://www.youtube.com/shorts/xxxx?feature=share"
 brew install yt-dlp
 ```
 
-适合场景：需要登录态 cookies 才能下载的视频链接，不想每次手动指定浏览器。
+cobalt API 配置：
+
+```zsh
+export JOBS_DOWNLOAD_COBALT_API="https://your-cobalt-api.example/"
+export JOBS_DOWNLOAD_COBALT_KEY="可选 Api-Key"
+```
+
+适合场景：需要登录态 cookies 的媒体优先走 `yt-dlp`；遇到 `yt-dlp` 当前站点适配失败时，用自建 cobalt API 增加兜底覆盖面。
 
 #### 3.9 `Ctrl + G`：把命令行最后一个路径参数解析成真实路径
 
@@ -702,9 +716,9 @@ Ctrl + G
 示例流程：
 
 ```zsh
-cd /Users/jobs/Desktop/My\ Link
+cd ~/Desktop/My\ Link
 # 按 Ctrl + G
-cd /Users/jobs/RealProject
+cd ~/RealProject
 ```
 
 相关开关：
@@ -1004,8 +1018,8 @@ zsh/custom/local.zsh
 迁移新机器前，优先检查文件开头这两个变量：
 
 ```zsh
-JOBS_FLUTTER_PROJECT_DIR="/Users/jobs/Documents/Github/flutter_tiyu_app"
-JOBS_DART_CLI_COMPLETION_FILE="/Users/jobs/.dart-cli-completion/zsh-config.zsh"
+JOBS_FLUTTER_PROJECT_DIR="../../flutter_tiyu_app"
+JOBS_DART_CLI_COMPLETION_FILE="~/.dart-cli-completion/zsh-config.zsh"
 ```
 
 如果项目路径不对，`d`、`check`、`c`、`apk`、`ipa` 等项目相关命令就会失败或进入错误目录。
@@ -1074,14 +1088,14 @@ Git 路径显示修正     -> zsh/custom/git_behavior.zsh
 请直接执行安装脚本，不要在路径前面多输入字符：
 
 ```zsh
-/Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfigs/install.command/install.command
+./install.command/install.command
 ```
 
 如果提示权限不足，先执行：
 
 ```zsh
-chmod +x /Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfigs/install.command/install.command
-/Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfigs/install.command/install.command
+chmod +x ./install.command/install.command
+./install.command/install.command
 ```
 
 安装完成后重新打开终端，或者执行：
@@ -1106,7 +1120,7 @@ source ~/.zshrc
 新版统一使用 `~/.JobsMacEnv/Scripts` 作为模块目录，`zsh/custom/local.zsh` 只负责加载模块。模块标准路径为 `Scripts/<脚本全名>/<脚本全名>`。安装脚本会在同步完成后执行模块自检；如果打开终端出现模块缺失提示，请重新执行：
 
 ```zsh
-cd /Users/jobs/Documents/Github/JobsConfigOS/🌍JobsMacEnvVarConfigs
+cd .
 chmod +x install.command/install.command
 ./install.command/install.command
 source ~/.zshrc

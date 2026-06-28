@@ -91,7 +91,7 @@ JOBS_MAC_ENV_SKIP_README=1 ./update.command
   - 托管处理：`-t` 模式下会对 `brew upgrade` / `brew upgrade --cask` 的 `[y/n]` 确认自动输入 `y`
   - `brew cask`：由 `BREW_CASKS` 自动生成逐项升级入口
   - `brew formula`：由 `BREW_FORMULAE` 自动生成逐项升级入口
-  - `github-store`：升级前确认 `OpenHub-Store/tap`，升级后对 `/Applications/GitHub-Store.app` 执行 `xattr -dr com.apple.quarantine`
+  - `github-store`：升级前确认 `OpenHub-Store/tap`，升级后对 `$APPLICATIONS_DIR/GitHub-Store.app` 执行 `xattr -dr com.apple.quarantine`
 - [**Rosetta 2**](https://support.apple.com/en-us/102527)
   - 对应更新：检查安装状态；Rosetta 2 通常跟随 [**macOS**](https://www.apple.com/macos/) 系统更新维护
 - [**FVM**](https://fvm.app/) / [**Flutter**](https://flutter.dev/)
@@ -230,7 +230,7 @@ install.command 增加 brew cask / formula 后，update.command 的同名数组�
 
 少数特殊 `cask` 的 tap 与更新后置动作已经适配：
 
-- `github-store`：升级前执行 `brew tap OpenHub-Store/tap` 确认 tap；检测已安装后执行 `brew upgrade --cask github-store`；升级后执行 `xattr -dr com.apple.quarantine /Applications/GitHub-Store.app`
+- `github-store`：升级前执行 `brew tap OpenHub-Store/tap` 确认 tap；检测已安装后执行 `brew upgrade --cask github-store`；升级后执行 `xattr -dr com.apple.quarantine $APPLICATIONS_DIR/GitHub-Store.app`
 
 少数特殊 `formula` 的更新后置动作已经适配：
 
@@ -292,7 +292,7 @@ xcodebuild -downloadPlatform iOS -verbose
 HOMEBREW_NO_INSTALL_FROM_API=1 brew update
 brew trust --tap leoafarias/fvm
 brew upgrade / brew upgrade --cask
-xattr -dr com.apple.quarantine /Applications/GitHub-Store.app
+xattr -dr com.apple.quarantine $APPLICATIONS_DIR/GitHub-Store.app
 gem update / npm install -g npm@latest
 npm install -g @colbymchenry/codegraph@latest
 codegraph install --yes
@@ -306,7 +306,7 @@ dart pub cache repair
 运行日志固定写入：
 
 ```text
-/tmp/update.log
+$TMPDIR/update.log
 ```
 
 ## 八、结构约定 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>

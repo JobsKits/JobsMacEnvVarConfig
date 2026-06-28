@@ -14,7 +14,7 @@
 
 它会把一个本地目录交给 [**dufs**](https://github.com/sigoden/dufs) 提供文件服务，再自动写入 [**Caddy**](https://caddyserver.com/) 的 `Caddyfile`，让同一局域网里的其它电脑 / 手机可以直接用浏览器访问。默认使用 Caddy 的 `80` 端口，所以浏览器地址不用带端口。
 
-> 注意：`df` 会和 macOS 原生 `/bin/df` 磁盘空间命令重名。需要查看磁盘空间时，请用 `/bin/df -h`。
+> 注意：`df` 会和 macOS 原生 `$SYSTEM_BIN_DIR/df` 磁盘空间命令重名。需要查看磁盘空间时，请用 `$SYSTEM_BIN_DIR/df -h`。
 
 ## 一、适用场景 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
@@ -24,7 +24,7 @@
 | 手机访问 Mac 文件 | 手机和 Mac 在同一 Wi-Fi 下直接访问 |
 | 临时替代 FTP | 不需要 FTP 客户端，浏览器即可 |
 | Caddy 统一入口 | `Caddyfile` 由脚本自动维护 |
-| 本地短域名访问 | 默认使用 `jobsdocs.test` 这类短域名；脚本会自动写入本机 `/etc/hosts`。手机 / 其它电脑优先用 IP 或 Mac 的 `.local` 名称；自定义短域名需要路由器 / 局域网 DNS |
+| 本地短域名访问 | 默认使用 `jobsdocs.test` 这类短域名；脚本会自动写入本机 `$SYSTEM_CONFIG_DIR/hosts`。手机 / 其它电脑优先用 IP 或 Mac 的 `.local` 名称；自定义短域名需要路由器 / 局域网 DNS |
 
 ## 二、运行方式 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
@@ -45,7 +45,7 @@
 - 直接开放指定目录：
 
   ```shell
-  df /Users/jobs/Documents/Github/JobsDocs
+  df ../../../../JobsDocs
   ```
 
 - 少问问题，全部使用默认值：
@@ -97,7 +97,7 @@ df
 | 询问权限 | 默认只读；如选择读写，会继续询问账号密码 |
 | 写入 Caddyfile | 自动插入 Jobs 托管块，并先做备份 |
 | 重载 Caddy | 让新配置生效 |
-| 自动写本机 hosts | 选择短域名后，自动把 `127.0.0.1 短域名` 写入这台 Mac 的 `/etc/hosts` |
+| 自动写本机 hosts | 选择短域名后，自动把 `127.0.0.1 短域名` 写入这台 Mac 的 `$SYSTEM_CONFIG_DIR/hosts` |
 | 本机自测 | 自动测试 `127.0.0.1` 和短域名入口是否能访问 |
 | 打印访问地址 | 明确告诉你本机 / 其它电脑浏览器应该输入什么 |
 
@@ -154,7 +154,7 @@ df
 | 项 | 说明 |
 | --- | --- |
 | Caddy | 接收 `http://jobsdocs.test` / `http://192.168.x.x` 这类请求并反代到 dufs |
-| 本机 `/etc/hosts` | 脚本自动写入 `127.0.0.1 jobsdocs.test`，用于这台 Mac 自己访问 |
+| 本机 `$SYSTEM_CONFIG_DIR/hosts` | 脚本自动写入 `127.0.0.1 jobsdocs.test`，用于这台 Mac 自己访问 |
 | 其它设备 / 局域网 DNS | 这台 Mac 不能自动改手机；手机要用 `jobsdocs.test` 必须让路由器 / DNS 知道它指向这台 Mac |
 | 访问地址 | 默认是 `http://jobsdocs.test`，不是 `https://`；只有改用 `--external-port 8099` 时才必须带 `:8099` |
 
@@ -184,25 +184,25 @@ flowchart TD
 - 脚本只面向局域网使用，不建议直接暴露公网。
 - 共享期间不要关闭当前终端窗口。
 - 退出时默认移除 `Caddyfile` 的 Jobs 托管块；需要保留可加 `--keep-caddy`。
-- 选择短域名时会修改本机 `/etc/hosts`，脚本会先备份为 `/etc/hosts.backup.jobs-df.时间戳`。
+- 选择短域名时会修改本机 `$SYSTEM_CONFIG_DIR/hosts`，脚本会先备份为 `$SYSTEM_CONFIG_DIR/hosts.backup.jobs-df.时间戳`。
 - 默认使用 `80` 端口，macOS 会要求管理员权限来启动 / 重载 Caddy。
 
 ## 七、日志文件 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
 | 日志 | 路径 |
 | --- | --- |
-| 主脚本日志 | `/tmp/df.log` |
-| dufs 日志 | `/tmp/df.dufs.5010.log` |
-| Caddy 校验日志 | `/tmp/df.caddy.validate.log` |
+| 主脚本日志 | `$TMPDIR/df.log` |
+| dufs 日志 | `$TMPDIR/df.dufs.5010.log` |
+| Caddy 校验日志 | `$TMPDIR/df.caddy.validate.log` |
 
 ## 八、常见问题 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
 | 问题 | 处理 |
 | --- | --- |
 | 其它电脑打不开 | 确认在同一 Wi-Fi / 局域网；检查 Mac 防火墙；确认终端还开着 |
-| 想看磁盘空间 | 使用 `/bin/df -h` |
+| 想看磁盘空间 | 使用 `$SYSTEM_BIN_DIR/df -h` |
 | 想换端口 | 执行 `df --external-port 8099` |
-| 本机短域名打不开 | 新版脚本会自动写入本机 `/etc/hosts` 并做自测；默认访问 `http://短域名`，不要带 `https://` |
+| 本机短域名打不开 | 新版脚本会自动写入本机 `$SYSTEM_CONFIG_DIR/hosts` 并做自测；默认访问 `http://短域名`，不要带 `https://` |
 | 手机短域名打不开 | 手机不能被 Mac 自动写 hosts；优先用 `http://Mac本地主机名.local` 或 `http://192.168.x.x`，自定义短域名要配路由器 / 局域网 DNS |
 | 想保留 Caddy 配置 | 执行 `df --keep-caddy` |
 | 想停止共享 | 回到运行 `df` 的终端窗口，按回车 |

@@ -268,7 +268,7 @@ URL 解码	decode	交互式 URL Decode，并自动复制到剪贴板	script	deco
 转 OGG	ogg	调用 to.command 提取或转换为 OGG / Vorbis 音频	to_format	ogg
 转 OPUS	opus	调用 to.command 提取或转换为 Opus 音频	to_format	opus
 转 GIF	to gif	调用 to.command 转为 GIF；不抢占原 gif 录制命令	to_format	gif
-媒体下载	download	调用 yt-dlp，自动使用默认浏览器 cookies 下载媒体	script	download.command
+媒体下载	download	媒体下载；yt-dlp 优先，并可在配置 cobalt API 后兜底	script	download.command
 VS Code	code	打开 VS Code；支持 code . 和 code 文件路径	script	code.command
 环境安装	install	新系统开发环境配置 / 依赖安装入口	script	install.command
 环境更新	update	JobsMacEnv 更新菜单，批量更新开发工具链	script	update.command

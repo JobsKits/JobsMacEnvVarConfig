@@ -17,9 +17,9 @@ xattr -dr com.apple.quarantine "目标路径"
 ```zsh
 dq
 dq ~/Downloads/Otty.dmg
-dq "/Users/jobs/Downloads/Otty (1).dmg"
-dq /Users/jobs/Downloads/Otty\ \(1\).dmg
-dq --open /Applications/Otty.app
+dq "~/Downloads/Otty (1).dmg"
+dq ~/Downloads/Otty\ \(1\).dmg
+dq --open $APPLICATIONS_DIR/Otty.app
 dq --dry-run ~/Downloads/Otty.dmg
 ```
 
@@ -58,5 +58,5 @@ flowchart TD
 ## 五、日志
 
 ```text
-/tmp/dq.log
+$TMPDIR/dq.log
 ```

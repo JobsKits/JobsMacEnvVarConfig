@@ -77,23 +77,14 @@ strip_outer_quotes() {
   print -r -- "$value"
 }
 # 展示脚本用途和影响范围，并在执行前等待用户确认。
-show_readme_and_wait() {
+show_script_intro_and_wait() {
   emulate -L zsh
 
-  local readme_path="${SCRIPT_DIR}/README.md"
 
   clear 2>/dev/null || true
-  if [[ -f "$readme_path" ]]; then
-    highlight_echo "============================== README.md =============================="
-    cat "$readme_path" | tee -a "$LOG_FILE"
-    highlight_echo "======================================================================="
-  else
-    warn_echo "未找到 README.md，继续执行内置流程说明。"
-    print_usage
-  fi
 
   echo ""
-  read -r "?👉 已阅读自述文件，按回车继续执行；按 Ctrl+C 取消：" _
+  read -r "?👉 已了解脚本用途与影响，按回车继续；按 Ctrl+C 取消：" _
 }
 # ---------- 依赖检查 ----------
 find_brew_bin() {
@@ -503,7 +494,7 @@ jobs_to_main() {
     shift
   else
     # 展示脚本说明并等待用户确认影响范围。
-    show_readme_and_wait
+    show_script_intro_and_wait
     # 初始化当前流程后续步骤需要使用的变量。
     target_ext="$(read_target_ext)"
   fi

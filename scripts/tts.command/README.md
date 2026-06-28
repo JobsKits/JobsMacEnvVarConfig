@@ -271,13 +271,13 @@ POST http://127.0.0.1:7788/v1/tts
 主日志：
 
 ```text
-/tmp/tts.log
+$TMPDIR/tts.log
 ```
 
 Supertonic 服务日志：
 
 ```text
-/tmp/tts.server.log
+$TMPDIR/tts.server.log
 ```
 
 常见风险：
@@ -285,7 +285,7 @@ Supertonic 服务日志：
 | 问题 | 处理 |
 | --- | --- |
 | `fzf` 不存在 | 按提示 `brew install fzf`，或使用文本 fallback |
-| MOSS-TTS-Nano 安装失败 | 多数是 `pynini` / `WeTextProcessing`，优先看 `/tmp/tts.log` |
+| MOSS-TTS-Nano 安装失败 | 多数是 `pynini` / `WeTextProcessing`，优先看 `$TMPDIR/tts.log` |
 | VoxCPM2 首次很慢 | 首次会下载模型；Hugging Face 慢时用 `:hf-mirror on` |
 | VoxCPM2 CPU 很慢 | Apple Silicon 用 `:device mps`；NVIDIA 用 `:device cuda` |
 | VoxCPM2 MPS/CPU 报 `torch.compile` 相关错误 | 保持 `:optimize off`，脚本默认就是 off |

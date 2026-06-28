@@ -510,6 +510,79 @@ jobs_update_find_external_command() {
 
   return 1
 }
+# 执行 Android SDK licenses 接受流程，托管模式下自动输入 y。
+jobs_update_run_flutter_android_licenses() {
+  local desc="$1"
+  shift
+
+  local -a license_cmd=("$@")
+  if (( ${#license_cmd[@]} == 0 )); then
+    warn_echo "未提供 Android SDK licenses 命令，已跳过。"
+    return 0
+  fi
+
+  if (( JOBS_UPDATE_TRUST_MODE == 1 )); then
+    note_echo "$desc"
+    debug_echo "执行命令：yes | ${license_cmd[*]}"
+    yes | "${license_cmd[@]}" 2>&1 | tee -a "$LOG_FILE"
+    local exit_code=${pipestatus[2]}
+
+    if (( exit_code == 0 )); then
+      success_echo "$desc：完成"
+    else
+      warn_echo "$desc：失败（exit code: ${exit_code}）"
+    fi
+
+    return $exit_code
+  fi
+
+  if [[ ! -t 0 ]]; then
+    warn_echo "当前不是交互式终端，已跳过：$desc"
+    return 0
+  fi
+
+  jobs_update_run_cmd "$desc" "${license_cmd[@]}"
+}
+# 执行 Flutter doctor，并在检测到 Android license 未确认时引导接受许可。
+jobs_update_run_flutter_doctor_and_android_licenses() {
+  local label="$1"
+  shift
+
+  local -a flutter_base_cmd=("$@")
+  if (( ${#flutter_base_cmd[@]} == 0 )); then
+    warn_echo "未提供 Flutter 命令，跳过 Flutter doctor。"
+    return 0
+  fi
+
+  local doctor_output_file=""
+  doctor_output_file="$(mktemp -t jobs_update_flutter_doctor.XXXXXX)"
+  local -a doctor_cmd=("${flutter_base_cmd[@]}" doctor -v)
+  local -a license_cmd=("${flutter_base_cmd[@]}" doctor --android-licenses)
+
+  note_echo "${label} doctor -v"
+  debug_echo "执行命令：${doctor_cmd[*]}"
+  "${doctor_cmd[@]}" 2>&1 | tee -a "$LOG_FILE" | tee "$doctor_output_file"
+  local doctor_exit_code=${pipestatus[1]}
+
+  if (( doctor_exit_code == 0 )); then
+    success_echo "${label} doctor -v：完成"
+  else
+    warn_echo "${label} doctor -v：返回非 0（${doctor_exit_code}），继续检查 Android license 提示。"
+  fi
+
+  if grep -Eq "Android license status unknown|flutter doctor --android-licenses" "$doctor_output_file"; then
+    warn_echo "检测到 Android license status unknown，将执行：${license_cmd[*]}"
+
+    if grep -Fq "cmdline-tools component is missing" "$doctor_output_file"; then
+      warm_echo "doctor 同时提示 Android cmdline-tools 缺失；若许可接受失败，请先在 Android Studio 安装 Command-line Tools。"
+    fi
+
+    jobs_update_run_flutter_android_licenses "接受 Android SDK licenses" "${license_cmd[@]}" || true
+  fi
+
+  rm -f "$doctor_output_file"
+  return 0
+}
 # ---------- 内置自述 ----------
 jobs_update_show_readme_and_wait() {
   if (( JOBS_UPDATE_TRUST_MODE == 1 )); then
@@ -856,9 +929,9 @@ jobs_update_fvm_flutter() {
 
   if external_flutter="$(jobs_update_find_external_command flutter 2>/dev/null)"; then
     jobs_update_run_cmd "Flutter upgrade" "$external_flutter" upgrade || true
-    jobs_update_run_cmd "Flutter doctor" "$external_flutter" doctor -v || true
+    jobs_update_run_flutter_doctor_and_android_licenses "Flutter" "$external_flutter" || true
   elif jobs_update_has fvm; then
-    jobs_update_run_cmd "FVM Flutter doctor" fvm flutter doctor -v || true
+    jobs_update_run_flutter_doctor_and_android_licenses "FVM Flutter" fvm flutter || true
   else
     warn_echo "未检测到外部 flutter / fvm，跳过 Flutter SDK 更新"
   fi

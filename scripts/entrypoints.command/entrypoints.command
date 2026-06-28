@@ -126,7 +126,7 @@ cor() { _jobs_run_scripts_command cor "$@"; }
 decode() { _jobs_run_scripts_command decode "$@"; }
 # ts：识别秒 / 毫秒 / 微秒 / 纳秒时间戳，并转换为本地时间。
 ts() { _jobs_run_scripts_command ts "$@"; }
-# download：调用 yt-dlp，自动使用默认浏览器 cookies 下载媒体。
+# download：媒体下载；yt-dlp 优先，并可在配置 cobalt API 后兜底。
 download() { _jobs_run_scripts_command download "$@"; }
 # to：FFmpeg 通用媒体格式转换入口。
 to() { _jobs_run_scripts_command to "$@"; }
