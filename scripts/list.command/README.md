@@ -41,7 +41,7 @@ list [参数...]
 iOS 模拟器：simios
 本地 Pod 自检：pods
 终端清理：clean
-解除隔离：dq
+App 打开修复：dq
 目录共享：df
 颜色转换：cor
 URL 解码：decode

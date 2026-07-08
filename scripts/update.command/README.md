@@ -140,6 +140,12 @@ readonly -a BREW_CASKS=(
   codex-app
   codex
   github-store
+  jtool2
+  motrix
+  onlyoffice
+  pot
+  qlcolorcode
+  temurin@17
 )
 ```
 
@@ -153,6 +159,12 @@ readonly -a BREW_CASKS=(
 | [**codex-app**](https://formulae.brew.sh/cask/codex-app) | Codex 图形化应用入口 |
 | [**codex**](https://formulae.brew.sh/cask/codex) | Codex 相关图形化入口 |
 | `github-store` | GitHub-Store 图形化应用入口；来自 `OpenHub-Store/tap` |
+| `jtool2` | iOS / Mach-O 辅助工具 |
+| [**motrix**](https://motrix.app/) | 下载管理工具 |
+| [**onlyoffice**](https://www.onlyoffice.com/) | Office 文档套件 |
+| [**pot**](https://pot-app.com/) | 翻译工具 |
+| [**qlcolorcode**](https://github.com/sbarex/QLColorCode) | Quick Look 代码预览 |
+| `temurin@17` | Eclipse Temurin JDK 17 |
 
 ### 4.2、`brew formula`
 
@@ -160,6 +172,10 @@ readonly -a BREW_CASKS=(
 
 ```zsh
 readonly -a BREW_FORMULAE=(
+  agg
+  asciinema
+  caddy
+  cloudflared
   git-lfs
   gh
   nushell
@@ -169,30 +185,41 @@ readonly -a BREW_FORMULAE=(
   jenv
   openjdk
   openjdk@17
+  openjdk@21
   fvm
   pnpm
   python
   python3
+  python-tk@3.14
+  pyinstaller
   pyside
+  cocoapods
   fastlane
   mysql
   hugo
   yt-dlp
   ffmpeg
   cmake
+  graphviz
   sevenzip
   go-task
   uv
   fzf
+  glow
   lazygit
-  onlyoffice
   dufs
   git-filter-repo
+  nginx
+  radare2
 )
 ```
 
 | formula | 说明 |
 | --- | --- |
+| [**agg**](https://github.com/asciinema/agg) | asciinema 录制转 GIF / 视频 |
+| [**asciinema**](https://asciinema.org/) | 终端录制工具 |
+| [**caddy**](https://caddyserver.com/) | Web 服务器 / 反向代理 |
+| [**cloudflared**](https://github.com/cloudflare/cloudflared) | Cloudflare Tunnel 工具 |
 | [**git-lfs**](https://git-lfs.com/) | Git 大文件支持 |
 | [**gh**](https://cli.github.com/) | GitHub CLI |
 | [**nushell**](https://www.nushell.sh/) | 结构化 Shell |
@@ -202,25 +229,32 @@ readonly -a BREW_FORMULAE=(
 | [**jenv**](https://www.jenv.be/) | Java 版本管理 |
 | [**openjdk**](https://openjdk.org/) | Java 开发工具包 |
 | [**openjdk@17**](https://openjdk.org/projects/jdk/17/) | Java 17 开发工具包 |
+| `openjdk@21` | Java 21 开发工具包 |
 | [**fvm**](https://fvm.app/) | Flutter 版本管理 |
 | [**pnpm**](https://pnpm.io/) | Node.js 包管理器 |
 | [**python**](https://www.python.org/) | Python 运行环境 |
 | [**python3**](https://www.python.org/) | Python 3 运行环境 |
+| `python-tk@3.14` | Python Tk 运行组件 |
+| [**pyinstaller**](https://pyinstaller.org/) | Python 应用打包工具 |
 | [**pyside**](https://formulae.brew.sh/formula/pyside) | Qt 官方 Python 绑定；代码中使用 `PySide6` 导入 |
+| [**cocoapods**](https://cocoapods.org/) | iOS 依赖管理工具 |
 | [**fastlane**](https://fastlane.tools/) | 移动端自动化发布工具 |
 | [**mysql**](https://www.mysql.com/) | MySQL 数据库 |
 | [**hugo**](https://gohugo.io/) | 静态站点生成器 |
 | [**yt-dlp**](https://github.com/yt-dlp/yt-dlp) | 视频下载工具 |
 | [**ffmpeg**](https://ffmpeg.org/) | 音视频处理工具 |
 | [**cmake**](https://cmake.org/) | 跨平台构建工具 |
+| [**graphviz**](https://graphviz.org/) | Graphviz 图形渲染工具 |
 | [**sevenzip**](https://formulae.brew.sh/formula/sevenzip) | 7-Zip 压缩 / 解压工具 |
 | [**go-task**](https://taskfile.dev/) | 任务运行器 |
 | [**uv**](https://docs.astral.sh/uv/) | Python 包与项目管理工具 |
 | [**fzf**](https://github.com/junegunn/fzf) | 命令行模糊查找工具 |
+| [**glow**](https://github.com/charmbracelet/glow) | 终端 Markdown 阅读器 |
 | [**lazygit**](https://github.com/jesseduffield/lazygit) | Git 终端 UI |
-| [**onlyoffice**](https://www.onlyoffice.com/) | Office 文档套件 |
 | [**dufs**](https://github.com/sigoden/dufs) | 文件服务器工具 |
 | [**git-filter-repo**](https://formulae.brew.sh/formula/git-filter-repo) | Git 仓库历史重写 / 清理工具 |
+| [**nginx**](https://nginx.org/) | Web 服务器 / 反向代理 |
+| [**radare2**](https://www.radare.org/n/) | 逆向分析工具 |
 
 维护规则：
 
@@ -231,6 +265,7 @@ install.command 增加 brew cask / formula 后，update.command 的同名数组�
 少数特殊 `cask` 的 tap 与更新后置动作已经适配：
 
 - `github-store`：升级前执行 `brew tap OpenHub-Store/tap` 确认 tap；检测已安装后执行 `brew upgrade --cask github-store`；升级后执行 `xattr -dr com.apple.quarantine $APPLICATIONS_DIR/GitHub-Store.app`
+- `vlc`：如果 Homebrew 未登记 `vlc`，但本机已经存在 `/Applications/VLC.app`，更新入口会识别为本机已有 App 并跳过升级提示。
 
 少数特殊 `formula` 的更新后置动作已经适配：
 

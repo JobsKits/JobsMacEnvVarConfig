@@ -248,7 +248,7 @@ iOS 模拟器	simios	检测 Xcode 环境并下载 / 补齐 iOS Simulator Runtime
 本地 Pod 自检	pods	检查本地 CocoaPods Pod 编译与 podspec lint 结果	script	pods.command
 终端清理	clean	清空终端历史、zsh_sessions，并执行 brew cleanup	script	clean.command
 Chrome 下载记录	clr	清空 Google Chrome 下载记录，不删除真实下载文件	script	clr.command
-解除隔离	dq	解除指定文件或 App 的 macOS quarantine 隔离标记	script	dq.command
+App 打开修复	dq	解决新装 App 无法打开、被系统建议移到废纸篓的问题（清理 macOS quarantine 隔离标记）	script	dq.command
 目录共享	df	dufs + Caddy 临时开放本地目录给局域网浏览器访问	script	df.command
 颜色转换	cor	颜色格式转换器，支持 HEX / RGB / RGBA / 0xAARRGGBB	script	cor.command
 URL 解码	decode	交互式 URL Decode，并自动复制到剪贴板	script	decode.command
@@ -322,6 +322,50 @@ pad_right_visual() {
 
   printf "%s%*s" "$text" "$pad_count" ""
 }
+# 根据菜单真实内容计算列宽，避免中文标题或长命令把列挤歪。
+calculate_menu_column_widths() {
+  local include_quit="${1:-true}"
+  local title=""
+  local command_name=""
+  local description=""
+  local run_type=""
+  local target_name=""
+  local display_title_text=""
+  local title_width=8
+  local command_width=8
+  local width=0
+
+  build_menu_items | while IFS=$'\t' read -r title command_name description run_type target_name; do
+    [[ "$include_quit" != "true" && "$command_name" == "quit" ]] && continue
+
+    display_title_text="$title"
+    [[ "$display_title_text" == "__NO_TITLE__" ]] && display_title_text=""
+
+    width="$(display_width "$display_title_text")"
+    (( width > title_width )) && title_width="$width"
+
+    width="$(display_width "$command_name")"
+    (( width > command_width )) && command_width="$width"
+  done
+
+  printf "%s\t%s\n" "$title_width" "$command_width"
+}
+# 封装菜单显示行格式，fzf 和纯文本列表共用同一套列宽。
+format_menu_display_line() {
+  local title="$1"
+  local command_name="$2"
+  local description="$3"
+  local title_width="$4"
+  local command_width="$5"
+  local display_title_text="$title"
+
+  [[ "$display_title_text" == "__NO_TITLE__" ]] && display_title_text=""
+
+  printf "%s%s%s" \
+    "$(pad_right_visual "$display_title_text" "$(( title_width + 2 ))")" \
+    "$(pad_right_visual "$command_name" "$(( command_width + 2 ))")" \
+    "$description"
+}
 # 封装 build_fzf_items 对应的独立处理逻辑。
 build_fzf_items() {
   local title=""
@@ -329,18 +373,17 @@ build_fzf_items() {
   local description=""
   local run_type=""
   local target_name=""
-  local display_title_text=""
-  local display_title=""
-  local display_command=""
   local display_line=""
+  local widths=""
+  local title_width="0"
+  local command_width="0"
+
+  widths="$(calculate_menu_column_widths true)"
+  title_width="${widths%%$'\t'*}"
+  command_width="${widths##*$'\t'}"
 
   build_menu_items | while IFS=$'\t' read -r title command_name description run_type target_name; do
-    display_title_text="$title"
-    [[ "$display_title_text" == "__NO_TITLE__" ]] && display_title_text=""
-
-    display_title="$(pad_right_visual "$display_title_text" 12)"
-    display_command="$(printf "%-24s" "$command_name")"
-    display_line="${display_title}${display_command}${description}"
+    display_line="$(format_menu_display_line "$title" "$command_name" "$description" "$title_width" "$command_width")"
 
     printf "%s\t%s\t%s\t%s\t%s\t%s\n" \
       "$title" "$command_name" "$description" "$run_type" "$target_name" "$display_line"
@@ -352,14 +395,31 @@ fzf_supports_info_command() {
 }
 # 封装 print_command_table 对应的独立处理逻辑。
 print_command_table() {
+  local widths=""
+  local title_width="0"
+  local command_width="0"
+  local title=""
+  local command_name=""
+  local description=""
+  local run_type=""
+  local target_name=""
+  local display_line=""
+
   bold_echo "JobsMacEnv 功能菜单"
   log ""
-  printf "%-22s %s\n" "入口" "含义" | tee -a "$LOG_FILE"
-  printf "%-22s %s\n" "----------------------" "------------------------------------------------------------" | tee -a "$LOG_FILE"
+
+  widths="$(calculate_menu_column_widths false)"
+  title_width="${widths%%$'\t'*}"
+  command_width="${widths##*$'\t'}"
+
+  format_menu_display_line "功能" "入口" "含义" "$title_width" "$command_width" | tee -a "$LOG_FILE"
+  printf "\n" | tee -a "$LOG_FILE"
+  printf "%s\n" "$(printf "%0.s-" {1..80})" | tee -a "$LOG_FILE"
 
   build_menu_items | while IFS=$'\t' read -r title command_name description run_type target_name; do
     [[ "$command_name" == "quit" ]] && continue
-    printf "%-22s %s\n" "$command_name" "$description" | tee -a "$LOG_FILE"
+    display_line="$(format_menu_display_line "$title" "$command_name" "$description" "$title_width" "$command_width")"
+    printf "%s\n" "$display_line" | tee -a "$LOG_FILE"
   done
 }
 # 执行已经拆分完成的独立业务步骤。

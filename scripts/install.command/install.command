@@ -48,9 +48,19 @@ readonly -a BREW_CASKS=(
   codex-app # 图形化界面
   codex # 终端使用
   github-store
+  jtool2
+  motrix
+  onlyoffice
+  pot
+  qlcolorcode
+  temurin@17
 )
 
 readonly -a BREW_FORMULAE=(
+  agg
+  asciinema
+  caddy
+  cloudflared
   git-lfs
   gh
   nushell
@@ -60,26 +70,32 @@ readonly -a BREW_FORMULAE=(
   jenv
   openjdk
   openjdk@17
+  openjdk@21
   fvm
   pnpm
   python
   python3
+  python-tk@3.14
+  pyinstaller
   pyside
+  cocoapods
   fastlane
   mysql
   hugo
   yt-dlp
   ffmpeg
   cmake
+  graphviz
   sevenzip
   go-task
   uv
   fzf
   glow
   lazygit
-  onlyoffice
   dufs
   git-filter-repo
+  nginx
+  radare2
 )
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
@@ -658,6 +674,23 @@ brew_cask_installed() {
   local pkg="$1"
   brew list --cask --versions "${pkg}" >/dev/null 2>&1
 }
+# 封装 brew_cask_local_app_path 对应的独立处理逻辑。
+brew_cask_local_app_path() {
+  local pkg="$1"
+
+  case "${pkg}" in
+    vlc) echo "/Applications/VLC.app" ;;
+    *) echo "" ;;
+  esac
+}
+# 封装 brew_cask_local_app_exists 对应的独立处理逻辑。
+brew_cask_local_app_exists() {
+  local pkg="$1"
+  local app_path=""
+
+  app_path="$(brew_cask_local_app_path "${pkg}")"
+  [[ -n "${app_path}" && -d "${app_path}" ]]
+}
 # ---------- 部件：Xcode Command Line Tools ----------
 component_clt() {
   progress_step "Xcode Command Line Tools"
@@ -905,6 +938,12 @@ component_brew_cask() {
       warn_echo "已按统一选择跳过升级 brew cask：${cask_name}"
       return 0
     fi
+  elif brew_cask_local_app_exists "${cask_name}"; then
+    local app_path=""
+    app_path="$(brew_cask_local_app_path "${cask_name}")"
+    success_echo "已检测到本机 App：${app_path}"
+    warn_echo "Homebrew 未登记 brew cask：${cask_name}，但本机已有 App，跳过重复安装。"
+    return 0
   else
     if ! confirm_execute "${desc}" "安装"; then
       return 0

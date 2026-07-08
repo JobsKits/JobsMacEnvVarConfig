@@ -65,9 +65,19 @@
     codex-app # 图形化界面
     codex # 终端使用
     github-store
+    jtool2
+    motrix
+    onlyoffice
+    pot
+    qlcolorcode
+    temurin@17
   )
 
   readonly -a BREW_FORMULAE=(
+    agg
+    asciinema
+    caddy
+    cloudflared
     git-lfs
     gh
     nushell
@@ -77,26 +87,32 @@
     jenv
     openjdk
     openjdk@17
+    openjdk@21
     fvm
     pnpm
     python
     python3
+    python-tk@3.14
+    pyinstaller
     pyside
+    cocoapods
     fastlane
     mysql
     hugo
     yt-dlp
     ffmpeg
     cmake
+    graphviz
     sevenzip
     go-task
     uv
     fzf
     glow
     lazygit
-    onlyoffice
     dufs
     git-filter-repo
+    nginx
+    radare2
   )
   ```
 
@@ -171,8 +187,19 @@
   xattr -dr com.apple.quarantine $APPLICATIONS_DIR/GitHub-Store.app
   ```
 
+- `jtool2`
+- [**Motrix**](https://motrix.app/)
+- [**ONLYOFFICE**](https://www.onlyoffice.com)
+- [**Pot**](https://pot-app.com/)
+- [**QLColorCode**](https://github.com/sbarex/QLColorCode)
+- `temurin@17`
+
 ## 五、当前 brew formula
 
+- [**agg**](https://github.com/asciinema/agg)
+- [**asciinema**](https://asciinema.org)
+- [**Caddy**](https://caddyserver.com)
+- [**cloudflared**](https://github.com/cloudflare/cloudflared)
 - [**git-lfs**](https://git-lfs.com)
 - [**gh**](https://cli.github.com)
 - [**nushell**](https://www.nushell.sh)
@@ -182,27 +209,33 @@
 - [**jenv**](https://www.jenv.be)
 - [**OpenJDK**](https://openjdk.org)
 - `openjdk@17`
+- `openjdk@21`
 - [**fvm**](https://fvm.app)
 - [**pnpm**](https://pnpm.io)
 - [**Python**](https://www.python.org)
 - `python3`
+- `python-tk@3.14`
+- [**PyInstaller**](https://pyinstaller.org)
 - [**PySide6**](https://doc.qt.io/qtforpython-6/)：Qt 官方 Python 绑定，Homebrew formula 名为 `pyside`。
+- [**CocoaPods**](https://cocoapods.org)：Homebrew formula 名为 `cocoapods`。
 - [**fastlane**](https://fastlane.tools)
 - [**MySQL**](https://www.mysql.com)
 - [**Hugo**](https://gohugo.io)
 - [**yt-dlp**](https://github.com/yt-dlp/yt-dlp)
 - [**FFmpeg**](https://ffmpeg.org)
 - [**CMake**](https://cmake.org)
+- [**Graphviz**](https://graphviz.org)
 - [**sevenzip**](https://formulae.brew.sh/formula/sevenzip)
 - [**go-task**](https://taskfile.dev)
 - [**uv**](https://docs.astral.sh/uv/)
 - [**fzf**](https://github.com/junegunn/fzf)
 - [**Glow**](https://github.com/charmbracelet/glow)：终端 Markdown 阅读器，对应 `brew install glow`。
 - [**lazygit**](https://github.com/jesseduffield/lazygit)
-- [**ONLYOFFICE**](https://www.onlyoffice.com)
 - [**dufs**](https://github.com/sigoden/dufs)
 - [**git-filter-repo**](https://formulae.brew.sh/formula/git-filter-repo)
   用于重写 / 清理 [**Git**](https://git-scm.com) 仓库历史，例如移除误提交的大文件或敏感内容。
+- [**nginx**](https://nginx.org)
+- [**radare2**](https://www.radare.org/n/)
 
 ## 六、特殊处理
 
@@ -218,6 +251,9 @@
   ```zsh
   xattr -dr com.apple.quarantine $APPLICATIONS_DIR/GitHub-Store.app
   ```
+
+- [**VLC**](https://www.videolan.org/vlc/)
+  如果 Homebrew 未登记 `vlc`，但本机已经存在 `/Applications/VLC.app`，脚本会识别为本机已有 App 并跳过重复安装。
 
 - [**fvm**](https://fvm.app)
   安装 / 更新前会自动执行：
@@ -283,6 +319,16 @@
   brew cask：codex-app
   brew cask：codex
   brew cask：github-store
+  brew cask：jtool2
+  brew cask：motrix
+  brew cask：onlyoffice
+  brew cask：pot
+  brew cask：qlcolorcode
+  brew cask：temurin@17
+  brew formula：agg
+  brew formula：asciinema
+  brew formula：caddy
+  brew formula：cloudflared
   brew formula：git-lfs
   brew formula：gh
   brew formula：nushell
@@ -292,26 +338,32 @@
   brew formula：jenv
   brew formula：openjdk
   brew formula：openjdk@17
+  brew formula：openjdk@21
   brew formula：fvm
   brew formula：pnpm
   brew formula：python
   brew formula：python3
+  brew formula：python-tk@3.14
+  brew formula：pyinstaller
   brew formula：pyside
+  brew formula：cocoapods
   brew formula：fastlane
   brew formula：mysql
   brew formula：hugo
   brew formula：yt-dlp
   brew formula：ffmpeg
   brew formula：cmake
+  brew formula：graphviz
   brew formula：sevenzip
   brew formula：go-task
   brew formula：uv
   brew formula：fzf
   brew formula：glow
   brew formula：lazygit
-  brew formula：onlyoffice
   brew formula：dufs
   brew formula：git-filter-repo
+  brew formula：nginx
+  brew formula：radare2
   Rosetta 2
   npm 全局包：quicktype
   npm 全局包：OpenCLI

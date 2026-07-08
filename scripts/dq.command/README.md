@@ -1,6 +1,6 @@
 # dq.command
 
-解除指定文件、DMG、zip、App 或目录的 macOS quarantine 隔离标记。
+解决新装 App 无法打开、被系统建议移到废纸篓的问题；底层会清理传入路径上的 macOS quarantine 隔离标记。
 
 ## 一、用途
 
@@ -29,7 +29,7 @@ dq --dry-run ~/Downloads/Otty.dmg
 
 | 参数 | 说明 |
 | --- | --- |
-| `--open` | 解除隔离标记后调用 `open` 打开目标 |
+| `--open` | 清理隔离标记后调用 `open` 打开目标 |
 | `--dry-run` | 只检查并打印结果，不修改文件 |
 | `-h` / `--help` | 显示帮助 |
 

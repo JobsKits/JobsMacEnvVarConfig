@@ -1,7 +1,7 @@
 #!/bin/zsh
 # 脚本自述：
 # - 脚本名称：dq.command
-# - 核心用途：解除指定文件或 App 的 macOS quarantine 隔离标记。
+# - 核心用途：解决新装 App 无法打开、被系统建议移到废纸篓的问题。
 # - 影响范围：只修改用户传入路径的 com.apple.quarantine 扩展属性。
 # - 运行提示：运行后会先打印内置自述；终端模式按回车确认后继续，按 Ctrl+C 可取消。
 
@@ -53,7 +53,7 @@ jobs_dq_print_usage() {
   dq --open /Applications/Otty.app
 
 参数：
-  --open       解除 quarantine 后调用 open 打开目标。
+  --open       清理隔离标记后调用 open 打开目标。
   --dry-run    只检查目标是否存在 quarantine 标记，不修改文件。
   -h, --help   显示帮助。
 
@@ -68,7 +68,7 @@ EOFUSAGE
 show_script_intro() {
   print -r -- '============================== 脚本内置自述 =============================='
   print -r -- '脚本名称：dq.command'
-  print -r -- '核心用途：解除指定文件或 App 的 macOS quarantine 隔离标记。'
+  print -r -- '核心用途：解决新装 App 无法打开、被系统建议移到废纸篓的问题。'
   print -r -- '影响范围：只修改用户传入路径的 com.apple.quarantine 扩展属性。'
   print -r -- '取消方式：输入路径前按 Ctrl+C 终止，不会继续执行后续业务。'
   print -r -- '============================================================================'
@@ -115,7 +115,7 @@ jobs_dq_prompt_targets_if_needed() {
   fi
 
   while (( ${#DQ_TARGETS[@]} == 0 )); do
-    IFS= read -r "?👉 请输入或拖入要解除 quarantine 的文件 / App / 目录路径，然后回车：" input
+    IFS= read -r "?👉 请输入或拖入要修复打开限制的文件 / App / 目录路径，然后回车：" input
     if ! jobs_dq_add_input_targets "$input"; then
       warn_echo "未输入路径，请重新输入；按 Ctrl+C 可取消。"
     fi
@@ -169,7 +169,7 @@ jobs_dq_has_quarantine() {
   xattr -p com.apple.quarantine "$target" >/dev/null 2>&1
 }
 
-# 对单个目标执行 quarantine 标记清理。
+# 对单个目标执行打开限制相关隔离标记清理。
 jobs_dq_handle_one() {
   local target="$1"
 
@@ -190,9 +190,9 @@ jobs_dq_handle_one() {
   fi
 
   if xattr -dr com.apple.quarantine "$target"; then
-    success_echo "已解除 quarantine：$target"
+    success_echo "已清理打开限制隔离标记：$target"
   else
-    error_echo "解除 quarantine 失败：$target"
+    error_echo "清理打开限制隔离标记失败：$target"
     return 1
   fi
 
@@ -201,7 +201,7 @@ jobs_dq_handle_one() {
   fi
 }
 
-# 执行所有目标的 quarantine 标记清理。
+# 执行所有目标的打开限制相关隔离标记清理。
 dq() {
   local target=""
   local failed=0

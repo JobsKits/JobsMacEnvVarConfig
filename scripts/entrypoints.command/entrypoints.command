@@ -116,7 +116,7 @@ pods() { _jobs_run_scripts_command pods "$@"; }
 clean() { _jobs_run_scripts_command clean "$@"; }
 # clr：清空 Google Chrome 下载记录，不删除真实下载文件。
 clr() { _jobs_run_scripts_command clr "$@"; }
-# dq：解除指定文件或 App 的 macOS quarantine 隔离标记。
+# dq：解决新装 App 无法打开、被系统建议移到废纸篓的问题（清理 macOS quarantine 隔离标记）。
 dq() { _jobs_run_scripts_command dq "$@"; }
 # df：dufs + Caddy 临时开放本地目录给局域网浏览器访问。注意：系统磁盘 df 请用 /bin/df。
 df() { _jobs_run_scripts_command df "$@"; }

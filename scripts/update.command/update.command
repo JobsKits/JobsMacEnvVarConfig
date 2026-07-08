@@ -41,9 +41,19 @@ readonly -a BREW_CASKS=(
   codex-app
   codex
   github-store
+  jtool2
+  motrix
+  onlyoffice
+  pot
+  qlcolorcode
+  temurin@17
 )
 
 readonly -a BREW_FORMULAE=(
+  agg
+  asciinema
+  caddy
+  cloudflared
   git-lfs
   gh
   nushell
@@ -53,25 +63,32 @@ readonly -a BREW_FORMULAE=(
   jenv
   openjdk
   openjdk@17
+  openjdk@21
   fvm
   pnpm
   python
   python3
+  python-tk@3.14
+  pyinstaller
   pyside
+  cocoapods
   fastlane
   mysql
   hugo
   yt-dlp
   ffmpeg
   cmake
+  graphviz
   sevenzip
   go-task
   uv
   fzf
+  glow
   lazygit
-  onlyoffice
   dufs
   git-filter-repo
+  nginx
+  radare2
 )
 # ---------- 彩色日志 ----------
 log()            { echo -e "$1" | tee -a "$LOG_FILE"; }
@@ -847,6 +864,23 @@ brew_cask_after_update() {
     *) return 0 ;;
   esac
 }
+# 封装 brew_cask_local_app_path 对应的独立处理逻辑。
+brew_cask_local_app_path() {
+  local cask_name="$1"
+
+  case "$cask_name" in
+    vlc) echo "/Applications/VLC.app" ;;
+    *) echo "" ;;
+  esac
+}
+# 封装 brew_cask_local_app_exists 对应的独立处理逻辑。
+brew_cask_local_app_exists() {
+  local cask_name="$1"
+  local app_path=""
+
+  app_path="$(brew_cask_local_app_path "$cask_name")"
+  [[ -n "$app_path" && -d "$app_path" ]]
+}
 # 封装 jobs_update_brew_formula_one 对应的独立处理逻辑。
 jobs_update_brew_formula_one() {
   local formula_name="$1"
@@ -898,6 +932,14 @@ jobs_update_brew_cask_one() {
   fi
 
   if ! brew list --cask --versions "$cask_name" >/dev/null 2>&1; then
+    if brew_cask_local_app_exists "$cask_name"; then
+      local app_path=""
+      app_path="$(brew_cask_local_app_path "$cask_name")"
+      success_echo "已检测到本机 App：${app_path}"
+      warn_echo "Homebrew 未登记 brew cask：${cask_name}，但本机已有 App，跳过升级。"
+      return 0
+    fi
+
     warn_echo "未安装 brew cask：${cask_name}，跳过升级。请运行 install.command 补装。"
     brew_cask_install_hint "$cask_name"
     return 0
