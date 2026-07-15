@@ -35,7 +35,7 @@ update.command
 update.command [参数...]
 ```
 
-托管模式用于确认当前就是要完整升级，适合放着跑：
+无人值守模式用于确认当前就是要完整升级，适合由计划任务或后台进程调用：
 
 ```zsh
 ./update.command -t
@@ -43,7 +43,9 @@ update.command -t
 update.command --unattended
 ```
 
-托管模式会跳过脚本自述确认、自动执行所有更新项、启动时执行一次 `sudo -v` 让用户输入管理员密码，并在脚本运行期间保活 sudo 凭证。遇到 [**Homebrew**](https://brew.sh/) `Do you want to proceed with the upgrade? [y/n]` 这类已知确认点时，会定点输入 `y`。
+无人值守模式会跳过脚本自述确认、自动执行所有更新项，并在 [**Homebrew**](https://brew.sh/) `Do you want to proceed with the upgrade? [y/n]` 这类已知确认点定点输入 `y`。脚本不会要求预先输入管理员密码，也不会保存或保活密码凭证。
+
+需要管理员权限的命令在无人值守模式下统一使用 `sudo -n`：如果当前已有可用的 sudo 缓存或精确的 `NOPASSWD` 授权，命令可以执行；否则立即失败并跳过该提权项，继续后续更新，绝不会卡在密码提示。脚本不会自动修改 `sudoers`。
 
 ## 二、交互规则 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 
@@ -66,7 +68,7 @@ update.command --unattended
 --unattended
 ```
 
-托管模式等价于逐项选择执行，不等价于关闭外部工具的所有安全提示。系统弹窗、图形化授权、网络失败重试、第三方安装器额外交互仍可能需要人工处理。
+无人值守模式等价于逐项选择执行，并保证脚本自身不等待终端密码。它不等价于绕过外部工具的安全机制；系统弹窗、图形化授权、网络失败或第三方安装器的未知交互可能导致对应项失败，其余项仍会继续。
 
 脚本内置自述可通过环境变量跳过：
 
@@ -96,18 +98,19 @@ JOBS_MAC_ENV_SKIP_README=1 ./update.command
   - 对应更新：检查安装状态；Rosetta 2 通常跟随 [**macOS**](https://www.apple.com/macos/) 系统更新维护
 - [**FVM**](https://fvm.app/) / [**Flutter**](https://flutter.dev/)
   - 对应更新：FVM 复用统一的 `brew formula` 升级逻辑，先处理 `leoafarias/fvm` tap 信任与确认，再执行外部 `flutter upgrade` / `flutter doctor -v`；否则回退到 `fvm flutter doctor -v`
+  - 隔离处理：`brew cask：flutter` 和 `flutter upgrade` 完成后，先验证 SDK 内 Dart 二进制文件的 `FLUTTER.IO LLC (S8QB4VV633)` 官方签名；仅在签名有效且签名方匹配时，定向解除 Flutter SDK 的 `com.apple.quarantine` 标记，避免 macOS 将可验证的 `dart` 误报为“已损坏”
 - [**Node.js**](https://nodejs.org/) / [**Corepack**](https://nodejs.org/api/corepack.html) / [**npm**](https://www.npmjs.com/) / [**pnpm**](https://pnpm.io/)
   - 对应更新：兼容 [**nvm**](https://github.com/nvm-sh/nvm) LTS 维护，启用 `corepack`，升级 `npm`
 - `npm` 全局包：[**quicktype**](https://quicktype.io/)
-  - 对应更新：检测已安装后执行 `sudo npm update -g quicktype`
+  - 对应更新：检测已安装后执行 `npm update -g quicktype`；目标包目录可写时使用当前用户，历史遗留的 root 所有目录进入统一提权策略
 - `npm` 全局包：[**OpenCLI**](https://www.npmjs.com/package/@jackwener/opencli)
-  - 对应更新：确认 [**Node.js**](https://nodejs.org/) 版本不低于 21，检测已安装后执行 `sudo npm install -g @jackwener/opencli@latest`，并提示 `opencli doctor`
+  - 对应更新：确认 [**Node.js**](https://nodejs.org/) 版本不低于 21，检测已安装后执行 `npm install -g @jackwener/opencli@latest`；按目标包目录权限动态选择当前用户或统一提权策略，并提示 `opencli doctor`
 - `npm` 全局包：[**CodeGraph**](https://github.com/colbymchenry/codegraph)
   - 对应更新：检测已安装后执行 `npm install -g @colbymchenry/codegraph@latest`，输出版本，并执行 `codegraph install --yes` 刷新 Agent 配置
 - [**Ruby**](https://www.ruby-lang.org/) / [**RubyGems**](https://rubygems.org/) / [**rbenv**](https://github.com/rbenv/rbenv)
   - 对应更新：刷新 `rbenv` 初始化配置，执行 `rbenv rehash`、`gem update --system`、`gem update`
 - `gem` 包：[**CocoaPods**](https://cocoapods.org/)
-  - 对应更新：检测已安装后执行 `sudo gem update cocoapods`、`pod repo update`
+  - 对应更新：检测已安装后，用户可写的 Gem 目录直接执行 `gem update cocoapods`；系统 Gem 目录在普通模式下使用 `sudo`，无人值守模式下使用 `sudo -n`，无授权时跳过；之后执行 `pod repo update`
 - [**Python**](https://www.python.org/) / [**pip**](https://pip.pypa.io/) / [**uv**](https://docs.astral.sh/uv/)
   - 对应更新：按可用环境执行 `pyenv update`、`pyenv rehash`、`pipx upgrade-all`、`python3 -m pip install --upgrade pip`
 - [**Dart**](https://dart.dev/) `pub` 缓存
@@ -265,6 +268,7 @@ install.command 增加 brew cask / formula 后，update.command 的同名数组�
 少数特殊 `cask` 的 tap 与更新后置动作已经适配：
 
 - `github-store`：升级前执行 `brew tap OpenHub-Store/tap` 确认 tap；检测已安装后执行 `brew upgrade --cask github-store`；升级后执行 `xattr -dr com.apple.quarantine $APPLICATIONS_DIR/GitHub-Store.app`
+- [**Flutter**](https://flutter.dev/)：升级后先使用 `codesign` 校验 SDK 内 Dart 的官方签名，通过后才定向解除 Flutter SDK 的 `com.apple.quarantine` 标记；签名无效或签名方变更时保留隔离标记并输出警告。
 - `vlc`：如果 Homebrew 未登记 `vlc`，但本机已经存在 `/Applications/VLC.app`，更新入口会识别为本机已有 App 并跳过升级提示。
 
 少数特殊 `formula` 的更新后置动作已经适配：
@@ -328,13 +332,15 @@ HOMEBREW_NO_INSTALL_FROM_API=1 brew update
 brew trust --tap leoafarias/fvm
 brew upgrade / brew upgrade --cask
 xattr -dr com.apple.quarantine $APPLICATIONS_DIR/GitHub-Store.app
+codesign --verify --strict $FLUTTER_ROOT/bin/cache/dart-sdk/bin/dart
+xattr -dr com.apple.quarantine $FLUTTER_ROOT
 gem update / npm install -g npm@latest
 npm install -g @colbymchenry/codegraph@latest
 codegraph install --yes
 dart pub cache repair
 ```
 
-脚本会在执行每个大项前单独询问。
+普通模式会在执行每个大项前单独询问。无人值守模式自动执行各项，但提权命令只在 `sudo -n` 可用时执行，否则记录跳过后继续。
 
 ## 七、日志文件 <a href="#前言" style="font-size:17px; color:green;"><b>🔼</b></a> <a href="#🔚" style="font-size:17px; color:green;"><b>🔽</b></a>
 

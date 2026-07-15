@@ -24,7 +24,6 @@ SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "$0")"
 SCRIPT_BASENAME=$(basename "$0" | sed 's/\.[^.]*$//')
 LOG_FILE="/tmp/${SCRIPT_BASENAME}.log"
 JOBS_UPDATE_TRUST_MODE=0
-JOBS_UPDATE_SUDO_KEEPALIVE_PID=""
 
 
 # ---------- 全局配置：必须与 install.command 保持同源 ----------
@@ -134,7 +133,7 @@ jobs_update_show_usage() {
   update.command -t
 
 参数：
-  -t, --trust, --unattended  托管模式：跳过脚本确认、自动执行全部更新项、sudo 只预认证一次，并为已知确认点自动输入 y。
+  -t, --trust, --unattended  无人值守模式：跳过脚本确认、自动执行更新项；提权命令使用 sudo -n，无授权时立即跳过，绝不等待密码。
   -h, --help                显示本说明。
 EOFUSAGE
 }
@@ -159,34 +158,16 @@ jobs_update_parse_args() {
     esac
   done
 }
-# 清理托管模式下的 sudo 凭证保活后台任务。
-jobs_update_cleanup_sudo_keepalive() {
-  if [[ -n "${JOBS_UPDATE_SUDO_KEEPALIVE_PID:-}" ]]; then
-    kill "$JOBS_UPDATE_SUDO_KEEPALIVE_PID" >/dev/null 2>&1 || true
-    JOBS_UPDATE_SUDO_KEEPALIVE_PID=""
-  fi
-}
-# 托管模式启动时预先获取 sudo 凭证，并在脚本运行期间保活。
+# 无人值守模式禁止阻塞式密码输入，提权项由统一执行器快速判定。
 jobs_update_prepare_unattended_mode() {
   if (( JOBS_UPDATE_TRUST_MODE != 1 )); then
     return 0
   fi
 
   echo ""
-  warn_echo "已启用托管模式：将自动执行全部更新项，并为已知确认点自动输入 y。"
-  warm_echo "请先输入一次管理员密码，脚本会在本次运行期间保活 sudo 凭证。"
-
-  if ! sudo -v; then
-    error_echo "sudo 预认证失败，托管模式无法继续。"
-    return 1
-  fi
-
-  while true; do
-    sudo -n -v >/dev/null 2>&1 || exit 0
-    sleep 60
-  done &
-  JOBS_UPDATE_SUDO_KEEPALIVE_PID="$!"
-  trap jobs_update_cleanup_sudo_keepalive EXIT INT TERM
+  warn_echo "已启用无人值守模式：将自动执行全部更新项，并为已知确认点自动输入 y。"
+  warm_echo "需要管理员权限的命令统一使用 sudo -n；当前无免密或已缓存授权时立即跳过，绝不等待密码。"
+  gray_echo "安全边界：脚本不保存、不传递管理员密码，也不自动修改 sudoers。"
 }
 # 封装 jobs_update_prompt_run 对应的独立处理逻辑。
 jobs_update_prompt_run() {
@@ -256,6 +237,42 @@ jobs_update_run_cmd() {
   fi
 
   return $exit_code
+}
+# 统一执行需要管理员权限的命令，确保无人值守时不会停在密码提示。
+jobs_update_run_sudo_cmd() {
+  local desc="$1"
+  shift
+
+  if (( JOBS_UPDATE_TRUST_MODE == 1 )); then
+    if jobs_update_run_cmd "$desc（无人值守）" sudo -n "$@"; then
+      return 0
+    fi
+
+    warn_echo "无人值守模式未获得该命令的无密码授权，已跳过：${desc}"
+    warm_echo "如确实需要执行，请之后在场以普通模式手动运行 update。"
+    return 1
+  fi
+
+  jobs_update_run_cmd "$desc" sudo "$@"
+}
+# npm 全局包可能遗留为 root 所有；仅在目标不可写时进入统一提权策略。
+jobs_update_run_npm_global_cmd() {
+  local desc="$1"
+  local package_relative_path="$2"
+  local npm_root=""
+  local package_path=""
+  shift 2
+
+  npm_root="$(npm root -g 2>/dev/null || true)"
+  package_path="${npm_root}/${package_relative_path}"
+
+  if [[ -n "$npm_root" ]] && { { [[ -e "$package_path" ]] && [[ ! -w "$package_path" ]]; } || { [[ ! -e "$package_path" ]] && [[ ! -w "$npm_root" ]]; }; }; then
+    warn_echo "npm 全局包目录当前用户不可写：${package_path}"
+    jobs_update_run_sudo_cmd "$desc" npm "$@"
+    return $?
+  fi
+
+  jobs_update_run_cmd "$desc" npm "$@"
 }
 # 封装 jobs_update_run_sh 对应的独立处理逻辑。
 jobs_update_run_sh() {
@@ -687,13 +704,13 @@ jobs_update_clt() {
   success_echo "Xcode Command Line Tools 已存在：$(xcode-select -p)"
 
   if jobs_update_has xcodebuild; then
-    jobs_update_run_cmd "接受 Xcode License" sudo xcodebuild -license accept || true
+    jobs_update_run_sudo_cmd "接受 Xcode License" xcodebuild -license accept || true
   else
     warn_echo "未检测到 xcodebuild，跳过 Xcode License 接受步骤"
   fi
 
   warn_echo "softwareupdate --install --all 可能安装 macOS 可用系统更新，耗时较长。"
-  jobs_update_run_cmd "安装 macOS 可用软件更新" sudo softwareupdate --install --all || true
+  jobs_update_run_sudo_cmd "安装 macOS 可用软件更新" softwareupdate --install --all || true
 }
 # 封装 jobs_update_xcode_ios_platform 对应的独立处理逻辑。
 jobs_update_xcode_ios_platform() {
@@ -855,11 +872,62 @@ jobs_update_github_store_after_update() {
     warn_echo "未找到 ${app_path}，跳过 quarantine 标记清理。"
   fi
 }
+# 仅在 Dart 通过 Flutter 官方签名校验后，解除 Homebrew Cask 传播到 Flutter SDK 的隔离标记。
+jobs_update_flutter_release_verified_quarantine() {
+  local flutter_command=""
+  local flutter_root=""
+  local dart_binary=""
+  local signature_info=""
+  local remaining_quarantine=""
+
+  flutter_command="$(command -v flutter 2>/dev/null || true)"
+  [[ -n "$flutter_command" ]] || return 0
+
+  flutter_command="$(realpath "$flutter_command" 2>/dev/null || true)"
+  [[ -n "$flutter_command" && -f "$flutter_command" ]] || return 0
+
+  flutter_root="$(cd "$(dirname "$flutter_command")/.." 2>/dev/null && pwd -P || true)"
+  dart_binary="${flutter_root}/bin/cache/dart-sdk/bin/dart"
+  if [[ ! -x "$dart_binary" ]]; then
+    warn_echo "未找到 Flutter SDK 内的 Dart 二进制文件，跳过 quarantine 标记清理。"
+    return 0
+  fi
+
+  if ! /usr/bin/codesign --verify --strict "$dart_binary" >/dev/null 2>&1; then
+    warn_echo "Dart 代码签名校验失败，为避免降低系统安全性，保留 Flutter SDK 的 quarantine 标记。"
+    return 1
+  fi
+
+  signature_info="$(/usr/bin/codesign -dv --verbose=4 "$dart_binary" 2>&1 || true)"
+  if ! print -r -- "$signature_info" | grep -Fq 'Authority=Developer ID Application: FLUTTER.IO LLC (S8QB4VV633)'; then
+    warn_echo "Dart 签名方不是预期的 FLUTTER.IO LLC，保留 Flutter SDK 的 quarantine 标记。"
+    return 1
+  fi
+
+  if ! find "$flutter_root" -xattrname com.apple.quarantine -print -quit 2>/dev/null | grep -Fq '/'; then
+    success_echo "Flutter SDK 无 quarantine 标记，无需处理。"
+    return 0
+  fi
+
+  /usr/bin/xattr -dr com.apple.quarantine "$flutter_root" 2>/dev/null || true
+  find "$flutter_root" -type l -xattrname com.apple.quarantine -print0 2>/dev/null |
+    while IFS= read -r -d '' quarantined_link; do
+      /usr/bin/xattr -d -s com.apple.quarantine "$quarantined_link" 2>/dev/null || true
+    done
+  remaining_quarantine="$(find "$flutter_root" -xattrname com.apple.quarantine -print -quit 2>/dev/null || true)"
+  if [[ -n "$remaining_quarantine" ]]; then
+    warn_echo "Flutter SDK 仍存在 quarantine 标记：${remaining_quarantine}"
+    return 1
+  fi
+
+  success_echo "已验证 FLUTTER.IO LLC 官方签名，并解除 Flutter SDK quarantine 标记。"
+}
 # 封装 brew_cask_after_update 对应的独立处理逻辑。
 brew_cask_after_update() {
   local cask_name="$1"
 
   case "$cask_name" in
+    flutter) jobs_update_flutter_release_verified_quarantine || true ;;
     github-store) jobs_update_github_store_after_update ;;
     *) return 0 ;;
   esac
@@ -971,6 +1039,7 @@ jobs_update_fvm_flutter() {
 
   if external_flutter="$(jobs_update_find_external_command flutter 2>/dev/null)"; then
     jobs_update_run_cmd "Flutter upgrade" "$external_flutter" upgrade || true
+    jobs_update_flutter_release_verified_quarantine || true
     jobs_update_run_flutter_doctor_and_android_licenses "Flutter" "$external_flutter" || true
   elif jobs_update_has fvm; then
     jobs_update_run_flutter_doctor_and_android_licenses "FVM Flutter" fvm flutter || true
@@ -1010,7 +1079,7 @@ jobs_update_npm_quicktype() {
   fi
 
   if npm list -g quicktype --depth=0 >/dev/null 2>&1; then
-    jobs_update_run_cmd "更新 npm 全局包 quicktype" sudo npm update -g quicktype || true
+    jobs_update_run_npm_global_cmd "更新 npm 全局包 quicktype" "quicktype" update -g quicktype || true
   else
     warn_echo "未检测到 npm 全局包 quicktype，跳过升级。请运行 install.command 补装。"
   fi
@@ -1027,7 +1096,7 @@ jobs_update_npm_opencli() {
   fi
 
   if npm list -g @jackwener/opencli --depth=0 >/dev/null 2>&1; then
-    jobs_update_run_cmd "更新 npm 全局包 OpenCLI" sudo npm install -g @jackwener/opencli@latest || true
+    jobs_update_run_npm_global_cmd "更新 npm 全局包 OpenCLI" "@jackwener/opencli" install -g @jackwener/opencli@latest || true
   else
     warn_echo "未检测到 npm 全局包 OpenCLI，跳过升级。请运行 install.command 补装。"
   fi
@@ -1085,13 +1154,20 @@ jobs_update_ruby_base() {
 }
 # 封装 jobs_update_gem_cocoapods 对应的独立处理逻辑。
 jobs_update_gem_cocoapods() {
+  local gem_home=""
+
   if ! jobs_update_has gem; then
     warn_echo "gem 不存在，无法更新 cocoapods。请先确认 Ruby 环境。"
     return 0
   fi
 
   if gem list -i cocoapods >/dev/null 2>&1; then
-    jobs_update_run_cmd "更新 gem 包 cocoapods" sudo gem update cocoapods || true
+    gem_home="$(gem env home 2>/dev/null || true)"
+    if [[ -n "$gem_home" && -w "$gem_home" ]]; then
+      jobs_update_run_cmd "更新 gem 包 cocoapods" gem update cocoapods || true
+    else
+      jobs_update_run_sudo_cmd "更新系统 gem 包 cocoapods" gem update cocoapods || true
+    fi
   else
     warn_echo "未检测到 gem 包 cocoapods，跳过升级。请运行 install.command 补装。"
   fi
@@ -1341,7 +1417,7 @@ main() {
   elif (( parse_exit_code != 0 )); then
     return $parse_exit_code
   fi
-  jobs_update_prepare_unattended_mode || return $? # 托管模式下预先获取并保活 sudo 凭证。
+  jobs_update_prepare_unattended_mode || return $? # 启用无人值守的非交互提权策略。
   show_script_intro_and_wait || return $? # 展示脚本内置自述，并按运行入口完成防误触确认。
   jobs_update_main "$@" || return $? # 执行 jobs_update_main 对应的核心业务步骤。
 }
